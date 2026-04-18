@@ -43,8 +43,8 @@ export interface IStorage {
   getOrCreateProfile(userId: string): Promise<UserProfile>;
   getProfile(id: string): Promise<UserProfile | undefined>;
   getProfileByUserId(userId: string): Promise<UserProfile | undefined>;
-  getAllProfiles(): Promise<UserProfile[]>;
-  updateProfile(id: string, data: Partial<UserProfile>): Promise<UserProfile>;
+  getProfileByUserIdWithEmail(userId: string): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } }) | undefined>;
+  getAllProfiles(): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } })[]>;
 
   getAllTours(): Promise<Tour[]>;
   getPublishedTours(): Promise<Tour[]>;
@@ -229,6 +229,15 @@ export class DatabaseStorage implements IStorage {
   async getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
     const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
     return profile;
+  }
+
+  async getProfileByUserIdWithEmail(userId: string): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } }) | undefined> {
+    const [row] = await db.select({
+      profile: userProfiles,
+      user: { email: users.email, firstName: users.firstName, lastName: users.lastName, username: users.username },
+    }).from(userProfiles).where(eq(userProfiles.userId, userId)).leftJoin(users, eq(userProfiles.userId, users.id));
+    if (!row) return undefined;
+    return { ...row.profile, user: row.user || undefined };
   }
 
   async getAllProfiles(): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } })[]> {

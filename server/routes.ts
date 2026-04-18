@@ -1,6 +1,15 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { 
+  sendNewBookingNotification, 
+  sendBookingConfirmedNotification, 
+  sendAssignmentNotification 
+} from "./lib/email";
+import { 
+  SERVICE_WORKFLOW_STEPS 
+} from "./lib/constants";
+import { generateCode } from "./lib/utils";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -17,48 +26,6 @@ import {
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
 } from "@shared/schema";
-
-const SERVICE_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {
-  airline: [
-    { code: "waiting_docs", name: "Waiting on Documents" },
-    { code: "quote_submitted", name: "Quote Submitted" },
-    { code: "quote_approved", name: "Quote Approved" },
-    { code: "ticketed", name: "Tickets Issued" },
-    { code: "completed", name: "Completed" },
-  ],
-  hotel: [
-    { code: "request_sent", name: "Request Sent" },
-    { code: "confirmation_received", name: "Confirmation Received" },
-    { code: "approved", name: "Approved" },
-    { code: "voucher_uploaded", name: "Voucher Uploaded" },
-    { code: "completed", name: "Completed" },
-  ],
-  transport: [
-    { code: "request_sent", name: "Route Plan Requested" },
-    { code: "proposed", name: "Vehicle Allocation Proposed" },
-    { code: "approved", name: "Approved" },
-    { code: "details_submitted", name: "Details Submitted" },
-    { code: "completed", name: "Completed" },
-  ],
-  guide: [
-    { code: "needed", name: "Guide Needed" },
-    { code: "proposed", name: "Guide Options Proposed" },
-    { code: "approved", name: "Approved" },
-    { code: "confirmed", name: "Guide Confirmed" },
-    { code: "completed", name: "Completed" },
-  ],
-  sights: [
-    { code: "reservation_required", name: "Reservation Required" },
-    { code: "slot_returned", name: "Slot Options Returned" },
-    { code: "approved", name: "Approved" },
-    { code: "tickets_uploaded", name: "Tickets Uploaded" },
-    { code: "completed", name: "Completed" },
-  ],
-};
-
-function generateCode(len: number = 6): string {
-  return randomBytes(3).toString("hex").toUpperCase().slice(0, len);
-}
 
 function getUserId(req: Request): string | undefined {
   return req.session?.userId;
@@ -316,6 +283,23 @@ export async function registerRoutes(
         ...req.body, customerId: userId, bookingCode, joinCode, leaderUserId,
         status: "submitted" as const, fulfillmentStatus: "pending" as const,
       });
+
+      // Notify Admins
+      try {
+        const allProfiles = await storage.getAllProfiles();
+        const admins = allProfiles.filter(p => p.role === "admin" && p.user?.email);
+        const customerProfile = await storage.getProfileByUserIdWithEmail(userId);
+        const customerName = customerProfile?.user?.firstName ? `${customerProfile.user.firstName} ${customerProfile.user.lastName || ""}` : (customerProfile?.user?.username || "Pelanggan");
+        
+        for (const admin of admins) {
+          if (admin.user?.email) {
+            await sendNewBookingNotification(admin.user.email, booking, customerName);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send admin notifications:", err);
+      }
+
       res.json(booking);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -645,7 +629,39 @@ export async function registerRoutes(
         await storage.updateWorkflow(wf.id, { currentStep: steps[0].name });
       }
 
-      res.json({ assignment, workflow: wf });
+      res.json({ success: true, message: "Booking confirmed and workflows initialized" });
+
+      // Run notifications in background (don't wait for res)
+      (async () => {
+        try {
+          const booking = await storage.getBooking(req.params.id);
+          if (!booking) return;
+          // Notify Customer
+          const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
+          if (customerProfile?.user?.email) {
+            await sendBookingConfirmedNotification(customerProfile.user.email, booking);
+          }
+
+          // Notify Assigned Staff
+          // We need latest workflows and assignments created in the route
+          const workflows = await storage.getWorkflows(req.params.id);
+          for (const wf of workflows) {
+            if (wf.assignedUserId) {
+              const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
+              if (staffProfile?.user?.email) {
+                await sendAssignmentNotification(
+                  staffProfile.user.email, 
+                  wf.serviceType, 
+                  booking.bookingCode, 
+                  wf.id
+                );
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Post-confirmation background notifications failed:", err);
+        }
+      })();
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

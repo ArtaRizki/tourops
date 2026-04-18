@@ -604,7 +604,8 @@ export default function CustomerBookingDetail() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                          {doc.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
+                        <Badge variant={doc.status === "rejected" ? "destructive" : "outline"}>
+                          {doc.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}     
                           {doc.status || "Uploaded"}
                         </Badge>
                         {doc.fileUrl && (
@@ -752,14 +753,24 @@ export default function CustomerBookingDetail() {
                       </p>
                       {pmt.notes && <p className="text-xs text-muted-foreground mt-1">{pmt.notes}</p>}
                     </div>
-                      {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
-                      {pmt.status || "Pending"}
-                    </Badge>
-                    {pmt.receiptUrl && (
-                      <Button size="sm" variant="ghost" onClick={() => window.open(pmt.receiptUrl!, "_blank")} title="View Receipt">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={pmt.status === "paid" ? "default" : "secondary"}>
+                        {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
+                        {pmt.status || "Pending"}
+                      </Badge>
+                      {pmt.receiptUrl && (
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => window.open(pmt.receiptUrl!, "_blank")} title="View Receipt">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" asChild title="Download Receipt">
+                            <a href={pmt.receiptUrl} download={`receipt-${pmt.id}`}>
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
