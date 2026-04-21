@@ -24,6 +24,8 @@ import { DocumentPreview } from "@/components/DocumentPreview";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES } from "@/lib/constants";
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment } from "@shared/schema";
 
+import * as XLSX from "xlsx";
+
 const SERVICE_ICONS: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,
 };
@@ -90,6 +92,54 @@ export default function CustomerBookingDetail() {
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const bulkUploadTravelers = useMutation({
+    mutationFn: (data: { bookingId: string; travelers: any[] }) =>
+      apiRequest("POST", `/api/bookings/${data.bookingId}/travelers/bulk`, { travelers: data.travelers }),
+    onSuccess: (data: any, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "participants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "travelers"] });
+      setAddTravelerForBookingId(null);
+      toast({ title: `Successfully imported ${variables.travelers.length} traveler(s)` });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, targetBookingId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const travelers = data.map((row: any) => ({
+          firstName: row['First Name'] || row.firstName || "",
+          lastName: row['Last Name'] || row.lastName || "",
+          passportNumber: row['Passport Number'] || row.passportNumber || "",
+          nationality: row['Nationality'] || row.nationality || "",
+          gender: row['Gender'] || row.gender || "male",
+          dateOfBirth: row['DOB'] || row['Date of Birth'] || row.dateOfBirth || null,
+        })).filter((t: any) => t.firstName && t.lastName);
+        
+        if (travelers.length === 0) {
+          toast({ title: "No valid travelers found in file. Check column names.", variant: "destructive"});
+          return;
+        }
+        
+        bulkUploadTravelers.mutate({ bookingId: targetBookingId, travelers });
+      } catch (err: any) {
+        toast({ title: "Failed to parse file", variant: "destructive" });
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = "";
+  };
 
   const addTravelerToParticipant = useMutation({
     mutationFn: (data: { bookingId: string; body: any }) =>
@@ -397,6 +447,24 @@ export default function CustomerBookingDetail() {
                             >
                               <Plus className="h-3 w-3 mr-1" />Add Passenger
                             </Button>
+                            <label className="cursor-pointer">
+                              <Input 
+                                type="file" 
+                                accept=".xlsx, .xls, .csv" 
+                                className="hidden" 
+                                onChange={(e) => handleFileUpload(e, p.id)} 
+                                disabled={bulkUploadTravelers.isPending}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="pointer-events-none"
+                                data-testid={`button-import-${p.id}`}
+                              >
+                                <Upload className="h-3 w-3 mr-1" />
+                                {bulkUploadTravelers.isPending && addTravelerForBookingId === p.id ? "Importing..." : "Bulk Import"}
+                              </Button>
+                            </label>
                             <Button
                               size="sm"
                               variant="outline"
@@ -438,7 +506,27 @@ export default function CustomerBookingDetail() {
             <Dialog open={!!addTravelerForBookingId} onOpenChange={(v) => !v && setAddTravelerForBookingId(null)}>
               <DialogContent>
                 <DialogHeader><DialogTitle>Add Passenger{addTravelerForBookingId === booking.id ? " to Your Booking" : " to Participant"}</DialogTitle></DialogHeader>
-                <div className="space-y-3">
+                <div className="bg-muted/30 border rounded p-3 mb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Have a large group?</p>
+                      <p className="text-xs text-muted-foreground">Upload a spreadsheet instead of typing manually.</p>
+                    </div>
+                    <label className="cursor-pointer">
+                      <Input 
+                        type="file" 
+                        accept=".xlsx, .xls, .csv" 
+                        className="hidden" 
+                        onChange={(e) => handleFileUpload(e, addTravelerForBookingId || booking.id)} 
+                      />
+                      <Button size="sm" variant="outline" className="pointer-events-none">
+                        <Upload className="h-3 w-3 mr-1" /> Excel Import
+                      </Button>
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">Required Columns: First Name, Last Name. Optional: Passport Number, Nationality, Gender, DOB</p>
+                </div>
+                <div className="space-y-3 border-t pt-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label>First Name *</Label><Input value={ptFirstName} onChange={(e) => setPtFirstName(e.target.value)} data-testid="input-pt-first-name" /></div>
                     <div><Label>Last Name *</Label><Input value={ptLastName} onChange={(e) => setPtLastName(e.target.value)} data-testid="input-pt-last-name" /></div>
@@ -823,13 +911,22 @@ export default function CustomerBookingDetail() {
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
-                                <Label>Receipt URL / Link</Label>
+                                <Label>Receipt Image URL</Label>
                                 <Input 
-                                  placeholder="https://..." 
+                                  placeholder="https://... (e.g. ending in .jpg, .png)" 
                                   value={receiptUrl} 
                                   onChange={(e) => setReceiptUrl(e.target.value)} 
                                 />
-                                <p className="text-[10px] text-muted-foreground">Upload your receipt to a cloud storage (Gdrive, etc) and paste the link here for now.</p>
+                                {receiptUrl && !receiptUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) && (
+                                  <p className="text-xs text-destructive flex items-center mt-1"><AlertTriangle className="h-3 w-3 mr-1" /> Warning: Link doesn't appear to be a direct image.</p>
+                                )}
+                                {receiptUrl && receiptUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) && (
+                                  <div className="mt-3 p-2 bg-muted/20 border rounded-md">
+                                    <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">IMAGE PREVIEW</p>
+                                    <img src={receiptUrl} alt="Receipt preview" className="mx-auto rounded max-h-32 object-contain" />
+                                  </div>
+                                )}
+                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">Please paste a direct image link of your transfer proof.</p>
                               </div>
                               <div className="space-y-2">
                                 <Label>Notes (Optional)</Label>

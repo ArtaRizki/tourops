@@ -51,6 +51,9 @@ async function canAccessBooking(userId: string, bookingId: string) {
 }
 
 async function initializeBookingWorkflows(bookingId: string) {
+  const existingWfs = await storage.getWorkflows(bookingId);
+  if (existingWfs && existingWfs.length > 0) return; // Prevent duplicate generation
+
   const services: ("airline" | "hotel" | "transport" | "guide" | "sights")[] = ["airline", "hotel", "transport"];
   
   for (const service of services) {
@@ -341,9 +344,35 @@ export async function registerRoutes(
       const oldBooking = await storage.getBooking(req.params.id);
       const updated = await storage.updateBooking(req.params.id, req.body);
       
-      // Auto-initialize workflows if status changed to confirmed
+      // Auto-initialize workflows and manage capacity if status changed to confirmed
       if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
         await initializeBookingWorkflows(req.params.id);
+        
+        // Auto capacity management (deduct seats)
+        if (oldBooking && oldBooking.departureId) {
+          const departure = await storage.getDeparture(oldBooking.departureId);
+          if (departure && departure.availableSeats !== null) {
+            const newSeats = Math.max(0, departure.availableSeats - oldBooking.partySizeExpected);
+            const newStatus = newSeats === 0 ? "sold_out" : departure.status;
+            await storage.updateDeparture(departure.id, {
+              availableSeats: newSeats,
+              status: newStatus
+            });
+          }
+        }
+      } else if ((req.body.status === "cancelled" || req.body.status === "rejected") && oldBooking?.status === "confirmed") {
+        // Restore capacity if confirmed booking is cancelled/rejected
+        if (oldBooking && oldBooking.departureId) {
+          const departure = await storage.getDeparture(oldBooking.departureId);
+          if (departure && departure.availableSeats !== null) {
+            const newSeats = departure.availableSeats + oldBooking.partySizeExpected;
+            const newStatus = departure.status === "sold_out" ? "open" : departure.status;
+            await storage.updateDeparture(departure.id, {
+              availableSeats: newSeats,
+              status: newStatus
+            });
+          }
+        }
       }
       
       res.json(updated);
@@ -600,6 +629,36 @@ export async function registerRoutes(
       const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTraveler(parsed.data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/bookings/:id/travelers/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+      const profile = await storage.getOrCreateProfile(userId);
+      const isOwner = booking.customerId === userId;
+      const isAdmin = profile.role === "admin";
+      const isLeaderOfGroup = booking.leaderUserId === userId;
+      if (!isOwner && !isAdmin && !isLeaderOfGroup) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const travelers = req.body.travelers;
+      if (!Array.isArray(travelers)) {
+        return res.status(400).json({ message: "Expected an array of travelers" });
+      }
+
+      const results = [];
+      for (const tData of travelers) {
+        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id });
+        if (parsed.success) {
+          results.push(await storage.createTraveler(parsed.data));
+        }
+      }
+      res.json({ success: true, inserted: results.length });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
