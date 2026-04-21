@@ -16,6 +16,7 @@ import {
   ArrowLeft, Users, FileText, Workflow, MessageSquare, Plus, Send,
   CheckCircle, Clock, Link2, CreditCard, Upload, Copy, AlertTriangle,
   Plane, Hotel, Bus, UserCheck, Ticket, Eye, XCircle, ExternalLink, Download,
+  Printer, Globe
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";

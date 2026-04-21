@@ -17,7 +17,7 @@ import {
   ClipboardList, ArrowLeft, CheckCircle, Clock, AlertTriangle,
   Send, Plane, Hotel, Bus, UserCheck, Ticket, Plus, Pencil,
   Trash2, Eye, ShieldCheck, ShieldX, Info, DollarSign,
-  ExternalLink, Download
+  ExternalLink, Download, Printer, Globe
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
@@ -247,15 +247,20 @@ export default function AdminBookingDetail() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 no-print">
         <Link href="/admin/bookings">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold font-serif" data-testid="text-booking-code">{booking.bookingCode}</h1>
+            <Badge variant="outline" data-testid="badge-booking-type">{BOOKING_TYPES[booking.bookingType]}</Badge>
+          </div>
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
-        <div className="flex gap-2 no-print">
+        <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
             <Printer className="h-4 w-4 mr-2" />
             Print Summary
@@ -279,20 +284,19 @@ export default function AdminBookingDetail() {
           </div>
         </div>
       </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
-            <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={booking.fulfillmentStatus || "pending"} onValueChange={(v) => updateBooking.mutate({ fulfillmentStatus: v })}>
-            <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
+          <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={booking.fulfillmentStatus || "pending"} onValueChange={(v) => updateBooking.mutate({ fulfillmentStatus: v })}>
+          <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

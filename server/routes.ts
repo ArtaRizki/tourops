@@ -448,6 +448,12 @@ export async function registerRoutes(
   });
 
   // ---- Customer Payments ----
+  app.get("/api/my-bookings/:id/payments", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await canAccessBooking(userId, req.params.id);
+      if (!booking) return res.status(403).json({ message: "Forbidden" });
       res.json(await storage.getPayments(req.params.id));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
