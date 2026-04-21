@@ -4,7 +4,9 @@ import { storage } from "./storage";
 import { 
   sendNewBookingNotification, 
   sendBookingConfirmedNotification, 
-  sendAssignmentNotification 
+  sendAssignmentNotification,
+  sendDocumentStatusNotification,
+  sendPaymentStatusNotification
 } from "./lib/email";
 import { 
   SERVICE_WORKFLOW_STEPS 
@@ -25,6 +27,7 @@ import {
   insertBusTypeSchema, insertTransportRouteSchema, insertTransportRoutePricingSchema,
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
+  insertBookingWorkflowSchema, insertWorkflowStepSchema,
 } from "@shared/schema";
 
 function getUserId(req: Request): string | undefined {
@@ -45,6 +48,34 @@ async function canAccessBooking(userId: string, bookingId: string) {
   if (booking.customerId === userId) return booking;
   if (booking.leaderUserId === userId) return booking;
   return null;
+}
+
+async function initializeBookingWorkflows(bookingId: string) {
+  const services: ("airline" | "hotel" | "transport" | "guide" | "sights")[] = ["airline", "hotel", "transport"];
+  
+  for (const service of services) {
+    const wf = await storage.createWorkflow({
+      bookingId,
+      serviceType: service,
+      status: "not_assigned",
+    });
+
+    const steps = [
+      { code: "REQ", name: `Request ${service.toUpperCase()} Choice` },
+      { code: "CONF", name: "Booking Confirmed with Supplier" },
+      { code: "DOC", name: "Issuing Document/Voucher" },
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      await storage.createWorkflowStep({
+        workflowId: wf.id,
+        stepOrder: i + 1,
+        stepCode: steps[i].code,
+        stepName: steps[i].name,
+        status: "pending",
+      });
+    }
+  }
 }
 
 async function requireRole(req: Request, res: Response, roles: string[]): Promise<boolean> {
@@ -307,7 +338,15 @@ export async function registerRoutes(
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateBooking(req.params.id, req.body));
+      const oldBooking = await storage.getBooking(req.params.id);
+      const updated = await storage.updateBooking(req.params.id, req.body);
+      
+      // Auto-initialize workflows if status changed to confirmed
+      if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
+        await initializeBookingWorkflows(req.params.id);
+      }
+      
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -409,13 +448,27 @@ export async function registerRoutes(
   });
 
   // ---- Customer Payments ----
-  app.get("/api/my-bookings/:id/payments", isAuthenticated, async (req, res) => {
+      res.json(await storage.getPayments(req.params.id));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/my-bookings/:id/payments/:paymentId", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const booking = await canAccessBooking(userId, req.params.id);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
-      res.json(await storage.getPayments(req.params.id));
+      
+      const payments = await storage.getPayments(req.params.id);
+      const targetPayment = payments.find(p => p.id === req.params.paymentId);
+      if (!targetPayment) return res.status(404).json({ message: "Payment not found" });
+
+      const updated = await storage.updatePayment(req.params.paymentId, {
+        receiptUrl: req.body.receiptUrl,
+        notes: req.body.notes,
+      });
+
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -759,7 +812,28 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const userId = getUserId(req);
-      res.json(await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId }));
+      const updated = await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId });
+      
+      // Notify customer about document status update
+      try {
+        const booking = await storage.getBooking(updated.bookingId);
+        if (booking) {
+          const customer = await authStorage.getUser(booking.customerId);
+          if (customer?.email) {
+            await sendDocumentStatusNotification(
+              customer.email,
+              booking.bookingCode,
+              updated.docType,
+              updated.status || "updated",
+              updated.reviewNotes || undefined
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send document status notification:", err);
+      }
+
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -821,7 +895,29 @@ export async function registerRoutes(
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updatePayment(req.params.id, req.body));
+      const updated = await storage.updatePayment(req.params.id, req.body);
+      
+      // Notify customer if payment is confirmed as paid
+      if (req.body.status === "paid") {
+        try {
+          const booking = await storage.getBooking(updated.bookingId);
+          if (booking) {
+            const customer = await authStorage.getUser(booking.customerId);
+            if (customer?.email) {
+              await sendPaymentStatusNotification(
+                customer.email,
+                booking.bookingCode,
+                updated.amount.toString(),
+                updated.currency || "USD"
+              );
+            }
+          }
+        } catch (err) {
+          console.error("Failed to send payment status notification:", err);
+        }
+      }
+
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1622,6 +1718,44 @@ export async function registerRoutes(
   } catch (e) {
     console.error("Error seeding admin:", e);
   }
+
+  // ---- Notification Counts ----
+  app.get("/api/notifications/counts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getProfileByUserId(userId);
+      const role = profile?.role;
+
+      if (role === "admin") {
+        const allDocs = await storage.getAllDocuments();
+        const allPayments = await storage.getAllPayments();
+        const allWorkflows = await storage.getAllWorkflows();
+
+        res.json({
+          documents: allDocs.filter(d => d.status === "uploaded").length,
+          payments: allPayments.filter(p => p.status === "pending").length,
+          workflows: allWorkflows.filter(w => w.status === "blocked").length,
+        });
+      } else {
+        const myBookings = await storage.getBookingsByCustomer(userId);
+        let docsCount = 0;
+        let paymentsCount = 0;
+        
+        for (const b of myBookings) {
+          const docs = await storage.getDocuments(b.id);
+          docsCount += docs.filter(d => d.status === "rejected").length;
+          const pays = await storage.getPayments(b.id);
+          paymentsCount += pays.filter(p => p.status === "pending").length;
+        }
+
+        res.json({
+          documents: docsCount,
+          payments: paymentsCount,
+        });
+      }
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
 
   return httpServer;
 }

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
+import { DocumentPreview } from "@/components/DocumentPreview";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES } from "@/lib/constants";
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment } from "@shared/schema";
 
@@ -73,6 +74,9 @@ export default function CustomerBookingDetail() {
   const [ptPassportNumber, setPtPassportNumber] = useState("");
   const [ptPassportExpiry, setPtPassportExpiry] = useState("");
   const [ptGender, setPtGender] = useState("");
+  const [activePayment, setActivePayment] = useState<Payment | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
 
   const addTraveler = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/travelers`, data),
@@ -130,6 +134,20 @@ export default function CustomerBookingDetail() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const uploadReceipt = useMutation({
+    mutationFn: async ({ paymentId, data }: { paymentId: string, data: any }) => {
+      const res = await apiRequest("PATCH", `/api/my-bookings/${bookingId}/payments/${paymentId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+      toast({ title: "Receipt uploaded", description: "Your payment proof has been submitted for review." });
+      setActivePayment(null);
+      setReceiptUrl("");
+      setPaymentNotes("");
+    }
+  });
+
   const copyJoinCode = () => {
     if (booking?.joinCode) {
       navigator.clipboard.writeText(booking.joinCode);
@@ -145,9 +163,34 @@ export default function CustomerBookingDetail() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <Link href="/my-bookings">
-        <Button variant="ghost" size="sm" data-testid="button-back-bookings"><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
-      </Link>
+      {/* Printable Header */}
+      <div className="hidden print:block border-b-2 border-[#116bb0] pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Globe className="h-10 w-10 text-[#116bb0]" />
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#116bb0]">Booking Confirmation</h1>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-sans">Official Customer Copy</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-2xl">{booking.bookingCode}</p>
+            <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between no-print">
+        <Link href="/my-bookings">
+          <Button variant="ghost" size="sm" data-testid="button-back-bookings">
+            <ArrowLeft className="h-4 w-4 mr-1" />Back
+          </Button>
+        </Link>
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8">
+          <Printer className="h-4 w-4 mr-2" />
+          Print / Save PDF
+        </Button>
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -610,9 +653,7 @@ export default function CustomerBookingDetail() {
                         </Badge>
                         {doc.fileUrl && (
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => window.open(doc.fileUrl!, "_blank")} title="View Document">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
+                            <DocumentPreview fileUrl={doc.fileUrl} fileName={doc.fileName} />
                             <Button size="sm" variant="ghost" asChild title="Download Document">
                               <a href={doc.fileUrl} download={doc.fileName}>
                                 <Download className="h-3.5 w-3.5" />
@@ -655,9 +696,7 @@ export default function CustomerBookingDetail() {
                       </Badge>
                       {doc.fileUrl && (
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" className="text-white" onClick={() => window.open(doc.fileUrl!, "_blank")} title="View Document">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Button>
+                          <DocumentPreview fileUrl={doc.fileUrl} fileName={doc.fileName} />
                           <Button size="sm" variant="ghost" className="text-white" asChild title="Download Document">
                             <a href={doc.fileUrl} download={doc.fileName}>
                               <Download className="h-3.5 w-3.5" />
@@ -758,7 +797,7 @@ export default function CustomerBookingDetail() {
                         {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
                         {pmt.status || "Pending"}
                       </Badge>
-                      {pmt.receiptUrl && (
+                      {pmt.receiptUrl ? (
                         <div className="flex items-center gap-1">
                           <Button size="sm" variant="ghost" onClick={() => window.open(pmt.receiptUrl!, "_blank")} title="View Receipt">
                             <ExternalLink className="h-3.5 w-3.5" />
@@ -769,6 +808,51 @@ export default function CustomerBookingDetail() {
                             </a>
                           </Button>
                         </div>
+                      ) : pmt.status === "pending" && (
+                        <Dialog open={activePayment?.id === pmt.id} onOpenChange={(open) => !open && setActivePayment(null)}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => setActivePayment(pmt)}>
+                              <Upload className="h-3.5 w-3.5 mr-1" />
+                              Upload Proof
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Upload Payment Proof</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Receipt URL / Link</Label>
+                                <Input 
+                                  placeholder="https://..." 
+                                  value={receiptUrl} 
+                                  onChange={(e) => setReceiptUrl(e.target.value)} 
+                                />
+                                <p className="text-[10px] text-muted-foreground">Upload your receipt to a cloud storage (Gdrive, etc) and paste the link here for now.</p>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Notes (Optional)</Label>
+                                <Textarea 
+                                  placeholder="Any additional info..." 
+                                  value={paymentNotes} 
+                                  onChange={(e) => setPaymentNotes(e.target.value)} 
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setActivePayment(null)}>Cancel</Button>
+                              <Button 
+                                onClick={() => uploadReceipt.mutate({ 
+                                  paymentId: pmt.id, 
+                                  data: { receiptUrl, notes: paymentNotes } 
+                                })}
+                                disabled={!receiptUrl || uploadReceipt.isPending}
+                              >
+                                {uploadReceipt.isPending ? "Submitting..." : "Submit Proof"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       )}
                     </div>
                   </CardContent>

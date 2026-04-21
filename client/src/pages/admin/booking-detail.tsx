@@ -23,6 +23,7 @@ import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
 import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile } from "@shared/schema";
 import { useState } from "react";
+import { DocumentPreview } from "@/components/DocumentPreview";
 
 const serviceIcons: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,
@@ -252,13 +253,32 @@ export default function AdminBookingDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold font-serif" data-testid="text-booking-code">{booking.bookingCode}</h1>
-            <Badge variant="outline" data-testid="badge-booking-type">{BOOKING_TYPES[booking.bookingType]}</Badge>
-          </div>
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
+        <div className="flex gap-2 no-print">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
+            <Printer className="h-4 w-4 mr-2" />
+            Print Summary
+          </Button>
+        </div>
+      </div>
+
+      {/* Printable Header */}
+      <div className="hidden print:block border-b-2 border-[#116bb0] pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Globe className="h-10 w-10 text-[#116bb0]" />
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#116bb0]">TourOps Booking Summary</h1>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-sans">Official Operational Document</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-2xl">{booking.bookingCode}</p>
+            <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
             <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
