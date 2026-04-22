@@ -987,15 +987,117 @@ export async function registerRoutes(
   });
 
   // ---- Supplier/Ops ----
+  const SUPPLIER_ROLES = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+
   app.get("/api/supplier/workflows", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
-      if (profile.role !== "airline_supplier" && profile.role !== "admin") {
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getWorkflowsByUser(userId));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/supplier/bookings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+      // Verify supplier is assigned to at least one workflow for this booking
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") {
+        return res.status(403).json({ message: "Access denied to this booking" });
+      }
+
+      const travelers = await storage.getTravelers(req.params.id);
+      const allDocuments = await storage.getDocuments(req.params.id);
+      // Filter documents: supplier sees their own uploads or all if admin
+      const documents = profile.role === "admin" 
+        ? allDocuments 
+        : allDocuments.filter(d => d.uploadedBy === userId);
+      
+      res.json({ ...booking, travelers, documents });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
+
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+
+      const allMessages = await storage.getMessages(req.params.id);
+      res.json(allMessages.filter(m => m.visibility === "internal_only" || m.senderUserId === userId));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
+
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+
+      const { messageText } = req.body;
+      const message = await storage.createMessage({
+        bookingId: req.params.id,
+        senderUserId: userId,
+        senderName: await getUserName(req),
+        messageText,
+        visibility: "internal_only",
+      });
+      res.json(message);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/supplier/workflows/:id/documents", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const wf = await storage.getWorkflow(req.params.id);
+      if (!wf) return res.status(404).json({ message: "Workflow not found" });
+      if (wf.assignedUserId !== userId && profile.role !== "admin") {
+        return res.status(403).json({ message: "Not assigned to this workflow" });
+      }
+
+      const { fileName, fileUrl, docType } = req.body;
+      const document = await storage.createDocument({
+        bookingId: wf.bookingId || "",
+        travelerId: null,
+        workflowStepId: null,
+        docType: docType || "other",
+        fileName,
+        fileUrl,
+        uploadedBy: userId,
+        status: "uploaded"
+      });
+
+      res.json(document);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
