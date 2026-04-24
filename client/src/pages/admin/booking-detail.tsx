@@ -136,7 +136,7 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
       toast({ title: "Assignment created" });
     },
-  });
+  }); 
 
   const deleteAssignment = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/assignments/${id}`),
