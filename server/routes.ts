@@ -12,6 +12,7 @@ import {
   SERVICE_WORKFLOW_STEPS 
 } from "./lib/constants";
 import { generateCode } from "./lib/utils";
+import { getQueueStats } from "./lib/emailQueue";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -327,7 +328,8 @@ export async function registerRoutes(
         
         for (const admin of admins) {
           if (admin.user?.email) {
-            await sendNewBookingNotification(admin.user.email, booking, customerName);
+            // Non-blocking: queue sends in background
+            sendNewBookingNotification(admin.user.email, booking, customerName);
           }
         }
       } catch (err) {
@@ -749,37 +751,33 @@ export async function registerRoutes(
 
       res.json({ success: true, message: "Booking confirmed and workflows initialized" });
 
-      // Run notifications in background (don't wait for res)
-      (async () => {
-        try {
-          const booking = await storage.getBooking(req.params.id);
-          if (!booking) return;
-          // Notify Customer
-          const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
-          if (customerProfile?.user?.email) {
-            await sendBookingConfirmedNotification(customerProfile.user.email, booking);
-          }
+      // Notify Customer & Staff in background via email queue (non-blocking)
+      try {
+        const booking = await storage.getBooking(req.params.id);
+        if (!booking) return;
 
-          // Notify Assigned Staff
-          // We need latest workflows and assignments created in the route
-          const workflows = await storage.getWorkflows(req.params.id);
-          for (const wf of workflows) {
-            if (wf.assignedUserId) {
-              const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
-              if (staffProfile?.user?.email) {
-                await sendAssignmentNotification(
-                  staffProfile.user.email, 
-                  wf.serviceType, 
-                  booking.bookingCode, 
-                  wf.id
-                );
-              }
+        const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
+        if (customerProfile?.user?.email) {
+          sendBookingConfirmedNotification(customerProfile.user.email, booking);
+        }
+
+        const workflows = await storage.getWorkflows(req.params.id);
+        for (const wf of workflows) {
+          if (wf.assignedUserId) {
+            const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
+            if (staffProfile?.user?.email) {
+              sendAssignmentNotification(
+                staffProfile.user.email,
+                wf.serviceType,
+                booking.bookingCode,
+                wf.id
+              );
             }
           }
-        } catch (err) {
-          console.error("Post-confirmation background notifications failed:", err);
         }
-      })();
+      } catch (err) {
+        console.error("Post-confirmation notifications failed:", err);
+      }
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -879,13 +877,13 @@ export async function registerRoutes(
       const userId = getUserId(req);
       const updated = await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId });
       
-      // Notify customer about document status update
+      // Notify customer about document status update (non-blocking)
       try {
         const booking = await storage.getBooking(updated.bookingId);
         if (booking) {
           const customer = await authStorage.getUser(booking.customerId);
           if (customer?.email) {
-            await sendDocumentStatusNotification(
+            sendDocumentStatusNotification(
               customer.email,
               booking.bookingCode,
               updated.docType,
@@ -895,7 +893,7 @@ export async function registerRoutes(
           }
         }
       } catch (err) {
-        console.error("Failed to send document status notification:", err);
+        console.error("Failed to enqueue document status notification:", err);
       }
 
       res.json(updated);
@@ -962,14 +960,14 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const updated = await storage.updatePayment(req.params.id, req.body);
       
-      // Notify customer if payment is confirmed as paid
+      // Notify customer if payment is confirmed as paid (non-blocking)
       if (req.body.status === "paid") {
         try {
           const booking = await storage.getBooking(updated.bookingId);
           if (booking) {
             const customer = await authStorage.getUser(booking.customerId);
             if (customer?.email) {
-              await sendPaymentStatusNotification(
+              sendPaymentStatusNotification(
                 customer.email,
                 booking.bookingCode,
                 updated.amount.toString(),
@@ -978,7 +976,7 @@ export async function registerRoutes(
             }
           }
         } catch (err) {
-          console.error("Failed to send payment status notification:", err);
+          console.error("Failed to enqueue payment status notification:", err);
         }
       }
 
@@ -1921,6 +1919,14 @@ export async function registerRoutes(
           payments: paymentsCount,
         });
       }
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Admin: Email Queue Diagnostics ----
+  app.get("/api/admin/email-queue", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(getQueueStats());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
