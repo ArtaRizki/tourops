@@ -8,6 +8,7 @@ import {
   countries, cities, airports, sights, transportCompanies, airlineAgencies,
   busTypes, transportRoutes, transportRoutePricing,
   transportBookings, transportInvoices, transportPayments,
+  auditLogs,
   type UserProfile, type InsertUserProfile,
   type Tour, type InsertTour,
   type TourDay, type InsertTourDay,
@@ -37,6 +38,7 @@ import {
   type TransportRate, type InsertTransportRate,
   type GuideRate, type InsertGuideRate,
   type SightsRate, type InsertSightsRate,
+  type AuditLog, type InsertAuditLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -208,6 +210,9 @@ export interface IStorage {
   bulkCreateSightsRates(data: InsertSightsRate[]): Promise<SightsRate[]>;
   updateSightsRate(id: string, data: Partial<SightsRate>): Promise<SightsRate>;
   deleteSightsRate(id: string): Promise<void>;
+
+  getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]>;
+  createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -854,6 +859,17 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteSightsRate(id: string): Promise<void> {
     await db.delete(sightsRates).where(eq(sightsRates.id, id));
+  }
+
+  // Audit Logs
+  async getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]> {
+    return db.select().from(auditLogs)
+      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
+      .orderBy(desc(auditLogs.createdAt));
+  }
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
   }
 }
 

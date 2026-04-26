@@ -17,6 +17,33 @@ import { Link } from "wouter";
 import { useState } from "react";
 import type { Tour, TourDeparture, TourDay } from "@shared/schema";
 
+function PublicGroupsList({ departureId }: { departureId: string }) {
+  const { data: groups, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/departures", departureId, "public-groups"],
+  });
+
+  if (isLoading) return <Skeleton className="h-10 w-full mt-2" />;
+  if (!groups || groups.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2 border-t pt-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Join an existing group:</p>
+      {groups.map((group) => (
+        <div key={group.id} className="flex items-center justify-between p-2 bg-primary/5 rounded-md border border-primary/10">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{group.groupName}</span>
+            <Badge variant="outline" className="text-[10px] h-4">{group.partySizeExpected} pax</Badge>
+          </div>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+            <Link href={`/my-bookings?joinCode=${group.joinCode}`}>Join Group</Link>
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TourDetail() {
   const [, params] = useRoute("/tours/:id");
   const [, navigate] = useLocation();
@@ -138,62 +165,65 @@ export default function TourDetail() {
           <div className="space-y-2">
             {openDepartures.map((dep) => (
               <Card key={dep.id} data-testid={`card-departure-${dep.id}`}>
-                <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div>
-                      <p className="font-medium">{dep.startDate} - {dep.endDate}</p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{(dep.capacityTotal || 0) - (dep.capacityBooked || 0)} spots left</span>
-                        {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{dep.pricePerPerson}/person</span>}
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div>
+                        <p className="font-medium">{dep.startDate} - {dep.endDate}</p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{(dep.capacityTotal || 0) - (dep.capacityBooked || 0)} spots left</span>
+                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{dep.pricePerPerson}/person</span>}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {isAuthenticated ? (
-                    <Dialog open={showBooking && departureId === dep.id} onOpenChange={(open) => { setShowBooking(open); if (open) setDepartureId(dep.id); }}>
-                      <DialogTrigger asChild>
-                        <Button data-testid={`button-book-${dep.id}`}>Book Now</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Book This Tour</DialogTitle></DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Booking Type</Label>
-                            <Select value={bookingType} onValueChange={setBookingType}>
-                              <SelectTrigger data-testid="select-booking-type"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="join_public_group">Join Public Group</SelectItem>
-                                <SelectItem value="leader_group">Create Leader Group</SelectItem>
-                                <SelectItem value="private_family">Private Family</SelectItem>
-                              </SelectContent>
-                            </Select>
+                    {isAuthenticated ? (
+                      <Dialog open={showBooking && departureId === dep.id} onOpenChange={(open) => { setShowBooking(open); if (open) setDepartureId(dep.id); }}>
+                        <DialogTrigger asChild>
+                          <Button data-testid={`button-book-${dep.id}`}>Book Now</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Book This Tour</DialogTitle></DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Booking Type</Label>
+                              <Select value={bookingType} onValueChange={setBookingType}>
+                                <SelectTrigger data-testid="select-booking-type"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="join_public_group">Join Public Group</SelectItem>
+                                  <SelectItem value="leader_group">Create Leader Group</SelectItem>
+                                  <SelectItem value="private_family">Private Family</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {bookingType === "leader_group" && (
+                              <div><Label>Group Name</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="My Travel Group" data-testid="input-group-name" /></div>
+                            )}
+                            <div><Label>Party Size</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
+                            <div><Label>Notes (optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requests..." /></div>
+                            <Button
+                              className="w-full"
+                              onClick={() => bookMutation.mutate({
+                                tourId: tour.id,
+                                departureId: dep.id,
+                                bookingType,
+                                groupName: bookingType === "leader_group" ? groupName : undefined,
+                                partySizeExpected: partySize,
+                                notes,
+                                totalPrice: (dep.pricePerPerson || tour.basePrice || 0) * partySize,
+                              })}
+                              disabled={bookMutation.isPending}
+                              data-testid="button-confirm-booking"
+                            >
+                              {bookMutation.isPending ? "Booking..." : "Confirm Booking"}
+                            </Button>
                           </div>
-                          {bookingType === "leader_group" && (
-                            <div><Label>Group Name</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="My Travel Group" data-testid="input-group-name" /></div>
-                          )}
-                          <div><Label>Party Size</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
-                          <div><Label>Notes (optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requests..." /></div>
-                          <Button
-                            className="w-full"
-                            onClick={() => bookMutation.mutate({
-                              tourId: tour.id,
-                              departureId: dep.id,
-                              bookingType,
-                              groupName: bookingType === "leader_group" ? groupName : undefined,
-                              partySizeExpected: partySize,
-                              notes,
-                              totalPrice: (dep.pricePerPerson || tour.basePrice || 0) * partySize,
-                            })}
-                            disabled={bookMutation.isPending}
-                            data-testid="button-confirm-booking"
-                          >
-                            {bookMutation.isPending ? "Booking..." : "Confirm Booking"}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  ) : (
-                    <a href="/#login"><Button data-testid="button-sign-in-to-book">Sign In to Book</Button></a>
-                  )}
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <a href="/#login"><Button data-testid="button-sign-in-to-book">Sign In to Book</Button></a>
+                    )}
+                  </div>
+                  <PublicGroupsList departureId={dep.id} />
                 </CardContent>
               </Card>
             ))}

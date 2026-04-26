@@ -25,6 +25,8 @@ import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, W
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment } from "@shared/schema";
 
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const SERVICE_ICONS: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,
@@ -199,11 +201,97 @@ export default function CustomerBookingDetail() {
     }
   });
 
+  const cancelBooking = useMutation({
+    mutationFn: (reason: string) => apiRequest("POST", `/api/my-bookings/${bookingId}/cancel`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
+      toast({ title: "Booking cancelled successfully" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
   const copyJoinCode = () => {
     if (booking?.joinCode) {
       navigator.clipboard.writeText(booking.joinCode);
       toast({ title: "Join code copied!" });
     }
+  };
+  
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(17, 107, 176); // Brand blue
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOUROPS", 15, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("OFFICIAL INVOICE & CONFIRMATION", 15, 28);
+    
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Booking Ref: ${booking.bookingCode}`, 195, 20, { align: 'right' });
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 195, 28, { align: 'right' });
+    
+    // Booking Details
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.text("Booking Summary", 15, 55);
+    
+    autoTable(doc, {
+      startY: 60,
+      head: [['Field', 'Details']],
+      body: [
+        ['Booking Code', booking.bookingCode],
+        ['Tour ID', booking.tourId || "N/A"],
+        ['Departure ID', booking.departureId || "N/A"],
+        ['Status', booking.status?.toUpperCase() || "SUBMITTED"],
+        ['Party Size', booking.partySizeExpected?.toString() || "1"],
+        ['Total Price', `${booking.totalPrice?.toLocaleString() || "0"} ${booking.currency || "USD"}`],
+      ],
+      theme: 'striped',
+      headStyles: { fillStyle: 'transparent', textColor: [100, 100, 100], fontSize: 10 },
+      styles: { fontSize: 10 }
+    });
+    
+    // Travelers
+    if (travelers && travelers.length > 0) {
+      doc.setFontSize(14);
+      doc.text("Travelers", 15, (doc as any).lastAutoTable.finalY + 15);
+      
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['#', 'First Name', 'Last Name', 'Nationality', 'Passport']],
+        body: travelers.map((t, i) => [
+          (i + 1).toString(),
+          t.firstName,
+          t.lastName,
+          t.nationality || "-",
+          t.passportNumber || "-"
+        ]),
+        headStyles: { fillColor: [17, 107, 176] }
+      });
+    }
+    
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Thank you for choosing TourOps. This is a computer generated document.", 105, 285, { align: 'center' });
+    }
+    
+    doc.save(`Invoice_${booking.bookingCode}.pdf`);
+    toast({ title: "PDF Generated", description: "Your invoice has been downloaded." });
   };
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-64" /></div>;
@@ -237,7 +325,7 @@ export default function CustomerBookingDetail() {
             <ArrowLeft className="h-4 w-4 mr-1" />Back
           </Button>
         </Link>
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8">
+        <Button variant="outline" size="sm" onClick={generatePDF} className="h-8">
           <Printer className="h-4 w-4 mr-2" />
           Print / Save PDF
         </Button>
@@ -252,9 +340,44 @@ export default function CustomerBookingDetail() {
           {booking.groupName && <p className="text-muted-foreground">{booking.groupName}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={booking.status === "confirmed" ? "default" : "secondary"}>
+          <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
             {BOOKING_STATUSES[booking.status || "submitted"]}
           </Badge>
+          {booking.status !== "cancelled" && booking.status !== "completed" && (
+            <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <XCircle className="h-3 w-3 mr-1" />Cancel Booking
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cancel Your Booking</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Are you sure you want to cancel this booking? This action cannot be undone.
+                  </p>
+                  <div className="space-y-2">
+                    <Label>Reason for cancellation (optional)</Label>
+                    <Textarea 
+                      placeholder="Please tell us why you are cancelling..."
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={() => cancelBooking.mutate(cancelReason)}
+                    disabled={cancelBooking.isPending}
+                  >
+                    {cancelBooking.isPending ? "Cancelling..." : "Confirm Cancellation"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
           <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : "outline"}>
             {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
           </Badge>

@@ -113,6 +113,7 @@ function AuthenticatedLayout() {
               <Route path="/ops/tasks" component={OpsDashboard} />
               <Route path="/ops/fulfillment" component={OpsDashboard} />
               <Route path="/ops/messages" component={OpsDashboard} />
+              <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
 
               <Route path="/admin/login">
                 {() => <Redirect to="/admin" />}

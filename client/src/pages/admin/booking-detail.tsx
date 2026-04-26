@@ -92,6 +92,10 @@ export default function AdminBookingDetail() {
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/bookings", bookingId, "messages"] });
   const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/bookings", bookingId, "payments"] });
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
+  const { data: auditLogs } = useQuery<any[]>({ 
+    queryKey: ["/api/audit-logs", "booking", bookingId],
+    enabled: !!bookingId 
+  });
 
   const updateBooking = useMutation({
     mutationFn: (data: Record<string, any>) => apiRequest("PATCH", `/api/bookings/${bookingId}`, data),
@@ -339,6 +343,7 @@ export default function AdminBookingDetail() {
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />Documents</TabsTrigger>
           <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />Messages</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />Payments</TabsTrigger>
+          <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
         </TabsList>
 
         {/* TAB A: Summary */}
@@ -1098,6 +1103,49 @@ export default function AdminBookingDetail() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+        <TabsContent value="history" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {auditLogs && auditLogs.length > 0 ? (
+                <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="relative">
+                      <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-sm font-semibold">{log.action?.replace(/_/g, " ").toUpperCase()}</p>
+                          <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Changed by: <span className="font-medium text-foreground">{log.changedByName || "System"}</span>
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-4 p-2 bg-muted/30 rounded border text-[11px]">
+                          <div>
+                            <p className="text-muted-foreground uppercase font-bold text-[9px]">Previous</p>
+                            <p>{log.previousValue || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground uppercase font-bold text-[9px]">New Value</p>
+                            <p className="text-primary font-medium">{log.newValue || "-"}</p>
+                          </div>
+                        </div>
+                        {log.note && <p className="text-xs italic text-muted-foreground mt-1">"{log.note}"</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-12 text-center">
+                  <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">No audit logs found for this booking</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

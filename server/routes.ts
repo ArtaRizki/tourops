@@ -346,6 +346,21 @@ export async function registerRoutes(
       const oldBooking = await storage.getBooking(req.params.id);
       const updated = await storage.updateBooking(req.params.id, req.body);
       
+      // Audit trail for status changes
+      if (req.body.status && req.body.status !== oldBooking?.status) {
+        const userName = await getUserName(req);
+        const userId = getUserId(req);
+        await storage.createAuditLog({
+          entityType: "booking",
+          entityId: req.params.id,
+          action: "status_changed",
+          changedBy: userId || undefined,
+          changedByName: userName,
+          previousValue: oldBooking?.status || "unknown",
+          newValue: req.body.status,
+        }).catch(() => {}); // non-blocking
+      }
+      
       // Auto-initialize workflows and manage capacity if status changed to confirmed
       if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
         await initializeBookingWorkflows(req.params.id);
@@ -539,6 +554,62 @@ export async function registerRoutes(
       }
       const updated = await storage.updateBooking(req.params.participantBookingId, { status: "cancelled" });
       res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Customer Self-Cancellation ----
+  app.post("/api/my-bookings/:id/cancel", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+      if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
+      if (booking.status === "cancelled") return res.status(400).json({ message: "Already cancelled" });
+      if (booking.status === "completed") return res.status(400).json({ message: "Cannot cancel a completed booking" });
+      const previousStatus = booking.status;
+      const updated = await storage.updateBooking(req.params.id, { status: "cancelled" });
+      // Audit trail
+      const userName = await getUserName(req);
+      await storage.createAuditLog({
+        entityType: "booking",
+        entityId: req.params.id,
+        action: "status_changed",
+        changedBy: userId,
+        changedByName: userName,
+        previousValue: previousStatus || "submitted",
+        newValue: "cancelled",
+        note: req.body.reason || "Customer self-cancelled",
+      });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Public Groups (Joinable Departures) ----
+  app.get("/api/departures/:departureId/public-groups", async (req, res) => {
+    try {
+      const departure = await storage.getDeparture(req.params.departureId);
+      if (!departure) return res.status(404).json({ message: "Departure not found" });
+      if (!departure.publicJoinEnabled) return res.json([]);
+      // Return leader_group bookings for this departure (minus personal info)
+      const allBookings = await storage.getAllBookings();
+      const publicGroups = allBookings
+        .filter(b => b.departureId === req.params.departureId && b.bookingType === "leader_group" && b.status !== "cancelled")
+        .map(b => ({
+          id: b.id,
+          groupName: b.groupName || "Travel Group",
+          partySizeExpected: b.partySizeExpected,
+          joinCode: b.joinCode,
+        }));
+      res.json(publicGroups);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Audit Logs ----
+  app.get("/api/audit-logs/:entityType/:entityId", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getAuditLogs(req.params.entityType, req.params.entityId));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

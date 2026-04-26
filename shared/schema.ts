@@ -26,7 +26,9 @@ export const userProfiles = pgTable("user_profiles", {
   transportCompanyId: varchar("transport_company_id"),
   isTourLeader: boolean("is_tour_leader").default(false),
   isActive: boolean("is_active").default(true),
-});
+}, (table) => ({
+  userIdIdx: index("user_profiles_user_id_idx").on(table.userId),
+}));
 
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true });
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
@@ -39,18 +41,27 @@ export const tours = pgTable("tours", {
   title: text("title").notNull(),
   description: text("description"),
   highlights: text("highlights"),
+  inclusions: text("inclusions"),
+  exclusions: text("exclusions"),
   imageUrl: text("image_url"),
+  galleryUrls: text("gallery_urls").array(),
   duration: integer("duration").notNull().default(1),
   basePrice: integer("base_price").default(0),
+  childPrice: integer("child_price"),
+  singleSupplement: integer("single_supplement"),
   currency: text("currency").default("USD"),
   countries: text("countries").array(),
   tags: text("tags").array(),
+  category: text("category"),
   pdfItineraryUrl: text("pdf_itinerary_url"),
   internalNotes: text("internal_notes"),
   isPublished: boolean("is_published").default(false),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  categoryIdx: index("tours_category_idx").on(table.category),
+  publishedIdx: index("tours_published_idx").on(table.isPublished),
+}));
 
 export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
 export type InsertTour = z.infer<typeof insertTourSchema>;
@@ -65,7 +76,9 @@ export const tourDays = pgTable("tour_days", {
   countryCode: text("country_code"),
   city: text("city"),
   activities: text("activities"),
-});
+}, (table) => ({
+  tourIdIdx: index("tour_days_tour_id_idx").on(table.tourId),
+}));
 
 export const insertTourDaySchema = createInsertSchema(tourDays).omit({ id: true });
 export type InsertTourDay = z.infer<typeof insertTourDaySchema>;
@@ -83,7 +96,10 @@ export const tourDepartures = pgTable("tour_departures", {
   bookingCutoffDate: text("booking_cutoff_date"),
   pricePerPerson: integer("price_per_person"),
   notes: text("notes"),
-});
+}, (table) => ({
+  tourIdIdx: index("tour_departures_tour_id_idx").on(table.tourId),
+  statusIdx: index("tour_departures_status_idx").on(table.status),
+}));
 
 export const insertTourDepartureSchema = createInsertSchema(tourDepartures).omit({ id: true });
 export type InsertTourDeparture = z.infer<typeof insertTourDepartureSchema>;
@@ -119,7 +135,13 @@ export const bookings = pgTable("bookings", {
   internalNotes: text("internal_notes"),
   isUrgent: boolean("is_urgent").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  customerIdIdx: index("bookings_customer_id_idx").on(table.customerId),
+  tourIdIdx: index("bookings_tour_id_idx").on(table.tourId),
+  departureIdIdx: index("bookings_departure_id_idx").on(table.departureId),
+  codeIdx: index("bookings_code_idx").on(table.bookingCode),
+  statusIdx: index("bookings_status_idx").on(table.status),
+}));
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({ id: true, createdAt: true });
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
@@ -137,7 +159,9 @@ export const travelers = pgTable("travelers", {
   gender: text("gender"),
   specialNeeds: text("special_needs"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  bookingIdIdx: index("travelers_booking_id_idx").on(table.bookingId),
+}));
 
 export const insertTravelerSchema = createInsertSchema(travelers).omit({ id: true, createdAt: true });
 export type InsertTraveler = z.infer<typeof insertTravelerSchema>;
@@ -155,7 +179,10 @@ export const bookingAssignments = pgTable("booking_assignments", {
   assignedBy: varchar("assigned_by"),
   status: assignmentStatusEnum("assignment_status").default("assigned"),
   assignedAt: timestamp("assigned_at").defaultNow(),
-});
+}, (table) => ({
+  bookingIdIdx: index("booking_assignments_booking_id_idx").on(table.bookingId),
+  assignedUserIdx: index("booking_assignments_assigned_user_id_idx").on(table.assignedUserId),
+}));
 
 export const insertBookingAssignmentSchema = createInsertSchema(bookingAssignments).omit({ id: true, assignedAt: true });
 export type InsertBookingAssignment = z.infer<typeof insertBookingAssignmentSchema>;
@@ -173,7 +200,11 @@ export const bookingWorkflows = pgTable("booking_workflows", {
   currentStep: text("current_step"),
   notes: text("notes"),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  bookingIdIdx: index("booking_workflows_booking_id_idx").on(table.bookingId),
+  assignedUserIdx: index("booking_workflows_assigned_user_id_idx").on(table.assignedUserId),
+  statusIdx: index("booking_workflows_status_idx").on(table.status),
+}));
 
 export const insertBookingWorkflowSchema = createInsertSchema(bookingWorkflows).omit({ id: true, updatedAt: true });
 export type InsertBookingWorkflow = z.infer<typeof insertBookingWorkflowSchema>;
@@ -190,8 +221,31 @@ export const workflowSteps = pgTable("workflow_steps", {
   status: stepStatusEnum("step_status").default("pending"),
   updatedBy: varchar("updated_by"),
   notes: text("notes"),
+  dueDate: text("due_date"),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  workflowIdIdx: index("workflow_steps_workflow_id_idx").on(table.workflowId),
+  statusIdx: index("workflow_steps_status_idx").on(table.status),
+}));
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull(), // e.g. 'booking', 'workflow', 'payment'
+  entityId: varchar("entity_id").notNull(),
+  action: text("action").notNull(), // e.g. 'status_changed', 'created', 'updated'
+  changedBy: varchar("changed_by"),
+  changedByName: text("changed_by_name"),
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  entityTypeIdx: index("audit_logs_entity_type_idx").on(table.entityType),
+  entityIdIdx: index("audit_logs_entity_id_idx").on(table.entityId),
+}));
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 export const insertWorkflowStepSchema = createInsertSchema(workflowSteps).omit({ id: true, updatedAt: true });
 export type InsertWorkflowStep = z.infer<typeof insertWorkflowStepSchema>;
