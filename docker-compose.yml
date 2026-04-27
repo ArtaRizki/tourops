@@ -4,9 +4,9 @@ services:
     container_name: tour_ops_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: tour_ops_2026
-      POSTGRES_DB: tourops
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
