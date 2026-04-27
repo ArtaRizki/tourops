@@ -401,8 +401,9 @@ export default function SupplierDashboard() {
               </TabsContent>
             </Tabs>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+      </DialogContent>
+    </Dialog>
 
       {/* Upload Document Modal */}
       <Dialog open={!!uploadWorkflowId} onOpenChange={(v) => !v && setUploadWorkflowId(null)}>
