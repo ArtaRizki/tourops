@@ -8,6 +8,7 @@ import {
   countries, cities, airports, sights, transportCompanies, airlineAgencies,
   busTypes, transportRoutes, transportRoutePricing,
   transportBookings, transportInvoices, transportPayments,
+  auditLogs,
   type UserProfile, type InsertUserProfile,
   type Tour, type InsertTour,
   type TourDay, type InsertTourDay,
@@ -37,14 +38,15 @@ import {
   type TransportRate, type InsertTransportRate,
   type GuideRate, type InsertGuideRate,
   type SightsRate, type InsertSightsRate,
+  type AuditLog, type InsertAuditLog,
 } from "@shared/schema";
 
 export interface IStorage {
   getOrCreateProfile(userId: string): Promise<UserProfile>;
   getProfile(id: string): Promise<UserProfile | undefined>;
   getProfileByUserId(userId: string): Promise<UserProfile | undefined>;
-  getAllProfiles(): Promise<UserProfile[]>;
-  updateProfile(id: string, data: Partial<UserProfile>): Promise<UserProfile>;
+  getProfileByUserIdWithEmail(userId: string): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } }) | undefined>;
+  getAllProfiles(): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } })[]>;
 
   getAllTours(): Promise<Tour[]>;
   getPublishedTours(): Promise<Tour[]>;
@@ -208,6 +210,9 @@ export interface IStorage {
   bulkCreateSightsRates(data: InsertSightsRate[]): Promise<SightsRate[]>;
   updateSightsRate(id: string, data: Partial<SightsRate>): Promise<SightsRate>;
   deleteSightsRate(id: string): Promise<void>;
+
+  getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]>;
+  createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -229,6 +234,15 @@ export class DatabaseStorage implements IStorage {
   async getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
     const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
     return profile;
+  }
+
+  async getProfileByUserIdWithEmail(userId: string): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } }) | undefined> {
+    const [row] = await db.select({
+      profile: userProfiles,
+      user: { email: users.email, firstName: users.firstName, lastName: users.lastName, username: users.username },
+    }).from(userProfiles).where(eq(userProfiles.userId, userId)).leftJoin(users, eq(userProfiles.userId, users.id));
+    if (!row) return undefined;
+    return { ...row.profile, user: row.user || undefined };
   }
 
   async getAllProfiles(): Promise<(UserProfile & { user?: { email: string | null; firstName: string | null; lastName: string | null; username: string | null } })[]> {
@@ -845,6 +859,17 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteSightsRate(id: string): Promise<void> {
     await db.delete(sightsRates).where(eq(sightsRates.id, id));
+  }
+
+  // Audit Logs
+  async getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]> {
+    return db.select().from(auditLogs)
+      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
+      .orderBy(desc(auditLogs.createdAt));
+  }
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
   }
 }
 

@@ -135,6 +135,12 @@ export function AppSidebar() {
     queryKey: ["/api/user-profile"],
     enabled: !!user,
   });
+  
+  const { data: counts } = useQuery<Record<string, number>>({
+    queryKey: ["/api/notifications/counts"],
+    enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30s
+  });
 
   const role = profile?.role;
   const navItems = getNavItems(role);
@@ -167,6 +173,21 @@ export function AppSidebar() {
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {counts && item.url.includes("documents") && counts.documents > 0 && (
+                        <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          {counts.documents}
+                        </span>
+                      )}
+                      {counts && item.url.includes("payments") && counts.payments > 0 && (
+                        <span className="ml-auto bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          {counts.payments}
+                        </span>
+                      )}
+                      {counts && item.url.includes("fulfillment") && counts.workflows > 0 && (
+                        <span className="ml-auto bg-destructive text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          {counts.workflows}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

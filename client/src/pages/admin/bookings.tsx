@@ -12,6 +12,8 @@ import { Link } from "wouter";
 import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking } from "@shared/schema";
+import * as XLSX from "xlsx";
+import { Download } from "lucide-react";
 
 export default function AdminBookings() {
   const [search, setSearch] = useState("");
@@ -27,6 +29,24 @@ export default function AdminBookings() {
     return matchSearch && matchStatus && matchType;
   }) || [];
 
+  const handleExport = () => {
+    const data = filtered.map((b) => ({
+      "Booking Code": b.bookingCode,
+      "Type": BOOKING_TYPES[b.bookingType],
+      "Status": BOOKING_STATUSES[b.status || "submitted"],
+      "Fulfillment": FULFILLMENT_STATUSES[b.fulfillmentStatus || "pending"],
+      "Group Name": b.groupName || "-",
+      "Party Size": b.partySizeExpected,
+      "Total Price": b.totalPrice || 0,
+      "Created At": b.createdAt ? new Date(b.createdAt).toLocaleString() : "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+    XLSX.writeFile(wb, `bookings_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -39,9 +59,15 @@ export default function AdminBookings() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-serif">Bookings</h1>
-        <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-serif">Bookings</h1>
+          <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+          <Download className="h-4 w-4 mr-2" />
+          Export Excel
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

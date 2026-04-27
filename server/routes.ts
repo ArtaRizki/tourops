@@ -1,6 +1,18 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { 
+  sendNewBookingNotification, 
+  sendBookingConfirmedNotification, 
+  sendAssignmentNotification,
+  sendDocumentStatusNotification,
+  sendPaymentStatusNotification
+} from "./lib/email";
+import { 
+  SERVICE_WORKFLOW_STEPS 
+} from "./lib/constants";
+import { generateCode } from "./lib/utils";
+import { getQueueStats } from "./lib/emailQueue";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -16,49 +28,8 @@ import {
   insertBusTypeSchema, insertTransportRouteSchema, insertTransportRoutePricingSchema,
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
+  insertBookingWorkflowSchema, insertWorkflowStepSchema,
 } from "@shared/schema";
-
-const SERVICE_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {
-  airline: [
-    { code: "waiting_docs", name: "Waiting on Documents" },
-    { code: "quote_submitted", name: "Quote Submitted" },
-    { code: "quote_approved", name: "Quote Approved" },
-    { code: "ticketed", name: "Tickets Issued" },
-    { code: "completed", name: "Completed" },
-  ],
-  hotel: [
-    { code: "request_sent", name: "Request Sent" },
-    { code: "confirmation_received", name: "Confirmation Received" },
-    { code: "approved", name: "Approved" },
-    { code: "voucher_uploaded", name: "Voucher Uploaded" },
-    { code: "completed", name: "Completed" },
-  ],
-  transport: [
-    { code: "request_sent", name: "Route Plan Requested" },
-    { code: "proposed", name: "Vehicle Allocation Proposed" },
-    { code: "approved", name: "Approved" },
-    { code: "details_submitted", name: "Details Submitted" },
-    { code: "completed", name: "Completed" },
-  ],
-  guide: [
-    { code: "needed", name: "Guide Needed" },
-    { code: "proposed", name: "Guide Options Proposed" },
-    { code: "approved", name: "Approved" },
-    { code: "confirmed", name: "Guide Confirmed" },
-    { code: "completed", name: "Completed" },
-  ],
-  sights: [
-    { code: "reservation_required", name: "Reservation Required" },
-    { code: "slot_returned", name: "Slot Options Returned" },
-    { code: "approved", name: "Approved" },
-    { code: "tickets_uploaded", name: "Tickets Uploaded" },
-    { code: "completed", name: "Completed" },
-  ],
-};
-
-function generateCode(len: number = 6): string {
-  return randomBytes(3).toString("hex").toUpperCase().slice(0, len);
-}
 
 function getUserId(req: Request): string | undefined {
   return req.session?.userId;
@@ -78,6 +49,37 @@ async function canAccessBooking(userId: string, bookingId: string) {
   if (booking.customerId === userId) return booking;
   if (booking.leaderUserId === userId) return booking;
   return null;
+}
+
+async function initializeBookingWorkflows(bookingId: string) {
+  const existingWfs = await storage.getWorkflows(bookingId);
+  if (existingWfs && existingWfs.length > 0) return; // Prevent duplicate generation
+
+  const services: ("airline" | "hotel" | "transport" | "guide" | "sights")[] = ["airline", "hotel", "transport"];
+  
+  for (const service of services) {
+    const wf = await storage.createWorkflow({
+      bookingId,
+      serviceType: service,
+      status: "not_assigned",
+    });
+
+    const steps = [
+      { code: "REQ", name: `Request ${service.toUpperCase()} Choice` },
+      { code: "CONF", name: "Booking Confirmed with Supplier" },
+      { code: "DOC", name: "Issuing Document/Voucher" },
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      await storage.createWorkflowStep({
+        workflowId: wf.id,
+        stepOrder: i + 1,
+        stepCode: steps[i].code,
+        stepName: steps[i].name,
+        status: "pending",
+      });
+    }
+  }
 }
 
 async function requireRole(req: Request, res: Response, roles: string[]): Promise<boolean> {
@@ -316,6 +318,24 @@ export async function registerRoutes(
         ...req.body, customerId: userId, bookingCode, joinCode, leaderUserId,
         status: "submitted" as const, fulfillmentStatus: "pending" as const,
       });
+
+      // Notify Admins
+      try {
+        const allProfiles = await storage.getAllProfiles();
+        const admins = allProfiles.filter(p => p.role === "admin" && p.user?.email);
+        const customerProfile = await storage.getProfileByUserIdWithEmail(userId);
+        const customerName = customerProfile?.user?.firstName ? `${customerProfile.user.firstName} ${customerProfile.user.lastName || ""}` : (customerProfile?.user?.username || "Pelanggan");
+        
+        for (const admin of admins) {
+          if (admin.user?.email) {
+            // Non-blocking: queue sends in background
+            sendNewBookingNotification(admin.user.email, booking, customerName);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send admin notifications:", err);
+      }
+
       res.json(booking);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -323,7 +343,56 @@ export async function registerRoutes(
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateBooking(req.params.id, req.body));
+      const oldBooking = await storage.getBooking(req.params.id);
+      const updated = await storage.updateBooking(req.params.id, req.body);
+      
+      // Audit trail for status changes
+      if (req.body.status && req.body.status !== oldBooking?.status) {
+        const userName = await getUserName(req);
+        const userId = getUserId(req);
+        await storage.createAuditLog({
+          entityType: "booking",
+          entityId: req.params.id,
+          action: "status_changed",
+          changedBy: userId || undefined,
+          changedByName: userName,
+          previousValue: oldBooking?.status || "unknown",
+          newValue: req.body.status,
+        }).catch(() => {}); // non-blocking
+      }
+      
+      // Auto-initialize workflows and manage capacity if status changed to confirmed
+      if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
+        await initializeBookingWorkflows(req.params.id);
+        
+        // Auto capacity management (deduct seats)
+        if (oldBooking && oldBooking.departureId) {
+          const departure = await storage.getDeparture(oldBooking.departureId);
+          if (departure && departure.availableSeats !== null) {
+            const newSeats = Math.max(0, departure.availableSeats - oldBooking.partySizeExpected);
+            const newStatus = newSeats === 0 ? "sold_out" : departure.status;
+            await storage.updateDeparture(departure.id, {
+              availableSeats: newSeats,
+              status: newStatus
+            });
+          }
+        }
+      } else if ((req.body.status === "cancelled" || req.body.status === "rejected") && oldBooking?.status === "confirmed") {
+        // Restore capacity if confirmed booking is cancelled/rejected
+        if (oldBooking && oldBooking.departureId) {
+          const departure = await storage.getDeparture(oldBooking.departureId);
+          if (departure && departure.availableSeats !== null) {
+            const newSeats = departure.availableSeats + oldBooking.partySizeExpected;
+            const newStatus = departure.status === "sold_out" ? "open" : departure.status;
+            await storage.updateDeparture(departure.id, {
+              availableSeats: newSeats,
+              status: newStatus
+            });
+          }
+        }
+      }
+      
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -435,6 +504,26 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.patch("/api/my-bookings/:id/payments/:paymentId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await canAccessBooking(userId, req.params.id);
+      if (!booking) return res.status(403).json({ message: "Forbidden" });
+      
+      const payments = await storage.getPayments(req.params.id);
+      const targetPayment = payments.find(p => p.id === req.params.paymentId);
+      if (!targetPayment) return res.status(404).json({ message: "Payment not found" });
+
+      const updated = await storage.updatePayment(req.params.paymentId, {
+        receiptUrl: req.body.receiptUrl,
+        notes: req.body.notes,
+      });
+
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Leader Group Participants ----
   app.get("/api/my-bookings/:id/participants", isAuthenticated, async (req, res) => {
     try {
@@ -465,6 +554,62 @@ export async function registerRoutes(
       }
       const updated = await storage.updateBooking(req.params.participantBookingId, { status: "cancelled" });
       res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Customer Self-Cancellation ----
+  app.post("/api/my-bookings/:id/cancel", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+      if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
+      if (booking.status === "cancelled") return res.status(400).json({ message: "Already cancelled" });
+      if (booking.status === "completed") return res.status(400).json({ message: "Cannot cancel a completed booking" });
+      const previousStatus = booking.status;
+      const updated = await storage.updateBooking(req.params.id, { status: "cancelled" });
+      // Audit trail
+      const userName = await getUserName(req);
+      await storage.createAuditLog({
+        entityType: "booking",
+        entityId: req.params.id,
+        action: "status_changed",
+        changedBy: userId,
+        changedByName: userName,
+        previousValue: previousStatus || "submitted",
+        newValue: "cancelled",
+        note: req.body.reason || "Customer self-cancelled",
+      });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Public Groups (Joinable Departures) ----
+  app.get("/api/departures/:departureId/public-groups", async (req, res) => {
+    try {
+      const departure = await storage.getDeparture(req.params.departureId);
+      if (!departure) return res.status(404).json({ message: "Departure not found" });
+      if (!departure.publicJoinEnabled) return res.json([]);
+      // Return leader_group bookings for this departure (minus personal info)
+      const allBookings = await storage.getAllBookings();
+      const publicGroups = allBookings
+        .filter(b => b.departureId === req.params.departureId && b.bookingType === "leader_group" && b.status !== "cancelled")
+        .map(b => ({
+          id: b.id,
+          groupName: b.groupName || "Travel Group",
+          partySizeExpected: b.partySizeExpected,
+          joinCode: b.joinCode,
+        }));
+      res.json(publicGroups);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Audit Logs ----
+  app.get("/api/audit-logs/:entityType/:entityId", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getAuditLogs(req.params.entityType, req.params.entityId));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -560,6 +705,36 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/bookings/:id/travelers/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+      const profile = await storage.getOrCreateProfile(userId);
+      const isOwner = booking.customerId === userId;
+      const isAdmin = profile.role === "admin";
+      const isLeaderOfGroup = booking.leaderUserId === userId;
+      if (!isOwner && !isAdmin && !isLeaderOfGroup) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const travelers = req.body.travelers;
+      if (!Array.isArray(travelers)) {
+        return res.status(400).json({ message: "Expected an array of travelers" });
+      }
+
+      const results = [];
+      for (const tData of travelers) {
+        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id });
+        if (parsed.success) {
+          results.push(await storage.createTraveler(parsed.data));
+        }
+      }
+      res.json({ success: true, inserted: results.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.patch("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
@@ -645,7 +820,35 @@ export async function registerRoutes(
         await storage.updateWorkflow(wf.id, { currentStep: steps[0].name });
       }
 
-      res.json({ assignment, workflow: wf });
+      res.json({ success: true, message: "Booking confirmed and workflows initialized" });
+
+      // Notify Customer & Staff in background via email queue (non-blocking)
+      try {
+        const booking = await storage.getBooking(req.params.id);
+        if (!booking) return;
+
+        const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
+        if (customerProfile?.user?.email) {
+          sendBookingConfirmedNotification(customerProfile.user.email, booking);
+        }
+
+        const workflows = await storage.getWorkflows(req.params.id);
+        for (const wf of workflows) {
+          if (wf.assignedUserId) {
+            const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
+            if (staffProfile?.user?.email) {
+              sendAssignmentNotification(
+                staffProfile.user.email,
+                wf.serviceType,
+                booking.bookingCode,
+                wf.id
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Post-confirmation notifications failed:", err);
+      }
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -743,7 +946,28 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const userId = getUserId(req);
-      res.json(await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId }));
+      const updated = await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId });
+      
+      // Notify customer about document status update (non-blocking)
+      try {
+        const booking = await storage.getBooking(updated.bookingId);
+        if (booking) {
+          const customer = await authStorage.getUser(booking.customerId);
+          if (customer?.email) {
+            sendDocumentStatusNotification(
+              customer.email,
+              booking.bookingCode,
+              updated.docType,
+              updated.status || "updated",
+              updated.reviewNotes || undefined
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to enqueue document status notification:", err);
+      }
+
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -805,20 +1029,144 @@ export async function registerRoutes(
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updatePayment(req.params.id, req.body));
+      const updated = await storage.updatePayment(req.params.id, req.body);
+      
+      // Notify customer if payment is confirmed as paid (non-blocking)
+      if (req.body.status === "paid") {
+        try {
+          const booking = await storage.getBooking(updated.bookingId);
+          if (booking) {
+            const customer = await authStorage.getUser(booking.customerId);
+            if (customer?.email) {
+              sendPaymentStatusNotification(
+                customer.email,
+                booking.bookingCode,
+                updated.amount.toString(),
+                updated.currency || "USD"
+              );
+            }
+          }
+        } catch (err) {
+          console.error("Failed to enqueue payment status notification:", err);
+        }
+      }
+
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ---- Supplier/Ops ----
+  const SUPPLIER_ROLES = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+
   app.get("/api/supplier/workflows", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
-      if (profile.role !== "airline_supplier" && profile.role !== "admin") {
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getWorkflowsByUser(userId));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/supplier/bookings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+      // Verify supplier is assigned to at least one workflow for this booking
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") {
+        return res.status(403).json({ message: "Access denied to this booking" });
+      }
+
+      const travelers = await storage.getTravelers(req.params.id);
+      const allDocuments = await storage.getDocuments(req.params.id);
+      // Filter documents: supplier sees their own uploads or all if admin
+      const documents = profile.role === "admin" 
+        ? allDocuments 
+        : allDocuments.filter(d => d.uploadedBy === userId);
+      
+      res.json({ ...booking, travelers, documents });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
+
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+
+      const allMessages = await storage.getMessages(req.params.id);
+      res.json(allMessages.filter(m => m.visibility === "internal_only" || m.senderUserId === userId));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
+
+      const workflows = await storage.getWorkflows(req.params.id);
+      const isAssigned = workflows.some(w => w.assignedUserId === userId);
+      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+
+      const { messageText } = req.body;
+      const message = await storage.createMessage({
+        bookingId: req.params.id,
+        senderUserId: userId,
+        senderName: await getUserName(req),
+        messageText,
+        visibility: "internal_only",
+      });
+      res.json(message);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/supplier/workflows/:id/documents", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getOrCreateProfile(userId);
+      if (!SUPPLIER_ROLES.includes(profile.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const wf = await storage.getWorkflow(req.params.id);
+      if (!wf) return res.status(404).json({ message: "Workflow not found" });
+      if (wf.assignedUserId !== userId && profile.role !== "admin") {
+        return res.status(403).json({ message: "Not assigned to this workflow" });
+      }
+
+      const { fileName, fileUrl, docType } = req.body;
+      const document = await storage.createDocument({
+        bookingId: wf.bookingId || "",
+        travelerId: null,
+        workflowStepId: null,
+        docType: docType || "other",
+        fileName,
+        fileUrl,
+        uploadedBy: userId,
+        status: "uploaded"
+      });
+
+      res.json(document);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1606,6 +1954,52 @@ export async function registerRoutes(
   } catch (e) {
     console.error("Error seeding admin:", e);
   }
+
+  // ---- Notification Counts ----
+  app.get("/api/notifications/counts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const profile = await storage.getProfileByUserId(userId);
+      const role = profile?.role;
+
+      if (role === "admin") {
+        const allDocs = await storage.getAllDocuments();
+        const allPayments = await storage.getAllPayments();
+        const allWorkflows = await storage.getAllWorkflows();
+
+        res.json({
+          documents: allDocs.filter(d => d.status === "uploaded").length,
+          payments: allPayments.filter(p => p.status === "pending").length,
+          workflows: allWorkflows.filter(w => w.status === "blocked").length,
+        });
+      } else {
+        const myBookings = await storage.getBookingsByCustomer(userId);
+        let docsCount = 0;
+        let paymentsCount = 0;
+        
+        for (const b of myBookings) {
+          const docs = await storage.getDocuments(b.id);
+          docsCount += docs.filter(d => d.status === "rejected").length;
+          const pays = await storage.getPayments(b.id);
+          paymentsCount += pays.filter(p => p.status === "pending").length;
+        }
+
+        res.json({
+          documents: docsCount,
+          payments: paymentsCount,
+        });
+      }
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Admin: Email Queue Diagnostics ----
+  app.get("/api/admin/email-queue", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(getQueueStats());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
 
   return httpServer;
 }

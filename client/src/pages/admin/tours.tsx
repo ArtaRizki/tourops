@@ -61,58 +61,106 @@ export default function AdminTours() {
     const [title, setTitle] = useState(tour?.title || "");
     const [description, setDescription] = useState(tour?.description || "");
     const [highlights, setHighlights] = useState(tour?.highlights || "");
+    const [inclusions, setInclusions] = useState(tour?.inclusions || "");
+    const [exclusions, setExclusions] = useState(tour?.exclusions || "");
     const [imageUrl, setImageUrl] = useState(tour?.imageUrl || "");
+    const [galleryUrls, setGalleryUrls] = useState((tour?.galleryUrls || []).join(", "));
     const [duration, setDuration] = useState(tour?.duration || 7);
     const [basePrice, setBasePrice] = useState(tour?.basePrice || 0);
+    const [childPrice, setChildPrice] = useState(tour?.childPrice || 0);
+    const [singleSupplement, setSingleSupplement] = useState(tour?.singleSupplement || 0);
     const [countries, setCountries] = useState((tour?.countries || []).join(", "));
     const [tags, setTags] = useState((tour?.tags || []).join(", "));
+    const [category, setCategory] = useState(tour?.category || "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
 
     return (
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-        <div>
-          <Label>Tour Title *</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ancient Greece Explorer" data-testid="input-tour-title" />
-        </div>
-        <div>
-          <Label>Description</Label>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tour description..." data-testid="input-tour-description" />
-        </div>
-        <div>
-          <Label>Highlights</Label>
-          <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." />
-        </div>
-        <div>
-          <Label>Image URL</Label>
-          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
-        </div>
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Label>Tour Title *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ancient Greece Explorer" data-testid="input-tour-title" />
+          </div>
+          <div>
+            <Label>Category</Label>
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Adventure" />
+          </div>
           <div>
             <Label>Duration (days)</Label>
             <Input type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 1)} data-testid="input-tour-duration" />
           </div>
+        </div>
+
+        <div>
+          <Label>Description</Label>
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tour description..." data-testid="input-tour-description" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Base Price (USD cents)</Label>
-            <Input type="number" value={basePrice} onChange={(e) => setBasePrice(parseInt(e.target.value) || 0)} data-testid="input-tour-price" />
+            <Label>Highlights</Label>
+            <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." />
+          </div>
+          <div>
+            <Label>Internal Notes</Label>
+            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." />
           </div>
         </div>
-        <div>
-          <Label>Countries (comma separated)</Label>
-          <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="GR, IT, ES" />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Inclusions</Label>
+            <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} placeholder="What's included..." />
+          </div>
+          <div>
+            <Label>Exclusions</Label>
+            <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="What's not included..." />
+          </div>
         </div>
-        <div>
-          <Label>Tags (comma separated)</Label>
-          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <Label>Base Price ($)</Label>
+            <Input type="number" value={basePrice} onChange={(e) => setBasePrice(parseInt(e.target.value) || 0)} data-testid="input-tour-price" />
+          </div>
+          <div>
+            <Label>Child Price ($)</Label>
+            <Input type="number" value={childPrice} onChange={(e) => setChildPrice(parseInt(e.target.value) || 0)} />
+          </div>
+          <div>
+            <Label>Single Supp. ($)</Label>
+            <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
+          </div>
         </div>
+
         <div>
-          <Label>Internal Notes</Label>
-          <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." />
+          <Label>Cover Image URL</Label>
+          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
         </div>
+
+        <div>
+          <Label>Gallery URLs (comma separated)</Label>
+          <Input value={galleryUrls} onChange={(e) => setGalleryUrls(e.target.value)} placeholder="url1, url2, url3" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Countries (comma separated)</Label>
+            <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="GR, IT, ES" />
+          </div>
+          <div>
+            <Label>Tags (comma separated)</Label>
+            <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
+          </div>
+        </div>
+
         <Button
           className="w-full"
           onClick={() => onSubmit({
             ...(tour?.id ? { id: tour.id } : {}),
-            title, description, highlights, imageUrl, duration, basePrice, internalNotes,
+            title, description, highlights, inclusions, exclusions, imageUrl, 
+            duration, basePrice, childPrice, singleSupplement, category, internalNotes,
+            galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
             countries: countries.split(",").map((c) => c.trim()).filter(Boolean),
             tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
           })}

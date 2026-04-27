@@ -11,6 +11,7 @@ import { Link } from "wouter";
 import { Search, FileText, CheckCircle, XCircle, Clock, ArrowRight, ExternalLink, Download } from "lucide-react";
 import type { Document, Booking } from "@shared/schema";
 import { useState } from "react";
+import { DocumentPreview } from "@/components/DocumentPreview";
 
 const DOC_TYPES: Record<string, string> = {
   passport: "Passport", id_doc: "ID Document", visa: "Visa",

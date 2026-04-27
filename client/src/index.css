@@ -286,3 +286,63 @@
     inset: -1px;
   }
 }
+
+@media print {
+  /* Hide UI elements */
+  .no-print,
+  button,
+  nav,
+  aside,
+  [role="tablist"],
+  header {
+    display: none !important;
+  }
+
+  /* Reset layout */
+  body, 
+  .container,
+  main,
+  .p-6 {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Specific print layout for Booking Info */
+  .print-only {
+    display: block !important;
+  }
+  
+  .card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .badge {
+    border: 1px solid #000 !important;
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  /* Add professional invoice header */
+  .print-header {
+    display: block !important;
+    border-bottom: 2px solid #333;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+  }
+
+  .print-footer {
+    display: block !important;
+    margin-top: 50px;
+    text-align: center;
+    font-size: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+  }
+}

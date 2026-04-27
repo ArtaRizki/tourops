@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Hotel, Bus, UserCheck, Ticket, Clock, CheckCircle, AlertTriangle, ClipboardList } from "lucide-react";
+import { Link } from "wouter";
+import { Hotel, Bus, UserCheck, Ticket, Clock, CheckCircle, AlertTriangle, ClipboardList, ArrowRight, Calendar } from "lucide-react";
 import { SERVICE_TYPES, WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow } from "@shared/schema";
 
@@ -68,30 +69,50 @@ export default function OpsDashboard() {
             {workflows.map((wf) => {
               const Icon = serviceIcons[wf.serviceType] || ClipboardList;
               return (
-                <Card key={wf.id} data-testid={`card-ops-task-${wf.id}`}>
-                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-                        <Icon className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{SERVICE_TYPES[wf.serviceType]}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {wf.currentStep || "Awaiting action"} {wf.countryCode ? `| ${wf.countryCode}` : ""}
-                        </p>
+                <Card key={wf.id} data-testid={`card-ops-task-${wf.id}`} className="hover-elevate cursor-pointer">
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <Link href={`/ops/workflows/${wf.id}`} className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-md ${wf.status === "blocked" ? "bg-destructive/10" : "bg-primary/10"} flex items-center justify-center`}>
+                            <Icon className={`h-5 w-5 ${wf.status === "blocked" ? "text-destructive" : "text-primary"}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm truncate">{SERVICE_TYPES[wf.serviceType]}</p>
+                              {wf.status === "blocked" && <Badge variant="destructive" className="text-[10px] h-4">BLOCKED</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {wf.currentStep || "Awaiting action"} {wf.countryCode ? `| ${wf.countryCode}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex flex-col items-end">
+                           <Badge variant={wf.status === "completed" ? "default" : "outline"} className="text-[10px] mb-1">
+                            {WORKFLOW_STATUSES[wf.status || "assigned"]}
+                           </Badge>
+                           <p className="text-[10px] text-muted-foreground flex items-center">
+                             <Calendar className="h-3 w-3 mr-1" /> SLA: Ongoing
+                           </p>
+                        </div>
+                        <Select
+                          value={wf.status || "assigned"}
+                          onValueChange={(v) => updateWorkflow.mutate({ id: wf.id, status: v })}
+                        >
+                          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Link href={`/ops/workflows/${wf.id}`}>
+                          <Button variant="ghost" size="icon"><ArrowRight className="h-4 w-4" /></Button>
+                        </Link>
                       </div>
                     </div>
-                    <Select
-                      value={wf.status || "assigned"}
-                      onValueChange={(v) => updateWorkflow.mutate({ id: wf.id, status: v })}
-                    >
-                      <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </CardContent>
                 </Card>
               );

@@ -17,12 +17,13 @@ import {
   ClipboardList, ArrowLeft, CheckCircle, Clock, AlertTriangle,
   Send, Plane, Hotel, Bus, UserCheck, Ticket, Plus, Pencil,
   Trash2, Eye, ShieldCheck, ShieldX, Info, DollarSign,
-  ExternalLink, Download
+  ExternalLink, Download, Printer, Globe
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
 import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile } from "@shared/schema";
 import { useState } from "react";
+import { DocumentPreview } from "@/components/DocumentPreview";
 
 const serviceIcons: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,
@@ -91,6 +92,10 @@ export default function AdminBookingDetail() {
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/bookings", bookingId, "messages"] });
   const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/bookings", bookingId, "payments"] });
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
+  const { data: auditLogs } = useQuery<any[]>({ 
+    queryKey: ["/api/audit-logs", "booking", bookingId],
+    enabled: !!bookingId 
+  });
 
   const updateBooking = useMutation({
     mutationFn: (data: Record<string, any>) => apiRequest("PATCH", `/api/bookings/${bookingId}`, data),
@@ -135,7 +140,7 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
       toast({ title: "Assignment created" });
     },
-  });
+  }); 
 
   const deleteAssignment = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/assignments/${id}`),
@@ -246,7 +251,7 @@ export default function AdminBookingDetail() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 no-print">
         <Link href="/admin/bookings">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
@@ -259,20 +264,43 @@ export default function AdminBookingDetail() {
           </div>
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
-            <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={booking.fulfillmentStatus || "pending"} onValueChange={(v) => updateBooking.mutate({ fulfillmentStatus: v })}>
-            <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
+            <Printer className="h-4 w-4 mr-2" />
+            Print Summary
+          </Button>
         </div>
+      </div>
+
+      {/* Printable Header */}
+      <div className="hidden print:block border-b-2 border-[#116bb0] pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Globe className="h-10 w-10 text-[#116bb0]" />
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#116bb0]">TourOps Booking Summary</h1>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-sans">Official Operational Document</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-2xl">{booking.bookingCode}</p>
+            <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
+          <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={booking.fulfillmentStatus || "pending"} onValueChange={(v) => updateBooking.mutate({ fulfillmentStatus: v })}>
+          <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -315,6 +343,7 @@ export default function AdminBookingDetail() {
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />Documents</TabsTrigger>
           <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />Messages</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />Payments</TabsTrigger>
+          <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
         </TabsList>
 
         {/* TAB A: Summary */}
@@ -1074,6 +1103,49 @@ export default function AdminBookingDetail() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+        <TabsContent value="history" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Audit Trail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {auditLogs && auditLogs.length > 0 ? (
+                <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="relative">
+                      <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-sm font-semibold">{log.action?.replace(/_/g, " ").toUpperCase()}</p>
+                          <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Changed by: <span className="font-medium text-foreground">{log.changedByName || "System"}</span>
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-4 p-2 bg-muted/30 rounded border text-[11px]">
+                          <div>
+                            <p className="text-muted-foreground uppercase font-bold text-[9px]">Previous</p>
+                            <p>{log.previousValue || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground uppercase font-bold text-[9px]">New Value</p>
+                            <p className="text-primary font-medium">{log.newValue || "-"}</p>
+                          </div>
+                        </div>
+                        {log.note && <p className="text-xs italic text-muted-foreground mt-1">"{log.note}"</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-12 text-center">
+                  <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">No audit logs found for this booking</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

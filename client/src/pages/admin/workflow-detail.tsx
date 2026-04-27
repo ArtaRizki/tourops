@@ -149,6 +149,11 @@ export default function AdminWorkflowDetail() {
                             <p className="font-medium text-sm">{step.stepName}</p>
                           </div>
                           {step.notes && <p className="text-xs text-muted-foreground mt-1">{step.notes}</p>}
+                          {step.dueDate && (
+                            <p className="text-xs font-semibold text-destructive mt-1 flex items-center">
+                              <Clock className="h-3 w-3 mr-1" /> Due: {new Date(step.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
                           {step.updatedAt && step.status !== "pending" && (
                             <p className="text-xs text-muted-foreground mt-0.5">
                               Updated: {new Date(step.updatedAt).toLocaleString()}
