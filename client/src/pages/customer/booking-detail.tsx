@@ -604,6 +604,7 @@ export default function CustomerBookingDetail() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Badge variant={doc.status === "rejected" ? "destructive" : "outline"}>
                           {doc.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
                           {doc.status || "Uploaded"}
                         </Badge>
@@ -752,6 +753,7 @@ export default function CustomerBookingDetail() {
                       </p>
                       {pmt.notes && <p className="text-xs text-muted-foreground mt-1">{pmt.notes}</p>}
                     </div>
+                    <Badge variant={pmt.status === "paid" ? "default" : "secondary"}>
                       {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
                       {pmt.status || "Pending"}
                     </Badge>
