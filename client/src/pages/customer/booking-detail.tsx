@@ -860,7 +860,7 @@ export default function CustomerBookingDetail() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={doc.status === "rejected" ? "destructive" : "outline"}>
-                          {doc.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}     
+                          {doc.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
                           {doc.status || "Uploaded"}
                         </Badge>
                         {doc.fileUrl && (
