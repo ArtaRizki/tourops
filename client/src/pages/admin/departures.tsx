@@ -11,8 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Calendar, Users, MapPin } from "lucide-react";
-import type { TourDeparture, Tour } from "@shared/schema";
+import { Plus, Calendar, Users, MapPin, Plane } from "lucide-react";
+import type { TourDeparture, Tour, Airport } from "@shared/schema";
 
 export default function AdminDepartures() {
   const { toast } = useToast();
@@ -20,6 +20,7 @@ export default function AdminDepartures() {
 
   const { data: departures, isLoading } = useQuery<TourDeparture[]>({ queryKey: ["/api/departures"] });
   const { data: tours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
+  const { data: airports } = useQuery<Airport[]>({ queryKey: ["/api/master-data/airports"] });
 
   const [tourId, setTourId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -27,6 +28,8 @@ export default function AdminDepartures() {
   const [capacity, setCapacity] = useState(20);
   const [price, setPrice] = useState(0);
   const [publicJoin, setPublicJoin] = useState(true);
+  const [departureAirportId, setDepartureAirportId] = useState("");
+  const [arrivalAirportId, setArrivalAirportId] = useState("");
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/departures", data),
@@ -58,9 +61,9 @@ export default function AdminDepartures() {
           <DialogTrigger asChild>
             <Button data-testid="button-create-departure"><Plus className="h-4 w-4 mr-2" />Create Departure</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Create New Departure</DialogTitle></DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               <div>
                 <Label>Tour</Label>
                 <Select value={tourId} onValueChange={setTourId}>
@@ -74,6 +77,28 @@ export default function AdminDepartures() {
                 <div><Label>Start Date</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="input-start-date" /></div>
                 <div><Label>End Date</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} data-testid="input-end-date" /></div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="flex items-center gap-1"><Plane className="h-3 w-3" /> Departure Airport</Label>
+                  <Select value={departureAirportId} onValueChange={setDepartureAirportId}>
+                    <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
+                    <SelectContent>
+                      {airports?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="flex items-center gap-1"><Plane className="h-3 w-3" /> Arrival Airport</Label>
+                  <Select value={arrivalAirportId} onValueChange={setArrivalAirportId}>
+                    <SelectTrigger><SelectValue placeholder="Select airport" /></SelectTrigger>
+                    <SelectContent>
+                      {airports?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Capacity</Label><Input type="number" value={capacity} onChange={(e) => setCapacity(parseInt(e.target.value) || 0)} /></div>
                 <div><Label>Price/Person</Label><Input type="number" value={price} onChange={(e) => setPrice(parseInt(e.target.value) || 0)} /></div>
@@ -84,7 +109,14 @@ export default function AdminDepartures() {
               </div>
               <Button
                 className="w-full"
-                onClick={() => createMutation.mutate({ tourId, startDate, endDate, capacityTotal: capacity, pricePerPerson: price, publicJoinEnabled: publicJoin })}
+                onClick={() => createMutation.mutate({ 
+                  tourId, startDate, endDate, 
+                  capacityTotal: capacity, 
+                  pricePerPerson: price, 
+                  publicJoinEnabled: publicJoin,
+                  departureAirportId: departureAirportId || null,
+                  arrivalAirportId: arrivalAirportId || null
+                })}
                 disabled={!tourId || !startDate || !endDate || createMutation.isPending}
                 data-testid="button-save-departure"
               >{createMutation.isPending ? "Creating..." : "Create Departure"}</Button>
@@ -99,16 +131,24 @@ export default function AdminDepartures() {
         <div className="space-y-2">
           {departures.map((dep) => {
             const tour = tours?.find((t) => t.id === dep.tourId);
+            const depAir = airports?.find(a => a.id === dep.departureAirportId);
+            const arrAir = airports?.find(a => a.id === dep.arrivalAirportId);
             return (
               <Card key={dep.id} data-testid={`card-departure-${dep.id}`}>
                 <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-sm">{tour?.title || "Unknown Tour"}</p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{dep.startDate} to {dep.endDate}</span>
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" />{dep.capacityBooked}/{dep.capacityTotal} booked</span>
                       {dep.pricePerPerson && <span>${dep.pricePerPerson}/person</span>}
                     </div>
+                    {(depAir || arrAir) && (
+                      <div className="flex items-center gap-2 mt-2 text-[10px] font-mono bg-slate-50 p-1 rounded border w-fit">
+                        <Plane className="h-3 w-3" />
+                        {depAir ? depAir.code : "???"} → {arrAir ? arrAir.code : "???"}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {dep.publicJoinEnabled && <Badge variant="outline">Public</Badge>}

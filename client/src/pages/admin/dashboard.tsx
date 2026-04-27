@@ -7,9 +7,9 @@ import { Link } from "wouter";
 import {
   BookOpen, Users, AlertTriangle, CheckCircle, Clock,
   Calendar, ArrowRight, FileText, CreditCard, ClipboardList,
-  Workflow, MapPin,
+  Workflow, MapPin, DollarSign,
 } from "lucide-react";
-import { BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
+import { BOOKING_STATUSES, FULFILLMENT_STATUSES, BOOKING_TYPES } from "@/lib/constants";
 import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment } from "@shared/schema";
 
 function StatCard({ title, value, icon: Icon, description, color }: {

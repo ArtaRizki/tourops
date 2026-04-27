@@ -9,16 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin } from "lucide-react";
+import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking } from "@shared/schema";
 import * as XLSX from "xlsx";
-import { Download } from "lucide-react";
+import { Download, Zap } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AdminBookings() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { toast } = useToast();
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
 
@@ -29,8 +32,32 @@ export default function AdminBookings() {
     return matchSearch && matchStatus && matchType;
   }) || [];
 
+  const bulkInitMutation = useMutation({
+    mutationFn: (ids: string[]) => apiRequest("POST", "/api/bookings/bulk-initialize", { bookingIds: ids }),
+    onSuccess: (res) => {
+      res.json().then(data => {
+        queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+        setSelectedIds([]);
+        toast({ title: `Success`, description: `Initialized workflows for ${data.initialized} bookings.` });
+      });
+    },
+    onError: () => toast({ title: "Bulk operation failed", variant: "destructive" }),
+  });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(b => b.id));
+    }
+  };
+
   const handleExport = () => {
-    const data = filtered.map((b) => ({
+    const data = (selectedIds.length > 0 ? filtered.filter(b => selectedIds.includes(b.id)) : filtered).map((b) => ({
       "Booking Code": b.bookingCode,
       "Type": BOOKING_TYPES[b.bookingType],
       "Status": BOOKING_STATUSES[b.status || "submitted"],
@@ -64,13 +91,34 @@ export default function AdminBookings() {
           <h1 className="text-2xl font-bold font-serif">Bookings</h1>
           <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Export Excel
-        </Button>
+        <div className="flex gap-2">
+          {selectedIds.length > 0 && (
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
+              onClick={() => bulkInitMutation.mutate(selectedIds)}
+              disabled={bulkInitMutation.isPending}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              {bulkInitMutation.isPending ? "Initializing..." : `Initialize ${selectedIds.length} Workflows`}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : "Export All"}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 bg-white p-4 rounded-lg shadow-sm border">
+        <div className="flex items-center gap-2 mr-2">
+          <Checkbox 
+            checked={selectedIds.length === filtered.length && filtered.length > 0} 
+            onCheckedChange={toggleSelectAll}
+          />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Select All</span>
+        </div>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by code or name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-bookings" />
@@ -110,34 +158,40 @@ export default function AdminBookings() {
       ) : (
         <div className="space-y-2">
           {filtered.map((booking) => (
-            <Link key={booking.id} href={`/admin/bookings/${booking.id}`}>
-              <Card className="hover-elevate cursor-pointer" data-testid={`card-booking-${booking.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-sm">{booking.bookingCode}</span>
-                        <Badge variant="outline" className="text-xs">{BOOKING_TYPES[booking.bookingType]}</Badge>
+            <div key={booking.id} className="flex items-center gap-3">
+              <Checkbox 
+                checked={selectedIds.includes(booking.id)} 
+                onCheckedChange={() => toggleSelect(booking.id)}
+              />
+              <Link href={`/admin/bookings/${booking.id}`} className="flex-1">
+                <Card className={`hover-elevate cursor-pointer transition-all ${selectedIds.includes(booking.id) ? 'border-primary bg-primary/5 shadow-md' : ''}`} data-testid={`card-booking-${booking.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-sm">{booking.bookingCode}</span>
+                          <Badge variant="outline" className="text-xs">{BOOKING_TYPES[booking.bookingType]}</Badge>
+                        </div>
+                        {booking.groupName && <p className="text-sm text-muted-foreground">{booking.groupName}</p>}
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{booking.partySizeExpected} travelers</span>
+                          {booking.createdAt && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(booking.createdAt).toLocaleDateString()}</span>}
+                        </div>
                       </div>
-                      {booking.groupName && <p className="text-sm text-muted-foreground">{booking.groupName}</p>}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{booking.partySizeExpected} travelers</span>
-                        {booking.createdAt && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(booking.createdAt).toLocaleDateString()}</span>}
+                      <div className="flex items-center gap-2">
+                        <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
+                          {BOOKING_STATUSES[booking.status || "submitted"]}
+                        </Badge>
+                        <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
+                          {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
+                        </Badge>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
-                        {BOOKING_STATUSES[booking.status || "submitted"]}
-                      </Badge>
-                      <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
-                        {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
-                      </Badge>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
           ))}
         </div>
       )}

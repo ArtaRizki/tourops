@@ -52,6 +52,19 @@ export default function CustomerBookingDetail() {
     enabled: booking?.bookingType === "leader_group",
   });
 
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return <div className="p-8">Booking not found</div>;
+  }
+
   const isLeaderGroup = booking?.bookingType === "leader_group";
   const isPrivateFamily = booking?.bookingType === "private_family";
 
@@ -221,11 +234,12 @@ export default function CustomerBookingDetail() {
     }
   };
   
-  const generatePDF = () => {
+  const downloadInvoice = () => {
+    if (!booking) return;
     const doc = new jsPDF();
     
     // Header
-    doc.setFillColor(17, 107, 176); // Brand blue
+    doc.setFillColor(17, 107, 176); // Theme blue
     doc.rect(0, 0, 210, 40, 'F');
     
     doc.setTextColor(255, 255, 255);
@@ -258,7 +272,7 @@ export default function CustomerBookingDetail() {
         ['Total Price', `${booking.totalPrice?.toLocaleString() || "0"} ${booking.currency || "USD"}`],
       ],
       theme: 'striped',
-      headStyles: { fillStyle: 'transparent', textColor: [100, 100, 100], fontSize: 10 },
+      headStyles: { fillColor: [240, 240, 240], textColor: [100, 100, 100], fontSize: 10 },
       styles: { fontSize: 10 }
     });
     
@@ -325,7 +339,7 @@ export default function CustomerBookingDetail() {
             <ArrowLeft className="h-4 w-4 mr-1" />Back
           </Button>
         </Link>
-        <Button variant="outline" size="sm" onClick={generatePDF} className="h-8">
+        <Button variant="outline" size="sm" onClick={downloadInvoice} className="h-8">
           <Printer className="h-4 w-4 mr-2" />
           Print / Save PDF
         </Button>
@@ -972,24 +986,80 @@ export default function CustomerBookingDetail() {
 
         <TabsContent value="payments" className="mt-4 space-y-4">
           {booking.totalPrice != null && (
-            <Card>
-              <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-2xl font-bold">${booking.totalPrice}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Payment Status</p>
-                  {pmts && pmts.length > 0 ? (
-                    <Badge variant={pmts.every((p) => p.status === "paid") ? "default" : "secondary"}>
-                      {pmts.every((p) => p.status === "paid") ? "Paid" : "Partially Paid"}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Unpaid</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Amount</p>
+                    <p className="text-2xl font-bold">${(booking.totalPrice / 100).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment Status</p>
+                    {pmts && pmts.length > 0 ? (
+                      <Badge variant={pmts.every((p) => p.status === "paid") ? "default" : "secondary"}>
+                        {pmts.every((p) => p.status === "paid") ? "Paid" : "Partially Paid"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Unpaid</Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <CreditCard className="h-5 w-5" />
+                    <span className="font-bold">Online Payment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Pay securely via our simulated payment gateway (Stripe/PayPal).</p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold" data-testid="button-pay-online">
+                        Pay with Card / Stripe
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Secure Checkout</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-muted-foreground">Tour Booking: {booking.bookingCode}</span>
+                          <span className="font-bold">${(booking.totalPrice / 100).toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Card Number</Label>
+                          <Input placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2"><Label>Expiry</Label><Input placeholder="MM/YY" defaultValue="12/26" /></div>
+                          <div className="space-y-2"><Label>CVC</Label><Input placeholder="123" defaultValue="123" /></div>
+                        </div>
+                        <Button 
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-lg font-bold"
+                          onClick={() => {
+                            apiRequest("POST", `/api/bookings/${bookingId}/payments`, {
+                              amount: booking.totalPrice,
+                              method: "card",
+                              status: "paid",
+                              reference: `STRIPE_${Math.random().toString(36).substring(7).toUpperCase()}`,
+                              currency: "USD",
+                            }).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+                              toast({ title: "Payment Successful!", description: "Your payment has been processed securely." });
+                            });
+                          }}
+                        >
+                          Complete Payment
+                        </Button>
+                        <p className="text-[10px] text-center text-muted-foreground">Powered by Stripe Simulation</p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {pmts && pmts.length > 0 ? (

@@ -91,6 +91,8 @@ export const tourDepartures = pgTable("tour_departures", {
   endDate: text("end_date").notNull(),
   capacityTotal: integer("capacity_total").notNull().default(20),
   capacityBooked: integer("capacity_booked").default(0),
+  departureAirportId: varchar("departure_airport_id"),
+  arrivalAirportId: varchar("arrival_airport_id"),
   status: departureStatusEnum("status").default("open"),
   publicJoinEnabled: boolean("public_join_enabled").default(true),
   bookingCutoffDate: text("booking_cutoff_date"),
@@ -131,6 +133,7 @@ export const bookings = pgTable("bookings", {
   status: bookingStatusEnum("status").default("submitted"),
   fulfillmentStatus: fulfillmentStatusEnum("fulfillment_status").default("pending"),
   totalPrice: integer("total_price"),
+  currency: text("currency").default("USD"),
   notes: text("notes"),
   internalNotes: text("internal_notes"),
   isUrgent: boolean("is_urgent").default(false),
@@ -302,6 +305,7 @@ export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "car
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull(),
+  invoiceId: varchar("invoice_id"),
   amount: integer("amount").notNull(),
   currency: text("currency").default("USD"),
   method: paymentMethodEnum("payment_method").default("bank_transfer"),
@@ -522,6 +526,7 @@ export const hotelRates = pgTable("hotel_rates", {
   blackoutDates: text("blackout_dates"),
   notes: text("notes"),
   status: rateStatusEnum("status").default("draft"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 export const insertHotelRateSchema = createInsertSchema(hotelRates).omit({ id: true, createdAt: true });
@@ -549,6 +554,7 @@ export const transportRates = pgTable("transport_rates", {
   routeToCity: text("route_to_city"),
   notes: text("notes"),
   status: rateStatusEnum("status").default("draft"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 export const insertTransportRateSchema = createInsertSchema(transportRates).omit({ id: true, createdAt: true });
@@ -570,6 +576,7 @@ export const guideRates = pgTable("guide_rates", {
   licenseLevel: text("license_level"),
   notes: text("notes"),
   status: rateStatusEnum("status").default("draft"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 export const insertGuideRateSchema = createInsertSchema(guideRates).omit({ id: true, createdAt: true });
@@ -590,8 +597,41 @@ export const sightsRates = pgTable("sights_rates", {
   requiresTimeslot: boolean("requires_timeslot").default(false),
   notes: text("notes"),
   status: rateStatusEnum("status").default("draft"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 export const insertSightsRateSchema = createInsertSchema(sightsRates).omit({ id: true, createdAt: true });
 export type InsertSightsRate = z.infer<typeof insertSightsRateSchema>;
 export type SightsRate = typeof sightsRates.$inferSelect;
+
+export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "paid", "cancelled"]);
+
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  amount: integer("amount").notNull(),
+  currency: text("currency").default("USD"),
+  status: invoiceStatusEnum("status").default("draft"),
+  dueDate: text("due_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // 'booking_update', 'payment_received', 'document_action', 'system'
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

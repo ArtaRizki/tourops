@@ -36,7 +36,7 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
             <Badge variant="outline" className="text-[10px] h-4">{group.partySizeExpected} pax</Badge>
           </div>
           <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-            <Link href={`/my-bookings?joinCode=${group.joinCode}`}>Join Group</Link>
+            <Link href={`${window.location.pathname}?joinCode=${group.joinCode}`}>Join Group</Link>
           </Button>
         </div>
       ))}
@@ -61,6 +61,19 @@ export default function TourDetail() {
   const [groupName, setGroupName] = useState("");
   const [partySize, setPartySize] = useState(1);
   const [notes, setNotes] = useState("");
+  const [joinedGroup, setJoinedGroup] = useState<any>(null);
+
+  // Handle Join Code from URL
+  const searchParams = new URLSearchParams(window.location.search);
+  const urlJoinCode = searchParams.get("joinCode");
+
+  const { data: joinedGroupData, isLoading: joiningLoading } = useQuery({
+    queryKey: ["/api/bookings/by-code", urlJoinCode?.toUpperCase()],
+    queryFn: () => apiRequest("GET", `/api/bookings/by-code/${urlJoinCode?.toUpperCase()}`).then(res => res.json()),
+    enabled: !!urlJoinCode,
+  });
+
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
   const bookMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/bookings", data),
@@ -85,6 +98,54 @@ export default function TourDetail() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      {/* Join Group Dialog (Automatic) */}
+      <Dialog open={!!urlJoinCode && !!joinedGroupData && !bookingConfirmed} onOpenChange={(v) => !v && navigate(`/tours/${tourId}`)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Join Group: {joinedGroupData?.groupName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+              <p className="text-sm text-muted-foreground">You are joining a group for:</p>
+              <p className="font-bold text-lg mt-1">{tour.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">Departure: {joinedGroupData?.departureId}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Party Size (Including you)</Label>
+              <Input 
+                type="number" 
+                min={1} 
+                value={partySize} 
+                onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} 
+              />
+            </div>
+
+            <Button 
+              className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20"
+              onClick={() => bookMutation.mutate({
+                tourId: tour.id,
+                departureId: joinedGroupData.departureId,
+                bookingType: "join_leader_group",
+                leaderUserId: joinedGroupData.customerId,
+                partySizeExpected: partySize,
+                totalPrice: (tour.basePrice || 0) * partySize,
+              }, {
+                onSuccess: () => {
+                   setBookingConfirmed(true);
+                   navigate("/my-bookings");
+                }
+              })}
+              disabled={bookMutation.isPending}
+            >
+              {bookMutation.isPending ? "Joining..." : "Confirm & Join Group"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/tours">
           <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back to Tours</Button>
@@ -113,9 +174,18 @@ export default function TourDetail() {
           </div>
           <div className="text-right">
             {tour.basePrice ? (
-              <div>
-                <span className="text-3xl font-bold">${tour.basePrice}</span>
-                <span className="text-sm text-muted-foreground">/person</span>
+              <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Starting from</p>
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className="text-3xl font-bold text-primary">${tour.basePrice.toLocaleString()}</span>
+                  <span className="text-sm text-muted-foreground">/person</span>
+                </div>
+                {(tour.childPrice || tour.singleSupplement) && (
+                  <div className="mt-2 pt-2 border-t border-primary/10 text-xs text-muted-foreground space-y-1">
+                    {tour.childPrice && <p>Child: ${tour.childPrice.toLocaleString()}</p>}
+                    {tour.singleSupplement && <p>Single Supp: +${tour.singleSupplement.toLocaleString()}</p>}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -123,14 +193,52 @@ export default function TourDetail() {
 
         <p className="text-muted-foreground leading-relaxed">{tour.description}</p>
 
-        {tour.highlights && (
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-semibold mb-2">Highlights</h3>
-              <p className="text-sm text-muted-foreground">{tour.highlights}</p>
-            </CardContent>
-          </Card>
+        {tour.galleryUrls && tour.galleryUrls.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {tour.galleryUrls.map((url, i) => (
+              <div key={i} className="aspect-square rounded-md overflow-hidden border shadow-sm">
+                <img src={url} alt={`${tour.title} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+              </div>
+            ))}
+          </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {tour.highlights && (
+            <Card className="md:col-span-1 border-none shadow-sm bg-slate-50 dark:bg-slate-900">
+              <CardContent className="p-5">
+                <h3 className="font-bold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Highlights</h3>
+                <ul className="space-y-2">
+                  {tour.highlights.split('\n').filter(Boolean).map((h, i) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                      {h.trim()}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {tour.inclusions && (
+              <Card className="border-none shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500">
+                <CardContent className="p-5">
+                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Inclusions</h3>
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">{tour.inclusions}</div>
+                </CardContent>
+              </Card>
+            )}
+            {tour.exclusions && (
+              <Card className="border-none shadow-sm bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500">
+                <CardContent className="p-5">
+                  <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> Exclusions</h3>
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">{tour.exclusions}</div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
 
       {days && days.length > 0 && (

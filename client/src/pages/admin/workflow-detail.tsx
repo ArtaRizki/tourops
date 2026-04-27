@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -150,9 +151,17 @@ export default function AdminWorkflowDetail() {
                           </div>
                           {step.notes && <p className="text-xs text-muted-foreground mt-1">{step.notes}</p>}
                           {step.dueDate && (
-                            <p className="text-xs font-semibold text-destructive mt-1 flex items-center">
-                              <Clock className="h-3 w-3 mr-1" /> Due: {new Date(step.dueDate).toLocaleDateString()}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className={`text-xs font-semibold flex items-center ${
+                                step.status !== 'done' && new Date(step.dueDate) < new Date() ? 'text-destructive animate-pulse' : 'text-muted-foreground'
+                              }`}>
+                                <Clock className="h-3 w-3 mr-1" /> 
+                                Due: {new Date(step.dueDate).toLocaleDateString()}
+                                {step.status !== 'done' && new Date(step.dueDate) < new Date() && (
+                                  <Badge variant="destructive" className="ml-2 h-4 text-[10px] px-1 uppercase">Overdue</Badge>
+                                )}
+                              </p>
+                            </div>
                           )}
                           {step.updatedAt && step.status !== "pending" && (
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -162,6 +171,17 @@ export default function AdminWorkflowDetail() {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
+                        {isEditing && (
+                          <div className="flex flex-col gap-1">
+                            <Label className="text-[10px] uppercase text-muted-foreground">Set Due Date</Label>
+                            <Input 
+                              type="date" 
+                              className="h-8 text-xs w-[140px]" 
+                              defaultValue={step.dueDate ? new Date(step.dueDate).toISOString().split('T')[0] : ""}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateStep.mutate({ id: step.id, dueDate: e.target.value })}
+                            />
+                          </div>
+                        )}
                         <Badge variant={
                           step.status === "done" ? "default" :
                           step.status === "blocked" ? "destructive" :

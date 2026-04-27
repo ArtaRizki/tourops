@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, sql, or } from "drizzle-orm";
+import { eq, and, desc, sql, or, not } from "drizzle-orm";
 import { users } from "@shared/models/auth";
 import {
   userProfiles, tours, tourDays, tourDepartures,
@@ -8,7 +8,7 @@ import {
   countries, cities, airports, sights, transportCompanies, airlineAgencies,
   busTypes, transportRoutes, transportRoutePricing,
   transportBookings, transportInvoices, transportPayments,
-  auditLogs,
+  auditLogs, notifications, invoices,
   type UserProfile, type InsertUserProfile,
   type Tour, type InsertTour,
   type TourDay, type InsertTourDay,
@@ -39,7 +39,47 @@ import {
   type GuideRate, type InsertGuideRate,
   type SightsRate, type InsertSightsRate,
   type AuditLog, type InsertAuditLog,
+  type Notification, type InsertNotification,
+  type Invoice, type InsertInvoice,
 } from "@shared/schema";
+
+const DEFAULT_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {
+  airline: [
+    { code: "waiting_docs", name: "Waiting on Documents" },
+    { code: "quote_submitted", name: "Quote Submitted" },
+    { code: "quote_approved", name: "Quote Approved" },
+    { code: "ticketed", name: "Tickets Issued" },
+    { code: "completed", name: "Completed" },
+  ],
+  hotel: [
+    { code: "request_sent", name: "Request Sent" },
+    { code: "confirmation_received", name: "Confirmation Received" },
+    { code: "approved", name: "Approved" },
+    { code: "voucher_uploaded", name: "Voucher Uploaded" },
+    { code: "completed", name: "Completed" },
+  ],
+  transport: [
+    { code: "request_sent", name: "Route Plan Requested" },
+    { code: "proposed", name: "Vehicle Allocation Proposed" },
+    { code: "approved", name: "Approved" },
+    { code: "details_submitted", name: "Details Submitted" },
+    { code: "completed", name: "Completed" },
+  ],
+  guide: [
+    { code: "needed", name: "Guide Needed" },
+    { code: "proposed", name: "Guide Options Proposed" },
+    { code: "approved", name: "Approved" },
+    { code: "confirmed", name: "Guide Confirmed" },
+    { code: "completed", name: "Completed" },
+  ],
+  sights: [
+    { code: "reservation_required", name: "Reservation Required" },
+    { code: "slot_returned", name: "Slot Options Returned" },
+    { code: "approved", name: "Approved" },
+    { code: "tickets_uploaded", name: "Tickets Uploaded" },
+    { code: "completed", name: "Completed" },
+  ],
+};
 
 export interface IStorage {
   getOrCreateProfile(userId: string): Promise<UserProfile>;
@@ -188,31 +228,50 @@ export interface IStorage {
   updateTransportPayment(id: string, data: Partial<TransportPayment>): Promise<TransportPayment>;
 
   getHotelRates(): Promise<HotelRate[]>;
+  getHotelRate(id: string): Promise<HotelRate | undefined>;
   createHotelRate(data: InsertHotelRate): Promise<HotelRate>;
   bulkCreateHotelRates(data: InsertHotelRate[]): Promise<HotelRate[]>;
   updateHotelRate(id: string, data: Partial<HotelRate>): Promise<HotelRate>;
   deleteHotelRate(id: string): Promise<void>;
 
   getTransportRates(): Promise<TransportRate[]>;
+  getTransportRate(id: string): Promise<TransportRate | undefined>;
   createTransportRate(data: InsertTransportRate): Promise<TransportRate>;
   bulkCreateTransportRates(data: InsertTransportRate[]): Promise<TransportRate[]>;
   updateTransportRate(id: string, data: Partial<TransportRate>): Promise<TransportRate>;
   deleteTransportRate(id: string): Promise<void>;
 
   getGuideRates(): Promise<GuideRate[]>;
+  getGuideRate(id: string): Promise<GuideRate | undefined>;
   createGuideRate(data: InsertGuideRate): Promise<GuideRate>;
   bulkCreateGuideRates(data: InsertGuideRate[]): Promise<GuideRate[]>;
   updateGuideRate(id: string, data: Partial<GuideRate>): Promise<GuideRate>;
   deleteGuideRate(id: string): Promise<void>;
 
   getSightsRates(): Promise<SightsRate[]>;
+  getSightsRate(id: string): Promise<SightsRate | undefined>;
   createSightsRate(data: InsertSightsRate): Promise<SightsRate>;
   bulkCreateSightsRates(data: InsertSightsRate[]): Promise<SightsRate[]>;
   updateSightsRate(id: string, data: Partial<SightsRate>): Promise<SightsRate>;
   deleteSightsRate(id: string): Promise<void>;
+  deleteSightsRate(id: string): Promise<void>;
+
+  getInvoices(bookingId?: string): Promise<Invoice[]>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  createInvoice(data: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: string, data: Partial<Invoice>): Promise<Invoice>;
+  deleteInvoice(id: string): Promise<void>;
 
   getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]>;
   createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
+
+  getNotifications(userId: string): Promise<Notification[]>;
+  createNotification(data: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<Notification>;
+
+  initializeBookingWorkflows(bookingId: string): Promise<void>;
+  getBookingByJoinCode(code: string): Promise<Booking | undefined>;
+  getPublicGroupsByDeparture(departureId: string): Promise<Booking[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -262,8 +321,21 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(tours).orderBy(desc(tours.createdAt));
   }
 
-  async getPublishedTours(): Promise<Tour[]> {
-    return db.select().from(tours).where(eq(tours.isPublished, true)).orderBy(desc(tours.createdAt));
+  async getPublishedTours(): Promise<(Tour & { minDate?: string; maxDate?: string })[]> {
+    const publishedTours = await db.select().from(tours).where(eq(tours.isPublished, true)).orderBy(desc(tours.createdAt));
+    const allDepartures = await db.select().from(tourDepartures).where(eq(tourDepartures.status, "open"));
+
+    return publishedTours.map(tour => {
+      const tourDeps = allDepartures.filter(d => d.tourId === tour.id);
+      if (tourDeps.length === 0) return tour;
+
+      const dates = tourDeps.map(d => new Date(d.startDate).getTime());
+      return {
+        ...tour,
+        minDate: tourDeps.reduce((min, d) => !min || d.startDate < min ? d.startDate : min, ""),
+        maxDate: tourDeps.reduce((max, d) => !max || d.startDate > max ? d.startDate : max, ""),
+      };
+    });
   }
 
   async getTour(id: string): Promise<Tour | undefined> {
@@ -785,6 +857,10 @@ export class DatabaseStorage implements IStorage {
   async getHotelRates(): Promise<HotelRate[]> {
     return db.select().from(hotelRates).orderBy(desc(hotelRates.createdAt));
   }
+  async getHotelRate(id: string): Promise<HotelRate | undefined> {
+    const [r] = await db.select().from(hotelRates).where(eq(hotelRates.id, id));
+    return r;
+  }
   async createHotelRate(data: InsertHotelRate): Promise<HotelRate> {
     const [r] = await db.insert(hotelRates).values({ ...data, status: "draft" }).returning();
     return r;
@@ -804,6 +880,10 @@ export class DatabaseStorage implements IStorage {
   // Transport Rates
   async getTransportRates(): Promise<TransportRate[]> {
     return db.select().from(transportRates).orderBy(desc(transportRates.createdAt));
+  }
+  async getTransportRate(id: string): Promise<TransportRate | undefined> {
+    const [r] = await db.select().from(transportRates).where(eq(transportRates.id, id));
+    return r;
   }
   async createTransportRate(data: InsertTransportRate): Promise<TransportRate> {
     const [r] = await db.insert(transportRates).values({ ...data, status: "draft" }).returning();
@@ -829,6 +909,10 @@ export class DatabaseStorage implements IStorage {
     const [r] = await db.insert(guideRates).values({ ...data, status: "draft" }).returning();
     return r;
   }
+  async getGuideRate(id: string): Promise<GuideRate | undefined> {
+    const [r] = await db.select().from(guideRates).where(eq(guideRates.id, id));
+    return r;
+  }
   async bulkCreateGuideRates(data: InsertGuideRate[]): Promise<GuideRate[]> {
     if (!data.length) return [];
     return db.insert(guideRates).values(data.map(d => ({ ...d, status: "draft" as const }))).returning();
@@ -844,6 +928,10 @@ export class DatabaseStorage implements IStorage {
   // Sights Rates
   async getSightsRates(): Promise<SightsRate[]> {
     return db.select().from(sightsRates).orderBy(desc(sightsRates.createdAt));
+  }
+  async getSightsRate(id: string): Promise<SightsRate | undefined> {
+    const [r] = await db.select().from(sightsRates).where(eq(sightsRates.id, id));
+    return r;
   }
   async createSightsRate(data: InsertSightsRate): Promise<SightsRate> {
     const [r] = await db.insert(sightsRates).values({ ...data, status: "draft" }).returning();
@@ -870,6 +958,98 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
     const [log] = await db.insert(auditLogs).values(data).returning();
     return log;
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(data).returning();
+    return notification;
+  }
+
+
+
+  async markNotificationAsRead(id: string): Promise<Notification> {
+    const [notification] = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification;
+  }
+
+  async initializeBookingWorkflows(bookingId: string): Promise<void> {
+    const serviceTypes = ["airline", "hotel", "transport", "guide", "sights"] as const;
+    
+    // Check existing workflows to avoid duplicates
+    const existing = await db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, bookingId));
+    const existingTypes = new Set(existing.map(wf => wf.serviceType));
+
+    for (const serviceType of serviceTypes) {
+      if (existingTypes.has(serviceType)) continue;
+
+      const steps = DEFAULT_WORKFLOW_STEPS[serviceType];
+      const initialStep = steps[0]?.code;
+
+      const [wf] = await db.insert(bookingWorkflows).values({
+        bookingId,
+        serviceType,
+        status: "not_assigned",
+        currentStep: initialStep,
+      }).returning();
+
+      // Create initial steps
+      if (wf && steps.length > 0) {
+        await db.insert(workflowSteps).values(
+          steps.map((s, idx) => ({
+            workflowId: wf.id,
+            stepOrder: idx + 1,
+            stepCode: s.code,
+            stepName: s.name,
+            status: "pending" as const,
+          }))
+        );
+      }
+    }
+  }
+
+
+  async getPublicGroupsByDeparture(departureId: string): Promise<Booking[]> {
+    return db.select().from(bookings)
+      .where(and(
+        eq(bookings.departureId, departureId),
+        eq(bookings.bookingType, "leader_group"),
+        not(eq(bookings.status, "cancelled"))
+      ));
+  }
+  async getInvoices(bookingId?: string): Promise<Invoice[]> {
+    if (bookingId) {
+      return await db.select().from(invoices).where(eq(invoices.bookingId, bookingId));
+    }
+    return await db.select().from(invoices);
+  }
+
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    const [row] = await db.select().from(invoices).where(eq(invoices.id, id));
+    return row;
+  }
+
+  async createInvoice(data: InsertInvoice): Promise<Invoice> {
+    const [row] = await db.insert(invoices).values(data).returning();
+    return row;
+  }
+
+  async updateInvoice(id: string, data: Partial<Invoice>): Promise<Invoice> {
+    const [row] = await db.update(invoices).set(data).where(eq(invoices.id, id)).returning();
+    if (!row) throw new Error("Invoice not found");
+    return row;
+  }
+
+  async deleteInvoice(id: string): Promise<void> {
+    await db.delete(invoices).where(eq(invoices.id, id));
   }
 }
 
