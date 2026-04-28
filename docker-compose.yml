@@ -21,7 +21,7 @@ services:
 
   app:
     # build: .
-    image: tourops:v1.0
+    image: tourops:v1.2
     container_name: tour_ops_app
     restart: always
     depends_on:
