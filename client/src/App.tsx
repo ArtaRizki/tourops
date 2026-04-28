@@ -120,9 +120,9 @@ function AuthenticatedLayout() {
               </Route>
               <Route path="/staff/login">
                 {() => {
-                  const supplierRoles = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager"];
+                  const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager"];
                   if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
-                  if (role === "country_manager") return <Redirect to="/ops" />;
+                  if (role === "country_manager" || role === "transport_manager") return <Redirect to="/ops" />;
                   return <Redirect to="/admin" />;
                 }}
               </Route>
@@ -130,9 +130,9 @@ function AuthenticatedLayout() {
               <Route path="/">
                 {() => {
                   if (role === "admin") return <Redirect to="/admin" />;
-                  const supplierRoles = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager"];
+                  const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager"];
                   if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
-                  if (role === "country_manager") return <Redirect to="/ops" />;
+                  if (role === "country_manager" || role === "transport_manager") return <Redirect to="/ops" />;
                   return <Redirect to="/tours" />;
                 }}
               </Route>

@@ -31,6 +31,11 @@ import {
   insertBookingWorkflowSchema, insertWorkflowStepSchema,
 } from "@shared/schema";
 
+const ALL_STAFF_ROLES = [
+  "admin", "country_manager", "hotel_manager", "transport_manager",
+  "guide_manager", "sights_manager", "airline_supplier"
+];
+
 function getUserId(req: Request): string | undefined {
   return req.session?.userId;
 }
@@ -112,7 +117,7 @@ export async function registerRoutes(
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllProfiles());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -123,7 +128,7 @@ export async function registerRoutes(
       const updateSchema = z.object({ role: z.string().optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateProfile(req.params.id, parsed.data));
+      res.json(await storage.updateProfile(req.params.id as string, parsed.data as any));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -178,7 +183,7 @@ export async function registerRoutes(
       const parsed = pwSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-      const user = await authStorage.getUser(req.params.id);
+      const user = await authStorage.getUser(req.params.id as string);
       if (!user) return res.status(404).json({ message: "User not found" });
       await authStorage.upsertUser({ ...user, passwordHash, updatedAt: new Date() });
       res.json({ success: true });
@@ -200,7 +205,7 @@ export async function registerRoutes(
 
   app.get("/api/tours/:id", async (req, res) => {
     try {
-      const tour = await storage.getTour(req.params.id);
+      const tour = await storage.getTour(req.params.id as string);
       if (!tour) return res.status(404).json({ message: "Tour not found" });
       res.json(tour);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -219,28 +224,28 @@ export async function registerRoutes(
   app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateTour(req.params.id, req.body));
+      res.json(await storage.updateTour(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteTour(req.params.id);
+      await storage.deleteTour(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ---- Tour Days ----
   app.get("/api/tours/:id/days", async (req, res) => {
-    try { res.json(await storage.getTourDays(req.params.id)); }
+    try { res.json(await storage.getTourDays(req.params.id as string)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id });
+      const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTourDay(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -249,14 +254,14 @@ export async function registerRoutes(
   app.patch("/api/tour-days/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateTourDay(req.params.id, req.body));
+      res.json(await storage.updateBooking(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tour-days/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteTourDay(req.params.id);
+      await storage.deleteTourDay(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -270,7 +275,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/tours/:id/departures", async (req, res) => {
-    try { res.json(await storage.getDeparturesByTour(req.params.id)); }
+    try { res.json(await storage.getDeparturesByTour(req.params.id as string)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -286,22 +291,22 @@ export async function registerRoutes(
   app.patch("/api/departures/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateDeparture(req.params.id, req.body));
+      res.json(await storage.updateDeparture(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ---- Bookings ----
   app.get("/api/bookings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllBookings());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
-      const booking = await storage.getBooking(req.params.id);
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       res.json(booking);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -343,8 +348,8 @@ export async function registerRoutes(
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      const oldBooking = await storage.getBooking(req.params.id);
-      const updated = await storage.updateBooking(req.params.id, req.body);
+      const oldBooking = await storage.getBooking(req.params.id as string);
+      const updated = await storage.updateBooking(req.params.id as string, req.body);
       
       // Audit trail for status changes
       if (req.body.status && req.body.status !== oldBooking?.status) {
@@ -352,7 +357,7 @@ export async function registerRoutes(
         const userId = getUserId(req);
         await storage.createAuditLog({
           entityType: "booking",
-          entityId: req.params.id,
+          entityId: req.params.id as string,
           action: "status_changed",
           changedBy: userId || undefined,
           changedByName: userName,
@@ -363,16 +368,18 @@ export async function registerRoutes(
       
       // Auto-initialize workflows and manage capacity if status changed to confirmed
       if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
-        await initializeBookingWorkflows(req.params.id);
+        await initializeBookingWorkflows(req.params.id as string);
         
         // Auto capacity management (deduct seats)
         if (oldBooking && oldBooking.departureId) {
           const departure = await storage.getDeparture(oldBooking.departureId);
-          if (departure && departure.availableSeats !== null) {
-            const newSeats = Math.max(0, departure.availableSeats - oldBooking.partySizeExpected);
-            const newStatus = newSeats === 0 ? "sold_out" : departure.status;
+          if (departure) {
+            const partySize = oldBooking.partySizeExpected || 0;
+            const newBooked = (departure.capacityBooked || 0) + partySize;
+            const isSoldOut = newBooked >= (departure.capacityTotal || 0);
+            const newStatus = isSoldOut ? "sold_out" : departure.status;
             await storage.updateDeparture(departure.id, {
-              availableSeats: newSeats,
+              capacityBooked: newBooked,
               status: newStatus
             });
           }
@@ -381,11 +388,12 @@ export async function registerRoutes(
         // Restore capacity if confirmed booking is cancelled/rejected
         if (oldBooking && oldBooking.departureId) {
           const departure = await storage.getDeparture(oldBooking.departureId);
-          if (departure && departure.availableSeats !== null) {
-            const newSeats = departure.availableSeats + oldBooking.partySizeExpected;
-            const newStatus = departure.status === "sold_out" ? "open" : departure.status;
+          if (departure) {
+            const partySize = oldBooking.partySizeExpected || 0;
+            const newBooked = Math.max(0, (departure.capacityBooked || 0) - partySize);
+            const newStatus = (departure.status === "sold_out" && newBooked < (departure.capacityTotal || 0)) ? "open" : departure.status;
             await storage.updateDeparture(departure.id, {
-              availableSeats: newSeats,
+              capacityBooked: newBooked,
               status: newStatus
             });
           }
@@ -429,7 +437,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
       res.json(booking);
@@ -440,12 +448,12 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId && booking.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      res.json(await storage.getTravelers(req.params.id));
+      res.json(await storage.getTravelers(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -453,9 +461,9 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking || booking.customerId !== userId) return res.status(403).json({ message: "Forbidden" });
-      res.json(await storage.getWorkflows(req.params.id));
+      res.json(await storage.getWorkflows(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -463,9 +471,9 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking || booking.customerId !== userId) return res.status(403).json({ message: "Forbidden" });
-      const msgs = await storage.getMessages(req.params.id);
+      const msgs = await storage.getMessages(req.params.id as string);
       res.json(msgs.filter(m => m.visibility === "customer_visible"));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -475,9 +483,9 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await canAccessBooking(userId, req.params.id);
+      const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
-      res.json(await storage.getDocuments(req.params.id));
+      res.json(await storage.getDocuments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -485,9 +493,9 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await canAccessBooking(userId, req.params.id);
+      const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
-      const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id, uploadedBy: userId });
+      const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, uploadedBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDocument(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -498,9 +506,9 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await canAccessBooking(userId, req.params.id);
+      const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
-      res.json(await storage.getPayments(req.params.id));
+      res.json(await storage.getPayments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -508,14 +516,14 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await canAccessBooking(userId, req.params.id);
+      const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
       
-      const payments = await storage.getPayments(req.params.id);
-      const targetPayment = payments.find(p => p.id === req.params.paymentId);
+      const payments = await storage.getPayments(req.params.id as string);
+      const targetPayment = payments.find(p => p.id === req.params.paymentId as string);
       if (!targetPayment) return res.status(404).json({ message: "Payment not found" });
 
-      const updated = await storage.updatePayment(req.params.paymentId, {
+      const updated = await storage.updatePayment(req.params.paymentId as string, {
         receiptUrl: req.body.receiptUrl,
         notes: req.body.notes,
       });
@@ -529,12 +537,12 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId || booking.bookingType !== "leader_group") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      res.json(await storage.getGroupParticipants(req.params.id));
+      res.json(await storage.getGroupParticipants(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -542,17 +550,17 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId || booking.bookingType !== "leader_group") {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const participant = await storage.getBooking(req.params.participantBookingId);
+      const participant = await storage.getBooking(req.params.participantBookingId as string);
       if (!participant) return res.status(404).json({ message: "Participant booking not found" });
       if (participant.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden: not your participant" });
       }
-      const updated = await storage.updateBooking(req.params.participantBookingId, { status: "cancelled" });
+      const updated = await storage.updateBooking(req.params.participantBookingId as string, { status: "cancelled" });
       res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -562,18 +570,18 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
       if (booking.status === "cancelled") return res.status(400).json({ message: "Already cancelled" });
       if (booking.status === "completed") return res.status(400).json({ message: "Cannot cancel a completed booking" });
       const previousStatus = booking.status;
-      const updated = await storage.updateBooking(req.params.id, { status: "cancelled" });
+      const updated = await storage.updateBooking(req.params.id as string, { status: "cancelled" });
       // Audit trail
       const userName = await getUserName(req);
       await storage.createAuditLog({
         entityType: "booking",
-        entityId: req.params.id,
+        entityId: req.params.id as string,
         action: "status_changed",
         changedBy: userId,
         changedByName: userName,
@@ -588,13 +596,13 @@ export async function registerRoutes(
   // ---- Public Groups (Joinable Departures) ----
   app.get("/api/departures/:departureId/public-groups", async (req, res) => {
     try {
-      const departure = await storage.getDeparture(req.params.departureId);
+      const departure = await storage.getDeparture(req.params.departureId as string);
       if (!departure) return res.status(404).json({ message: "Departure not found" });
       if (!departure.publicJoinEnabled) return res.json([]);
       // Return leader_group bookings for this departure (minus personal info)
       const allBookings = await storage.getAllBookings();
       const publicGroups = allBookings
-        .filter(b => b.departureId === req.params.departureId && b.bookingType === "leader_group" && b.status !== "cancelled")
+        .filter(b => b.departureId === req.params.departureId as string && b.bookingType === "leader_group" && b.status !== "cancelled")
         .map(b => ({
           id: b.id,
           groupName: b.groupName || "Travel Group",
@@ -609,7 +617,7 @@ export async function registerRoutes(
   app.get("/api/audit-logs/:entityType/:entityId", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getAuditLogs(req.params.entityType, req.params.entityId));
+      res.json(await storage.getAuditLogs(req.params.entityType as string, req.params.entityId as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -669,7 +677,7 @@ export async function registerRoutes(
             groupName: b.groupName,
             bookingType: b.bookingType,
             travelers: travelersList.map(t => `${t.firstName} ${t.lastName}`),
-            paidBy: isLeaderBooking ? "Leader" : (customerProfile?.displayName || customerProfile?.username || "Participant"),
+            paidBy: isLeaderBooking ? "Leader" : "Participant",
             isLeaderPayment: isLeaderBooking,
           });
         }
@@ -682,7 +690,7 @@ export async function registerRoutes(
   app.get("/api/bookings/:id/travelers", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getTravelers(req.params.id));
+      res.json(await storage.getTravelers(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -690,7 +698,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
       const isOwner = booking.customerId === userId;
@@ -699,7 +707,7 @@ export async function registerRoutes(
       if (!isOwner && !isAdmin && !isLeaderOfGroup) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id });
+      const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTraveler(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -709,7 +717,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
       const isOwner = booking.customerId === userId;
@@ -726,7 +734,7 @@ export async function registerRoutes(
 
       const results = [];
       for (const tData of travelers) {
-        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id });
+        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id as string });
         if (parsed.success) {
           results.push(await storage.createTraveler(parsed.data));
         }
@@ -738,14 +746,14 @@ export async function registerRoutes(
   app.patch("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateTraveler(req.params.id, req.body));
+      res.json(await storage.updateTraveler(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteTraveler(req.params.id);
+      await storage.deleteTraveler(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -754,14 +762,14 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const traveler = await storage.getTraveler(req.params.id);
+      const traveler = await storage.getTraveler(req.params.id as string);
       if (!traveler) return res.status(404).json({ message: "Traveler not found" });
       const booking = await storage.getBooking(traveler.bookingId);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId && booking.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      res.json(await storage.updateTraveler(req.params.id, req.body));
+      res.json(await storage.updateTraveler(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -769,14 +777,14 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const traveler = await storage.getTraveler(req.params.id);
+      const traveler = await storage.getTraveler(req.params.id as string);
       if (!traveler) return res.status(404).json({ message: "Traveler not found" });
       const booking = await storage.getBooking(traveler.bookingId);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId && booking.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      await storage.deleteTraveler(req.params.id);
+      await storage.deleteTraveler(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -784,15 +792,15 @@ export async function registerRoutes(
   // ---- Assignments ----
   app.get("/api/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllAssignments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getAssignments(req.params.id));
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.json(await storage.getAssignments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -800,11 +808,11 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const userId = getUserId(req);
-      const assignData = { ...req.body, bookingId: req.params.id, assignedBy: userId };
+      const assignData = { ...req.body, bookingId: req.params.id as string, assignedBy: userId };
       const assignment = await storage.createAssignment(assignData);
 
       const wf = await storage.createWorkflow({
-        bookingId: req.params.id, countryCode: req.body.countryCode,
+        bookingId: req.params.id as string, countryCode: req.body.countryCode,
         serviceType: req.body.serviceType, assignedUserId: req.body.assignedUserId,
         status: "assigned",
       });
@@ -824,7 +832,7 @@ export async function registerRoutes(
 
       // Notify Customer & Staff in background via email queue (non-blocking)
       try {
-        const booking = await storage.getBooking(req.params.id);
+        const booking = await storage.getBooking(req.params.id as string);
         if (!booking) return;
 
         const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
@@ -832,7 +840,7 @@ export async function registerRoutes(
           sendBookingConfirmedNotification(customerProfile.user.email, booking);
         }
 
-        const workflows = await storage.getWorkflows(req.params.id);
+        const workflows = await storage.getWorkflows(req.params.id as string);
         for (const wf of workflows) {
           if (wf.assignedUserId) {
             const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
@@ -855,14 +863,14 @@ export async function registerRoutes(
   app.patch("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateAssignment(req.params.id, req.body));
+      res.json(await storage.updateAssignment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteAssignment(req.params.id);
+      await storage.deleteAssignment(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -870,15 +878,15 @@ export async function registerRoutes(
   // ---- Workflows ----
   app.get("/api/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllWorkflows());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getWorkflows(req.params.id));
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.json(await storage.getWorkflows(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -886,14 +894,14 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const wf = await storage.getWorkflow(req.params.id);
+      const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
       res.json(wf);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/workflows/:id/steps", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getWorkflowSteps(req.params.id)); }
+    try { res.json(await storage.getWorkflowSteps(req.params.id as string)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -902,10 +910,10 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
-      const wf = await storage.getWorkflow(req.params.id);
+      const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
       if (profile.role === "admin" || wf.assignedUserId === userId) {
-        res.json(await storage.updateWorkflow(req.params.id, req.body));
+        res.json(await storage.updateWorkflow(req.params.id as string, req.body));
       } else {
         res.status(403).json({ message: "Forbidden" });
       }
@@ -915,20 +923,20 @@ export async function registerRoutes(
   app.patch("/api/workflow-steps/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      res.json(await storage.updateWorkflowStep(req.params.id, { ...req.body, updatedBy: userId }));
+      res.json(await storage.updateWorkflowStep(req.params.id as string, { ...req.body, updatedBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ---- Documents ----
   app.get("/api/documents", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllDocuments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/documents", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getDocuments(req.params.id)); }
+    try { res.json(await storage.getDocuments(req.params.id as string)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -936,7 +944,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id, uploadedBy: userId });
+      const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, uploadedBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDocument(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -946,7 +954,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const userId = getUserId(req);
-      const updated = await storage.updateDocument(req.params.id, { ...req.body, reviewedBy: userId });
+      const updated = await storage.updateDocument(req.params.id as string, { ...req.body, reviewedBy: userId });
       
       // Notify customer about document status update (non-blocking)
       try {
@@ -982,7 +990,7 @@ export async function registerRoutes(
   app.get("/api/bookings/:id/messages", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getMessages(req.params.id));
+      res.json(await storage.getMessages(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -994,7 +1002,7 @@ export async function registerRoutes(
       const parsed = msgSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createMessage({
-        ...parsed.data, bookingId: req.params.id,
+        ...parsed.data, bookingId: req.params.id as string,
         senderUserId: userId, senderName: await getUserName(req),
         visibility: (parsed.data.visibility as any) || "customer_visible",
       }));
@@ -1012,7 +1020,7 @@ export async function registerRoutes(
   app.get("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.getPayments(req.params.id));
+      res.json(await storage.getPayments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1020,7 +1028,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const userId = getUserId(req);
-      const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id, createdBy: userId });
+      const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, createdBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createPayment(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1029,7 +1037,7 @@ export async function registerRoutes(
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      const updated = await storage.updatePayment(req.params.id, req.body);
+      const updated = await storage.updatePayment(req.params.id as string, req.body);
       
       // Notify customer if payment is confirmed as paid (non-blocking)
       if (req.body.status === "paid") {
@@ -1056,7 +1064,7 @@ export async function registerRoutes(
   });
 
   // ---- Supplier/Ops ----
-  const SUPPLIER_ROLES = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+  const SUPPLIER_ROLES = ALL_STAFF_ROLES;
 
   app.get("/api/supplier/workflows", isAuthenticated, async (req, res) => {
     try {
@@ -1079,18 +1087,18 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const booking = await storage.getBooking(req.params.id);
+      const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
 
       // Verify supplier is assigned to at least one workflow for this booking
-      const workflows = await storage.getWorkflows(req.params.id);
+      const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
       if (!isAssigned && profile.role !== "admin") {
         return res.status(403).json({ message: "Access denied to this booking" });
       }
 
-      const travelers = await storage.getTravelers(req.params.id);
-      const allDocuments = await storage.getDocuments(req.params.id);
+      const travelers = await storage.getTravelers(req.params.id as string);
+      const allDocuments = await storage.getDocuments(req.params.id as string);
       // Filter documents: supplier sees their own uploads or all if admin
       const documents = profile.role === "admin" 
         ? allDocuments 
@@ -1107,11 +1115,11 @@ export async function registerRoutes(
       const profile = await storage.getOrCreateProfile(userId);
       if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
 
-      const workflows = await storage.getWorkflows(req.params.id);
+      const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
       if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
 
-      const allMessages = await storage.getMessages(req.params.id);
+      const allMessages = await storage.getMessages(req.params.id as string);
       res.json(allMessages.filter(m => m.visibility === "internal_only" || m.senderUserId === userId));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1123,13 +1131,13 @@ export async function registerRoutes(
       const profile = await storage.getOrCreateProfile(userId);
       if (!SUPPLIER_ROLES.includes(profile.role)) return res.status(403).json({ message: "Forbidden" });
 
-      const workflows = await storage.getWorkflows(req.params.id);
+      const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
       if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
 
       const { messageText } = req.body;
       const message = await storage.createMessage({
-        bookingId: req.params.id,
+        bookingId: req.params.id as string,
         senderUserId: userId,
         senderName: await getUserName(req),
         messageText,
@@ -1148,7 +1156,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const wf = await storage.getWorkflow(req.params.id);
+      const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
       if (wf.assignedUserId !== userId && profile.role !== "admin") {
         return res.status(403).json({ message: "Not assigned to this workflow" });
@@ -1175,7 +1183,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
-      const opsRoles = ["country_manager", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+      const opsRoles = ALL_STAFF_ROLES;
       if (!opsRoles.includes(profile.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
@@ -1201,13 +1209,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertCountrySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateCountry(req.params.id, parsed.data));
+      res.json(await storage.updateCountry(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteCountry(req.params.id);
+      await storage.deleteCountry(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1251,13 +1259,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateCity(req.params.id, parsed.data));
+      res.json(await storage.updateCity(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteCity(req.params.id);
+      await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1287,14 +1295,14 @@ export async function registerRoutes(
         }
       }
       if (resolved.length === 0) {
-        return res.status(400).json({ message: `No cities could be matched to existing countries. Make sure countries are imported first. Unmatched: ${[...new Set(skipped)].slice(0, 10).join(", ")}${skipped.length > 10 ? "..." : ""}` });
+        return res.status(400).json({ message: `No cities could be matched to existing countries. Make sure countries are imported first. Unmatched: ${Array.from(new Set(skipped)).slice(0, 10).join(", ")}${skipped.length > 10 ? "..." : ""}` });
       }
       const rows = z.array(insertCitySchema).safeParse(resolved);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const result = await storage.bulkCreateCities(rows.data);
       const response: any = Array.isArray(result) ? result : [result];
       if (skipped.length > 0) {
-        return res.json({ imported: response.length, skipped: skipped.length, skippedSample: [...new Set(skipped)].slice(0, 10) });
+        return res.json({ imported: response.length, skipped: skipped.length, skippedSample: Array.from(new Set(skipped)).slice(0, 10) });
       }
       res.json(response);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1318,13 +1326,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertAirportSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateAirport(req.params.id, parsed.data));
+      res.json(await storage.updateAirport(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteAirport(req.params.id);
+      await storage.deleteAirport(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1356,14 +1364,14 @@ export async function registerRoutes(
         }
       }
       if (resolved.length === 0) {
-        return res.status(400).json({ message: `No airports could be matched to existing cities. Make sure cities are imported first. Unmatched: ${[...new Set(skipped)].slice(0, 10).join(", ")}${skipped.length > 10 ? "..." : ""}` });
+        return res.status(400).json({ message: `No airports could be matched to existing cities. Make sure cities are imported first. Unmatched: ${Array.from(new Set(skipped)).slice(0, 10).join(", ")}${skipped.length > 10 ? "..." : ""}` });
       }
       const rows = z.array(insertAirportSchema).safeParse(resolved);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const result = await storage.bulkCreateAirports(rows.data);
       const response: any = Array.isArray(result) ? result : [result];
       if (skipped.length > 0) {
-        return res.json({ imported: response.length, skipped: skipped.length, skippedSample: [...new Set(skipped)].slice(0, 10) });
+        return res.json({ imported: response.length, skipped: skipped.length, skippedSample: Array.from(new Set(skipped)).slice(0, 10) });
       }
       res.json(response);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1387,13 +1395,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertSightSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateSight(req.params.id, parsed.data));
+      res.json(await storage.updateSight(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteSight(req.params.id);
+      await storage.deleteSight(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1470,7 +1478,7 @@ export async function registerRoutes(
       const response: any = Array.isArray(result) ? result : [result];
       const result2: any = { imported: response.length };
       if (createdCities.length > 0) result2.citiesCreated = createdCities.length;
-      if (skipped.length > 0) { result2.skipped = skipped.length; result2.skippedSample = [...new Set(skipped)].slice(0, 10); }
+      if (skipped.length > 0) { result2.skipped = skipped.length; result2.skippedSample = Array.from(new Set(skipped)).slice(0, 10); }
       res.json(result2);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1493,13 +1501,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateTransportCompany(req.params.id, parsed.data));
+      res.json(await storage.updateTransportCompany(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteTransportCompany(req.params.id);
+      await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1531,13 +1539,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateAirlineAgency(req.params.id, parsed.data));
+      res.json(await storage.updateAirlineAgency(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      await storage.deleteAirlineAgency(req.params.id);
+      await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1589,14 +1597,14 @@ export async function registerRoutes(
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateBusType(req.params.id, req.body));
+      res.json(await storage.updateBusType(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/transport/bus-types/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      await storage.deleteBusType(req.params.id);
+      await storage.deleteBusType(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1625,14 +1633,14 @@ export async function registerRoutes(
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateTransportRoute(req.params.id, req.body));
+      res.json(await storage.updateTransportRoute(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/transport/routes/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      await storage.deleteTransportRoute(req.params.id);
+      await storage.deleteTransportRoute(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1661,14 +1669,14 @@ export async function registerRoutes(
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateRoutePricing(req.params.id, req.body));
+      res.json(await storage.updateRoutePricing(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/transport/route-pricing/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      await storage.deleteRoutePricing(req.params.id);
+      await storage.deleteRoutePricing(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1685,7 +1693,7 @@ export async function registerRoutes(
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      const tb = await storage.getTransportBooking(req.params.id);
+      const tb = await storage.getTransportBooking(req.params.id as string);
       if (!tb) return res.status(404).json({ message: "Not found" });
       if (!scope.isAdmin && tb.companyId !== scope.companyId) return res.status(403).json({ message: "Forbidden" });
       res.json(tb);
@@ -1705,14 +1713,14 @@ export async function registerRoutes(
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      const existing = await storage.getTransportBooking(req.params.id);
+      const existing = await storage.getTransportBooking(req.params.id as string);
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (!scope.isAdmin && existing.companyId !== scope.companyId) return res.status(403).json({ message: "Forbidden" });
       const data = { ...req.body };
       if (data.status === "confirmed" && !data.confirmedAt) {
         data.confirmedAt = new Date();
       }
-      res.json(await storage.updateTransportBooking(req.params.id, data));
+      res.json(await storage.updateTransportBooking(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1741,7 +1749,7 @@ export async function registerRoutes(
       if (data.status === "approved" && !data.approvedAt) {
         data.approvedAt = new Date();
       }
-      res.json(await storage.updateTransportInvoice(req.params.id, data));
+      res.json(await storage.updateTransportInvoice(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1764,7 +1772,7 @@ export async function registerRoutes(
   app.patch("/api/transport/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
-      res.json(await storage.updateTransportPayment(req.params.id, req.body));
+      res.json(await storage.updateTransportPayment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1805,13 +1813,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
-      res.json(await storage.updateHotelRate(req.params.id, data));
+      res.json(await storage.updateHotelRate(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
-      await storage.deleteHotelRate(req.params.id);
+      await storage.deleteHotelRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1844,13 +1852,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
-      res.json(await storage.updateTransportRate(req.params.id, data));
+      res.json(await storage.updateTransportRate(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
-      await storage.deleteTransportRate(req.params.id);
+      await storage.deleteTransportRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1883,13 +1891,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
-      res.json(await storage.updateGuideRate(req.params.id, data));
+      res.json(await storage.updateGuideRate(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
-      await storage.deleteGuideRate(req.params.id);
+      await storage.deleteGuideRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1922,13 +1930,13 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
-      res.json(await storage.updateSightsRate(req.params.id, data));
+      res.json(await storage.updateSightsRate(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
-      await storage.deleteSightsRate(req.params.id);
+      await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

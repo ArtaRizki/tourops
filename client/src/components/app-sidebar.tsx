@@ -89,12 +89,13 @@ const transportManagerNav = [
 function getNavItems(role: string | undefined) {
   switch (role) {
     case "admin": return adminNav;
-    case "airline_supplier": return supplierNav;
-    case "transport_manager": return transportManagerNav;
-    case "country_manager":
+    case "airline_supplier":
     case "hotel_manager":
     case "guide_manager":
     case "sights_manager":
+      return supplierNav;
+    case "transport_manager": return transportManagerNav;
+    case "country_manager":
       return opsNav;
     default: return customerNav;
   }

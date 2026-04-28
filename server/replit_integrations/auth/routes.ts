@@ -9,6 +9,7 @@ const ADMIN_ROLES = ["admin"];
 const STAFF_ROLES = [
   "airline_supplier", "country_manager", "hotel_manager",
   "transport_manager", "guide_manager", "sights_manager",
+  "admin",
 ];
 
 const loginSchema = z.object({
