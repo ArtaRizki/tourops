@@ -126,7 +126,6 @@ function AuthenticatedLayout() {
           </Switch>
         </main>
       </div>
-      </div>
     </SidebarProvider>
   );
 }
