@@ -34,6 +34,11 @@ import {
 import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "./lib/messaging";
 import { generateCode as genCode } from "./lib/utils";
 
+const ALL_STAFF_ROLES = [
+  "admin", "country_manager", "hotel_manager", "transport_manager",
+  "guide_manager", "sights_manager", "airline_supplier"
+];
+
 function getUserId(req: Request): string | undefined {
   return req.session?.userId;
 }
@@ -127,7 +132,7 @@ export async function registerRoutes(
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllProfiles());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -308,14 +313,14 @@ export async function registerRoutes(
   // ---- Bookings ----
   app.get("/api/bookings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllBookings());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       res.json(booking);
@@ -385,8 +390,10 @@ export async function registerRoutes(
           const departure = await storage.getDeparture(oldBooking.departureId);
           if (departure) {
             const booked = departure.capacityBooked || 0;
-            const newBooked = Math.min(departure.capacityTotal, booked + (oldBooking.partySizeExpected || 0));
-            const newStatus = newBooked >= departure.capacityTotal ? "sold_out" : departure.status;
+            const partySize = oldBooking.partySizeExpected || 0;
+            const newBooked = Math.min(departure.capacityTotal || 0, booked + partySize);
+            const isSoldOut = newBooked >= (departure.capacityTotal || 0);
+            const newStatus = isSoldOut ? "sold_out" : departure.status;
             await storage.updateDeparture(departure.id, {
               capacityBooked: newBooked,
               status: newStatus
@@ -399,8 +406,9 @@ export async function registerRoutes(
           const departure = await storage.getDeparture(oldBooking.departureId);
           if (departure) {
             const booked = departure.capacityBooked || 0;
-            const newBooked = Math.max(0, booked - (oldBooking.partySizeExpected || 0));
-            const newStatus = departure.status === "sold_out" ? "open" : departure.status;
+            const partySize = oldBooking.partySizeExpected || 0;
+            const newBooked = Math.max(0, booked - partySize);
+            const newStatus = (departure.status === "sold_out" && newBooked < (departure.capacityTotal || 0)) ? "open" : departure.status;
             await storage.updateDeparture(departure.id, {
               capacityBooked: newBooked,
               status: newStatus
@@ -716,7 +724,7 @@ export async function registerRoutes(
       if (!isOwner && !isAdmin && !isLeaderOfGroup) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id });
+      const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTraveler(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -743,7 +751,7 @@ export async function registerRoutes(
 
       const results = [];
       for (const tData of travelers) {
-        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id });
+        const parsed = insertTravelerSchema.safeParse({ ...tData, bookingId: req.params.id as string });
         if (parsed.success) {
           results.push(await storage.createTraveler(parsed.data));
         }
@@ -801,14 +809,14 @@ export async function registerRoutes(
   // ---- Assignments ----
   app.get("/api/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllAssignments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAssignments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -887,14 +895,14 @@ export async function registerRoutes(
   // ---- Workflows ----
   app.get("/api/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllWorkflows());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getWorkflows(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -939,7 +947,7 @@ export async function registerRoutes(
   // ---- Documents ----
   app.get("/api/documents", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllDocuments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1073,7 +1081,7 @@ export async function registerRoutes(
   });
 
   // ---- Supplier/Ops ----
-  const SUPPLIER_ROLES = ["airline_supplier", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+  const SUPPLIER_ROLES = ALL_STAFF_ROLES;
 
   app.get("/api/supplier/workflows", isAuthenticated, async (req, res) => {
     try {
@@ -1192,7 +1200,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
-      const opsRoles = ["country_manager", "hotel_manager", "transport_manager", "guide_manager", "sights_manager", "admin"];
+      const opsRoles = ALL_STAFF_ROLES;
       if (!opsRoles.includes(profile.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }

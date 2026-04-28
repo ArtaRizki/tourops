@@ -28,6 +28,33 @@ import { useLanguage } from "@/hooks/use-language";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
 
+function getRoleIcon(role: string | undefined) {
+  switch (role) {
+    case "admin": return Settings;
+    case "airline_supplier": return Plane;
+    case "country_manager": return Globe;
+    case "hotel_manager": return Hotel;
+    case "transport_manager": return Bus;
+    case "guide_manager": return UserCheck;
+    case "sights_manager": return Ticket;
+    default: return Users;
+  }
+}
+
+function getRoleLabel(role: string | undefined) {
+  const labels: Record<string, string> = {
+    admin: "HQ Admin",
+    customer: "Customer",
+    airline_supplier: "Airline Supplier",
+    country_manager: "Country Manager",
+    hotel_manager: "Hotel Manager",
+    transport_manager: "Transport Manager",
+    guide_manager: "Guide Manager",
+    sights_manager: "Sights Manager",
+  };
+  return labels[role || "customer"] || "Customer";
+}
+
 export function AppSidebar() {
   const { user, logout, isLoggingOut } = useAuth();
   const { data: profile } = useQuery<UserProfile>({
