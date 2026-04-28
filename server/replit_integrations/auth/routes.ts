@@ -40,7 +40,7 @@ export function registerAuthRoutes(app: Express): void {
       if (portal === "admin" && !ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ message: "This account does not have admin access" });
       }
-      if (portal === "staff" && !STAFF_ROLES.includes(role)) {
+      if (portal === "staff" && !STAFF_ROLES.includes(role) && !ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ message: "This account does not have staff access" });
       }
       if (portal === "customer" && !CUSTOMER_ROLES.includes(role) && !ADMIN_ROLES.includes(role)) {
