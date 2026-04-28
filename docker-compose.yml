@@ -32,6 +32,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       PORT: ${PORT}
       NODE_ENV: production
+      DISABLE_SECURE_COOKIE: ${DISABLE_SECURE_COOKIE}
     ports:
       - "5022:${PORT}"
     networks:

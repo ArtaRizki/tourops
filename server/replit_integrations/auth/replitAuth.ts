@@ -23,12 +23,18 @@ export function getSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    // cookie: {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIE !== "true",
+    //   sameSite: "lax",
+    //   maxAge: sessionTtl,
+    // },
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIE !== "true",
+      secure: false,        // ✅ set to false for HTTP and local development
       sameSite: "lax",
-      maxAge: sessionTtl,
-    },
+      maxAge: sessionTtl
+    }
   });
 }
 
