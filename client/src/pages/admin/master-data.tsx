@@ -13,9 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2 } from "lucide-react";
 import type {
-  Country, City, Airport, Sight, TransportCompany, AirlineAgency,
+  Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency,
 } from "@shared/schema";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
@@ -299,6 +299,15 @@ function CountriesTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const scrapeCountriesMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/scrape/countries"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/countries"] });
+      toast({ title: "Countries scraped successfully" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
     const data = { code, name, region: region || undefined, currency: currency || undefined, timezone: timezone || undefined, isActive };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
@@ -312,6 +321,10 @@ function CountriesTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-country"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-countries"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        <Button variant="secondary" onClick={() => scrapeCountriesMutation.mutate()} disabled={scrapeCountriesMutation.isPending} data-testid="button-scrape-countries">
+          <Wand2 className="h-4 w-4 mr-2" />
+          {scrapeCountriesMutation.isPending ? "Scraping..." : "Scrape All Countries"}
+        </Button>
       </div>
 
       <Table>
@@ -419,6 +432,18 @@ function CitiesTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const scrapeCitiesMutation = useMutation({
+    mutationFn: (countryId: string) => {
+      const country = countriesList?.find(c => c.id === countryId);
+      return apiRequest("POST", `/api/admin/scrape/cities/${country?.code}`, { countryId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
+      toast({ title: "Cities scraped for selected country" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
     const data = { name, countryId, isActive };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
@@ -434,6 +459,16 @@ function CitiesTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-city"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-cities"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        <div className="flex items-center gap-2 border-l pl-3 ml-1">
+          <Select onValueChange={(v) => scrapeCitiesMutation.mutate(v)}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue placeholder="Scrape Cities for..." />
+            </SelectTrigger>
+            <SelectContent>
+              {countriesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Table>
@@ -674,6 +709,15 @@ function SightsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const scrapeSightsMutation = useMutation({
+    mutationFn: (cityId: string) => apiRequest("POST", `/api/admin/scrape/sights/${cityId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] });
+      toast({ title: "Sights scraped for selected city" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
     const data = { name, cityId, description: description || undefined, longDescription: longDescription || undefined, category, ticketRequired, individualTicketCost: individualTicketCost || undefined, groupTicketCost: groupTicketCost || undefined, estimatedDuration: estimatedDuration || undefined, isActive };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
@@ -689,6 +733,16 @@ function SightsTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-sight"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-sights"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        <div className="flex items-center gap-2 border-l pl-3 ml-1">
+          <Select onValueChange={(v) => scrapeSightsMutation.mutate(v)}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue placeholder="Scrape Sights for..." />
+            </SelectTrigger>
+            <SelectContent>
+              {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Table>
@@ -1077,6 +1131,150 @@ function AirlineAgenciesTab() {
   );
 }
 
+function HotelsTab() {
+  const { toast } = useToast();
+  const [editItem, setEditItem] = useState<Hotel | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [name, setName] = useState("");
+  const [cityId, setCityId] = useState("");
+  const [starRating, setStarRating] = useState("3");
+  const [basePrice, setBasePrice] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [address, setAddress] = useState("");
+  const [description, setDescription] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  const { data: items, isLoading } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+
+  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setAddress(""); setDescription(""); setIsActive(true); };
+
+  const openEdit = (item: Hotel) => {
+    setEditItem(item); setName(item.name); setCityId(item.cityId); setStarRating(String(item.starRating || 3));
+    setBasePrice(item.basePrice || ""); setCurrency(item.currency || "USD");
+    setAddress(item.address || ""); setDescription(item.description || ""); setIsActive(item.isActive ?? true); setShowForm(true);
+  };
+
+  const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/hotels", data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setShowForm(false); toast({ title: "Hotel created" }); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const scrapeHotelsMutation = useMutation({
+    mutationFn: (cId: string) => apiRequest("POST", `/api/admin/scrape/hotels/${cId}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: "Hotels scraped for selected city" }); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const handleSubmit = () => {
+    const data = { name, cityId, starRating: parseInt(starRating), basePrice, currency, address, description, isActive };
+    createMutation.mutate(data);
+  };
+
+  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+
+  if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add New</Button>
+        <div className="flex items-center gap-2 border-l pl-3 ml-1">
+          <Select onValueChange={(v) => scrapeHotelsMutation.mutate(v)}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue placeholder="Scrape Hotels for..." />
+            </SelectTrigger>
+            <SelectContent>
+              {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>City</TableHead>
+            <TableHead>Stars</TableHead>
+            <TableHead>Base Price</TableHead>
+            <TableHead>Address</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items?.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
+              <TableCell>{item.starRating} ⭐</TableCell>
+              <TableCell className="font-mono text-xs">{item.basePrice} {item.currency}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">{item.address || "-"}</TableCell>
+              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+          {(!items || items.length === 0) && (
+            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hotels found</TableCell></TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editItem ? "Edit Hotel" : "Add Hotel"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Grand Plaza" /></div>
+            <div>
+              <Label>City *</Label>
+              <Select value={cityId} onValueChange={setCityId}>
+                <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                <SelectContent>
+                  {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Star Rating</Label>
+              <Select value={starRating} onValueChange={setStarRating}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5].map(s => <SelectItem key={s} value={String(s)}>{s} Stars</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Base Price</Label><Input type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="150.00" /></div>
+              <div><Label>Currency</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
+            </div>
+            <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Street..." /></div>
+            <div className="flex items-center gap-2">
+              <Switch checked={isActive} onCheckedChange={setIsActive} />
+              <Label>Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={!name || !cityId || createMutation.isPending}>
+              {createMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AdminMasterData() {
   return (
     <div className="p-6 space-y-6">
@@ -1093,6 +1291,7 @@ export default function AdminMasterData() {
           <TabsTrigger value="sights" data-testid="tab-sights" className="gap-1.5"><Landmark className="h-4 w-4" />Sights</TabsTrigger>
           <TabsTrigger value="transport" data-testid="tab-transport" className="gap-1.5"><Truck className="h-4 w-4" />Transport Companies</TabsTrigger>
           <TabsTrigger value="airlines" data-testid="tab-airlines" className="gap-1.5"><TicketCheck className="h-4 w-4" />Airline Agencies</TabsTrigger>
+          <TabsTrigger value="hotels" data-testid="tab-hotels" className="gap-1.5"><Building2 className="h-4 w-4" />Hotels</TabsTrigger>
         </TabsList>
 
         <TabsContent value="countries"><CountriesTab /></TabsContent>
@@ -1101,6 +1300,7 @@ export default function AdminMasterData() {
         <TabsContent value="sights"><SightsTab /></TabsContent>
         <TabsContent value="transport"><TransportCompaniesTab /></TabsContent>
         <TabsContent value="airlines"><AirlineAgenciesTab /></TabsContent>
+        <TabsContent value="hotels"><HotelsTab /></TabsContent>
       </Tabs>
     </div>
   );

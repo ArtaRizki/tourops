@@ -368,11 +368,35 @@ export const sights = pgTable("sights", {
   individualTicketCost: numeric("individual_ticket_cost"),
   groupTicketCost: numeric("group_ticket_cost"),
   estimatedDuration: text("estimated_duration"),
+  imageUrl: text("image_url"),
+  openingHours: text("opening_hours"),
+  address: text("address"),
   isActive: boolean("is_active").default(true),
 });
+
 export const insertSightSchema = createInsertSchema(sights).omit({ id: true });
 export type InsertSight = z.infer<typeof insertSightSchema>;
 export type Sight = typeof sights.$inferSelect;
+
+export const hotels = pgTable("hotels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  cityId: varchar("city_id").notNull(),
+  address: text("address"),
+  description: text("description"),
+  starRating: integer("star_rating"),
+  basePrice: numeric("base_price"),
+  currency: text("currency").default("USD"),
+  imageUrl: text("image_url"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  website: text("website"),
+  isActive: boolean("is_active").default(true),
+});
+
+export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true });
+export type InsertHotel = z.infer<typeof insertHotelSchema>;
+export type Hotel = typeof hotels.$inferSelect;
 
 export const transportCompanies = pgTable("transport_companies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

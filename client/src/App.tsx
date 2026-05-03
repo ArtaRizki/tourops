@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import TourGenerator from "./pages/admin/tour-generator";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -13,6 +14,7 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import StaffLoginPage from "@/pages/staff-login";
 import AdminLoginPage from "@/pages/admin-login";
+import AirlineSearch from "./pages/admin/airline-search";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTours from "@/pages/admin/tours";
 import AdminDepartures from "@/pages/admin/departures";
@@ -77,6 +79,9 @@ function AuthenticatedLayout() {
             <Route path="/admin/workflows/:id" component={AdminWorkflowDetail} />
             <Route path="/admin/users" component={AdminUsers} />
             <Route path="/admin/reports" component={AdminReports} />
+            <Route path="/admin/tour-generator" component={TourGenerator} />
+            <Route path="/admin/tours/:id" component={TourDetail} />
+            <Route path="/admin/airline-search" component={AirlineSearch} />
             <Route path="/admin/master-data" component={AdminMasterData} />
             <Route path="/admin/transport" component={AdminTransport} />
             <Route path="/admin/rate-cards" component={AdminRateCards} />

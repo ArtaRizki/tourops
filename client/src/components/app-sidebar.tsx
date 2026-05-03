@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,6 +73,8 @@ export function AppSidebar() {
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
         { title: t("users"), url: "/admin/users", icon: Users },
         { title: "Transport", url: "/admin/transport", icon: Bus },
+        { title: "Tour Generator", url: "/admin/tour-generator", icon: Wand2 },
+        { title: "Airline Search", url: "/admin/airline-search", icon: Plane },
         { title: "Rate Cards", url: "/admin/rate-cards", icon: CreditCard },
         { title: "Master Data", url: "/admin/master-data", icon: Database },
       ];

@@ -13,6 +13,8 @@ import {
 } from "./lib/constants";
 import { generateCode } from "./lib/utils";
 import { getQueueStats } from "./lib/emailQueue";
+import { scraperService } from "./lib/scrapers";
+import { airlineService } from "./lib/airline";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -24,7 +26,7 @@ import {
   insertTravelerSchema, insertBookingAssignmentSchema, insertMessageSchema,
   insertDocumentSchema, insertPaymentSchema, insertTourDaySchema,
   insertCountrySchema, insertCitySchema, insertAirportSchema,
-  insertSightSchema, insertTransportCompanySchema, insertAirlineAgencySchema,
+  insertSightSchema, insertHotelSchema, insertTransportCompanySchema, insertAirlineAgencySchema,
   insertBusTypeSchema, insertTransportRouteSchema, insertTransportRoutePricingSchema,
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
@@ -635,6 +637,80 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       res.json(await storage.getAuditLogs(req.params.entityType as string, req.params.entityId as string));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Scraping ----
+  app.post("/api/admin/scrape/countries", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const countriesList = await scraperService.scrapeCountries();
+      const results = await storage.bulkCreateCountries(countriesList);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/scrape/cities/:countryCode", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const countryId = req.body.countryId as string;
+      const country = await storage.getCountry(countryId);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+      const citiesList = await scraperService.scrapeCities(req.params.countryCode as string, country.id);
+      const results = await storage.bulkCreateCities(citiesList);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/scrape/sights/:cityId", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const cityId = req.params.cityId as string;
+      const city = await storage.getCity(cityId);
+      if (!city) return res.status(404).json({ message: "City not found" });
+      const sightsList = await scraperService.scrapeSights(city.id, city.name);
+      const results = await storage.bulkCreateSights(sightsList);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/scrape/hotels/:cityId", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const cityId = req.params.cityId as string;
+      const city = await storage.getCity(cityId);
+      if (!city) return res.status(404).json({ message: "City not found" });
+      const hotelsList = await scraperService.scrapeHotels(city.id, city.name);
+      const results = await storage.bulkCreateHotels(hotelsList);
+      res.json({ success: true, count: results.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Airline Search ----
+  app.get("/api/flights/search", async (req, res) => {
+    try {
+      const { origin, destination, date, passengers, cabinClass } = req.query;
+      if (!origin || !destination || !date) {
+        return res.status(400).json({ message: "Origin, destination, and date are required" });
+      }
+      const results = await airlineService.searchFlights({
+        origin: origin as string,
+        destination: destination as string,
+        date: date as string,
+        passengers: passengers ? parseInt(passengers as string) : 1,
+        cabinClass: cabinClass as any,
+      });
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Hotels ----
+  app.get("/api/hotels", async (req, res) => {
+    try {
+      if (req.query.cityId) {
+        return res.json(await storage.getHotelsByCity(req.query.cityId as string));
+      }
+      res.json(await storage.getAllHotels());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

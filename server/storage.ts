@@ -5,7 +5,7 @@ import {
   userProfiles, tours, tourDays, tourDepartures,
   bookings, travelers, bookingAssignments,
   bookingWorkflows, workflowSteps, documents, messages, payments,
-  countries, cities, airports, sights, transportCompanies, airlineAgencies,
+  countries, cities, airports, sights, hotels, transportCompanies, airlineAgencies,
   busTypes, transportRoutes, transportRoutePricing,
   transportBookings, transportInvoices, transportPayments,
   auditLogs, notifications, invoices,
@@ -25,6 +25,7 @@ import {
   type City, type InsertCity,
   type Airport, type InsertAirport,
   type Sight, type InsertSight,
+  type Hotel, type InsertHotel,
   type TransportCompany, type InsertTransportCompany,
   type AirlineAgency, type InsertAirlineAgency,
   type BusType, type InsertBusType,
@@ -180,6 +181,14 @@ export interface IStorage {
   updateSight(id: string, data: Partial<Sight>): Promise<Sight>;
   deleteSight(id: string): Promise<void>;
   bulkCreateSights(data: InsertSight[]): Promise<Sight[]>;
+
+  getAllHotels(): Promise<Hotel[]>;
+  getHotelsByCity(cityId: string): Promise<Hotel[]>;
+  getHotel(id: string): Promise<Hotel | undefined>;
+  createHotel(data: InsertHotel): Promise<Hotel>;
+  updateHotel(id: string, data: Partial<Hotel>): Promise<Hotel>;
+  deleteHotel(id: string): Promise<void>;
+  bulkCreateHotels(data: InsertHotel[]): Promise<Hotel[]>;
 
   getAllTransportCompanies(): Promise<TransportCompany[]>;
   getTransportCompany(id: string): Promise<TransportCompany | undefined>;
@@ -688,6 +697,38 @@ export class DatabaseStorage implements IStorage {
 
   async bulkCreateSights(data: InsertSight[]): Promise<Sight[]> {
     return db.insert(sights).values(data).onConflictDoNothing().returning();
+  }
+
+  // Hotels
+  async getAllHotels(): Promise<Hotel[]> {
+    return db.select().from(hotels);
+  }
+
+  async getHotelsByCity(cityId: string): Promise<Hotel[]> {
+    return db.select().from(hotels).where(eq(hotels.cityId, cityId));
+  }
+
+  async getHotel(id: string): Promise<Hotel | undefined> {
+    const [hotel] = await db.select().from(hotels).where(eq(hotels.id, id));
+    return hotel;
+  }
+
+  async createHotel(data: InsertHotel): Promise<Hotel> {
+    const [hotel] = await db.insert(hotels).values(data).returning();
+    return hotel;
+  }
+
+  async updateHotel(id: string, data: Partial<Hotel>): Promise<Hotel> {
+    const [hotel] = await db.update(hotels).set(data).where(eq(hotels.id, id)).returning();
+    return hotel;
+  }
+
+  async deleteHotel(id: string): Promise<void> {
+    await db.delete(hotels).where(eq(hotels.id, id));
+  }
+
+  async bulkCreateHotels(data: InsertHotel[]): Promise<Hotel[]> {
+    return db.insert(hotels).values(data).onConflictDoNothing().returning();
   }
 
   // Transport Companies
