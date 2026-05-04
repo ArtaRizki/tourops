@@ -2091,5 +2091,13 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const analytics = await storage.getAnalytics();
+      res.json(analytics);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   return httpServer;
 }

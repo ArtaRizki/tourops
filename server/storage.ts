@@ -281,6 +281,7 @@ export interface IStorage {
   initializeBookingWorkflows(bookingId: string): Promise<void>;
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
   getPublicGroupsByDeparture(departureId: string): Promise<Booking[]>;
+  getAnalytics(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1059,13 +1060,70 @@ export class DatabaseStorage implements IStorage {
 
 
   async getPublicGroupsByDeparture(departureId: string): Promise<Booking[]> {
+    const departure = await this.getDeparture(departureId);
+    if (!departure || !departure.publicJoinEnabled) return [];
     return db.select().from(bookings)
       .where(and(
         eq(bookings.departureId, departureId),
         eq(bookings.bookingType, "leader_group"),
         not(eq(bookings.status, "cancelled"))
-      ));
+      ))
+      .orderBy(desc(bookings.createdAt));
   }
+
+  async getAnalytics(): Promise<any> {
+    const allPayments = await db.select().from(payments).where(eq(payments.status, "paid"));
+    const totalRevenue = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const allBookings = await db.select().from(bookings);
+    const totalBookings = allBookings.length;
+
+    const allDepartures = await db.select().from(tourDepartures).where(eq(tourDepartures.status, "open"));
+    const activeDepartures = allDepartures.length;
+
+    // Revenue by month (last 6 months)
+    const revenueByMonth = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleString('default', { month: 'short' });
+      const monthRevenue = allPayments
+        .filter(p => {
+          const pd = new Date(p.createdAt || new Date());
+          return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      revenueByMonth.push({ month: monthLabel, revenue: monthRevenue });
+    }
+
+    // Occupancy
+    const departuresWithTours = await db.select({
+      departure: tourDepartures,
+      tour: tours
+    })
+    .from(tourDepartures)
+    .innerJoin(tours, eq(tourDepartures.tourId, tours.id))
+    .where(eq(tourDepartures.status, "open"))
+    .limit(10);
+
+    const occupancy = departuresWithTours.map(d => ({
+      id: d.departure.id,
+      tourTitle: d.tour.title,
+      startDate: d.departure.startDate,
+      booked: d.departure.capacityBooked || 0,
+      total: d.departure.capacityTotal || 0,
+      percentage: Math.round(((d.departure.capacityBooked || 0) / (d.departure.capacityTotal || 1)) * 100)
+    }));
+
+    return {
+      totalRevenue,
+      totalBookings,
+      activeDepartures,
+      revenueByMonth,
+      occupancy
+    };
+  }
+
   async getInvoices(bookingId?: string): Promise<Invoice[]> {
     if (bookingId) {
       return await db.select().from(invoices).where(eq(invoices.bookingId, bookingId));
