@@ -1,104 +1,32 @@
-import { useLocation, Link } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import type { UserProfile } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  LayoutDashboard,
-  MapPin,
-  Calendar,
-  BookOpen,
-  Users,
-  ClipboardList,
-  Workflow,
-  FileText,
-  MessageSquare,
-  CreditCard,
-  Settings,
-  LogOut,
-  Globe,
-  Plane,
-  Hotel,
-  Bus,
-  UserCheck,
-  Ticket,
-  Printer,
-  DollarSign,
+import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import type { UserProfile } from "@shared/schema";
+import { Link, useLocation } from "wouter";
+import { 
+  LayoutDashboard, Globe, BookOpen, Users, 
+  BarChart3, Settings, LogOut, Plane, 
+  Hotel, Bus, UserCheck, Ticket, Database,
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2
 } from "lucide-react";
-
-const adminNav = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Tours", url: "/admin/tours", icon: MapPin },
-  { title: "Departures", url: "/admin/departures", icon: Calendar },
-  { title: "Bookings", url: "/admin/bookings", icon: BookOpen },
-  { title: "Assignments", url: "/admin/assignments", icon: ClipboardList },
-  { title: "Transportation", url: "/admin/transport", icon: Bus },
-  { title: "Rate Cards", url: "/admin/rate-cards", icon: DollarSign },
-  { title: "Documents", url: "/admin/documents", icon: FileText },
-  { title: "Messages", url: "/admin/messages", icon: MessageSquare },
-  { title: "Payments", url: "/admin/payments", icon: CreditCard },
-  { title: "Master Data", url: "/admin/master-data", icon: Globe },
-  { title: "Users & Roles", url: "/admin/users", icon: Users },
-];
-
-const customerNav = [
-  { title: "Browse Tours", url: "/tours", icon: Globe },
-  { title: "My Bookings", url: "/my-bookings", icon: BookOpen },
-  { title: "Leader Dashboard", url: "/leader-dashboard", icon: Users },
-  { title: "Manage Passengers", url: "/manage-passengers", icon: UserCheck },
-  { title: "Payment Report", url: "/leader-payments", icon: CreditCard },
-  { title: "Create Brochure", url: "/create-brochure", icon: Printer },
-  { title: "My Documents", url: "/my-documents", icon: FileText },
-  { title: "Messages", url: "/my-messages", icon: MessageSquare },
-];
-
-const supplierNav = [
-  { title: "Dashboard", url: "/supplier", icon: LayoutDashboard },
-  { title: "Assigned Bookings", url: "/supplier/bookings", icon: BookOpen },
-  { title: "Quotes", url: "/supplier/quotes", icon: FileText },
-  { title: "Messages", url: "/supplier/messages", icon: MessageSquare },
-];
-
-const opsNav = [
-  { title: "Dashboard", url: "/ops", icon: LayoutDashboard },
-  { title: "Assigned Tasks", url: "/ops/tasks", icon: ClipboardList },
-  { title: "Fulfillment", url: "/ops/fulfillment", icon: Workflow },
-  { title: "Messages", url: "/ops/messages", icon: MessageSquare },
-];
-
-const transportManagerNav = [
-  { title: "Dashboard", url: "/ops", icon: LayoutDashboard },
-  { title: "Transport Mgmt", url: "/ops/transport", icon: Bus },
-  { title: "Assigned Tasks", url: "/ops/tasks", icon: ClipboardList },
-  { title: "Messages", url: "/ops/messages", icon: MessageSquare },
-];
-
-function getNavItems(role: string | undefined) {
-  switch (role) {
-    case "admin": return adminNav;
-    case "airline_supplier": return supplierNav;
-    case "transport_manager": return transportManagerNav;
-    case "country_manager":
-    case "hotel_manager":
-    case "guide_manager":
-    case "sights_manager":
-      return opsNav;
-    default: return customerNav;
-  }
-}
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useLanguage } from "@/hooks/use-language";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 function getRoleIcon(role: string | undefined) {
   switch (role) {
@@ -128,66 +56,82 @@ function getRoleLabel(role: string | undefined) {
 }
 
 export function AppSidebar() {
-  const { user, logout } = useAuth();
-  const [location] = useLocation();
-
+  const { user, logout, isLoggingOut } = useAuth();
   const { data: profile } = useQuery<UserProfile>({
     queryKey: ["/api/user-profile"],
-    enabled: !!user,
   });
-  
-  const { data: counts } = useQuery<Record<string, number>>({
-    queryKey: ["/api/notifications/counts"],
-    enabled: !!user,
-    refetchInterval: 30000, // Refresh every 30s
-  });
+  const [location] = useLocation();
+  const { language, setLanguage, t } = useLanguage();
 
-  const role = profile?.role;
-  const navItems = getNavItems(role);
-  const RoleIcon = getRoleIcon(role);
+  const getNav = () => {
+    const role = profile?.role;
+    if (role === "admin" || role === "country_manager") {
+      return [
+        { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
+        { title: t("tours"), url: "/admin/tours", icon: Globe },
+        { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
+        { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
+        { title: t("users"), url: "/admin/users", icon: Users },
+        { title: "Transport", url: "/admin/transport", icon: Bus },
+        { title: "Tour Generator", url: "/admin/tour-generator", icon: Wand2 },
+        { title: "Airline Search", url: "/admin/airline-search", icon: Plane },
+        { title: "Rate Cards", url: "/admin/rate-cards", icon: CreditCard },
+        { title: "Master Data", url: "/admin/master-data", icon: Database },
+      ];
+    }
+    if (role === "customer") {
+      return [
+        { title: t("browse_tours"), url: "/tours", icon: Globe },
+        { title: t("join_groups"), url: "/join-groups", icon: Users },
+        { title: t("my_bookings"), url: "/my-bookings", icon: BookOpen },
+        { title: "Leader Dashboard", url: "/leader-dashboard", icon: ShieldCheck },
+      ];
+    }
+    if (role === "hotel_manager") return [{ title: "Hotel Dashboard", url: "/supplier", icon: Hotel }];
+    if (role === "guide_manager") return [{ title: "Guide Dashboard", url: "/supplier", icon: UserCheck2 }];
+    if (role === "sights_manager") return [{ title: "Sights Dashboard", url: "/supplier", icon: Ticket }];
+    if (role === "airline_supplier") return [{ title: "Airline Dashboard", url: "/supplier", icon: Plane }];
+    if (role === "transport_manager") return [{ title: "Transport Ops", url: "/ops/transport", icon: Bus }];
+    
+    return [];
+  };
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <Globe className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">TourOps</span>
-        </div>
-        <div className="flex items-center gap-2 mt-3 px-1">
-          <RoleIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground font-medium">{getRoleLabel(role)}</span>
+    <Sidebar collapsible="icon" className="border-r shadow-lg bg-white dark:bg-slate-950">
+      <SidebarHeader className="p-4 border-b bg-primary/5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary p-2 rounded-xl shadow-lg shadow-primary/20 rotate-3">
+              <Globe className="h-6 w-6 text-white" />
+            </div>
+            <span className="font-serif text-2xl font-black tracking-tighter text-slate-800 dark:text-slate-100 uppercase italic">TourOps</span>
+          </div>
+          <div className="flex items-center gap-1">
+             <NotificationBell />
+          </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {getNav().map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url || (item.url !== "/" && location.startsWith(item.url) && item.url.length > 1)}
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={location === item.url}
+                    tooltip={item.title} 
+                    className="hover:bg-primary/5 active:scale-95 transition-all rounded-lg py-6 group"
                   >
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                      {counts && item.url.includes("documents") && counts.documents > 0 && (
-                        <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                          {counts.documents}
-                        </span>
-                      )}
-                      {counts && item.url.includes("payments") && counts.payments > 0 && (
-                        <span className="ml-auto bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                          {counts.payments}
-                        </span>
-                      )}
-                      {counts && item.url.includes("fulfillment") && counts.workflows > 0 && (
-                        <span className="ml-auto bg-destructive text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                          {counts.workflows}
-                        </span>
-                      )}
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <div className={`p-2 rounded-md transition-colors ${location === item.url ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                        <item.icon className="h-4 w-4" />
+                      </div>
+                      <span className={`font-medium text-sm transition-colors ${location === item.url ? 'text-primary font-bold' : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
+                        {item.title}
+                      </span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -197,29 +141,54 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
-            <AvatarFallback className="text-xs">
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
+      <SidebarFooter className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 space-y-4">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-800 border shadow-sm">
+           <span className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Language</span>
+           <div className="flex gap-1">
+             <Button 
+               variant={language === "en" ? "default" : "ghost"} 
+               size="sm" 
+               className="h-6 text-[10px] px-2 font-bold"
+               onClick={() => setLanguage("en")}
+             >EN</Button>
+             <Button 
+               variant={language === "id" ? "default" : "ghost"} 
+               size="sm" 
+               className="h-6 text-[10px] px-2 font-bold"
+               onClick={() => setLanguage("id")}
+             >ID</Button>
+           </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-2">
+          <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-sm">
+            <AvatarImage src={undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+              {user?.username?.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate" data-testid="text-user-name">
-              {user?.firstName} {user?.lastName}
+            <p className="text-xs font-bold truncate text-slate-800 dark:text-slate-200">
+              {user?.username}
             </p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <p className="text-[10px] text-muted-foreground truncate uppercase tracking-tighter">
+              {profile?.role?.replace("_", " ")}
+            </p>
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => logout()}
-            data-testid="button-logout"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <ThemeToggle />
         </div>
+
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg group h-11"
+          onClick={() => logout()}
+          disabled={isLoggingOut}
+        >
+          <div className="bg-red-50 dark:bg-red-950 p-2 rounded-md group-hover:bg-red-100 transition-colors mr-3">
+            <LogOut className="h-4 w-4" />
+          </div>
+          <span className="font-bold text-sm">{t("logout")}</span>
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );

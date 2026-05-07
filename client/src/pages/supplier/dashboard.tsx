@@ -5,13 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { 
   CheckCircle2, Clock, AlertCircle, FileText, 
   Users, MessageSquare, Upload, ArrowRight,
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
-  UserCheck, Ticket, Download, FileCheck, AlertTriangle
+  UserCheck, Ticket, Download, FileCheck, AlertTriangle,
+  DollarSign, ClipboardList
 } from "lucide-react";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@shared/schema";
@@ -50,6 +54,10 @@ export default function SupplierDashboard() {
       toast({ title: "Workflow updated" });
     },
   });
+
+  const { data: hotelRates } = useQuery<any[]>({ queryKey: ["/api/rates/hotel"] });
+  const { data: guideRates } = useQuery<any[]>({ queryKey: ["/api/rates/guide"] });
+  const { data: sightsRates } = useQuery<any[]>({ queryKey: ["/api/rates/sights"] });
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [uploadWorkflowId, setUploadWorkflowId] = useState<string | null>(null);
@@ -141,8 +149,34 @@ export default function SupplierDashboard() {
         </motion.div>
       </div>
 
-      <div>
-        <div className="flex justify-between items-center mb-6">
+      <Tabs defaultValue="tasks" className="mt-8">
+        <TabsList className="mb-6 bg-white/50 backdrop-blur-sm border shadow-sm p-1">
+          <TabsTrigger value="tasks" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Tasks
+          </TabsTrigger>
+          {(profile?.role === "hotel_manager" || profile?.role === "admin") && (
+            <TabsTrigger value="hotel_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <Hotel className="h-4 w-4 mr-2" />
+              Hotel Rates
+            </TabsTrigger>
+          )}
+          {(profile?.role === "guide_manager" || profile?.role === "admin") && (
+            <TabsTrigger value="guide_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Guide Rates
+            </TabsTrigger>
+          )}
+          {(profile?.role === "sights_manager" || profile?.role === "admin") && (
+            <TabsTrigger value="sights_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <Ticket className="h-4 w-4 mr-2" />
+              Sights Rates
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="tasks">
+          <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold tracking-tight">Assigned Workflows</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="flex -space-x-2">
@@ -188,7 +222,7 @@ export default function SupplierDashboard() {
                             wf.status === 'blocked' ? 'bg-rose-100 text-rose-700' : 
                             'bg-amber-100 text-amber-700'
                           }`}>
-                            {wf.status.replace('_', ' ')}
+                            {(wf.status || 'pending').replace('_', ' ')}
                           </Badge>
                           <span className="text-[10px] font-mono text-muted-foreground uppercase">
                             BK-{wf.bookingId?.slice(0, 8)}
@@ -260,7 +294,122 @@ export default function SupplierDashboard() {
             </AnimatePresence>
           </div>
         )}
-      </div>
+      </TabsContent>
+
+      <TabsContent value="hotel_rates">
+        <Card>
+          <CardHeader>
+            <CardTitle>Hotel Rates Management</CardTitle>
+            <CardDescription>Manage your room types and pricing</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <div className="border rounded-md">
+               <Table>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Hotel Name</TableHead>
+                     <TableHead>Room Type</TableHead>
+                     <TableHead>Rate</TableHead>
+                     <TableHead>Validity</TableHead>
+                     <TableHead>Status</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {hotelRates?.map(r => (
+                     <TableRow key={r.id}>
+                       <TableCell className="font-medium">{r.hotelName}</TableCell>
+                       <TableCell>{r.roomType}</TableCell>
+                       <TableCell>{r.currency} {r.pricePerRoomPerNight}</TableCell>
+                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
+                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                     </TableRow>
+                   ))}
+                   {(!hotelRates || hotelRates.length === 0) && (
+                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                   )}
+                 </TableBody>
+               </Table>
+             </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="guide_rates">
+        <Card>
+          <CardHeader>
+            <CardTitle>Guide Rates Management</CardTitle>
+            <CardDescription>Manage your service rates and availability</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <div className="border rounded-md">
+               <Table>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Guide Name</TableHead>
+                     <TableHead>Language</TableHead>
+                     <TableHead>Rate</TableHead>
+                     <TableHead>Validity</TableHead>
+                     <TableHead>Status</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {guideRates?.map(r => (
+                     <TableRow key={r.id}>
+                       <TableCell className="font-medium">{r.guideName}</TableCell>
+                       <TableCell>{r.language}</TableCell>
+                       <TableCell>{r.currency} {r.price}</TableCell>
+                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
+                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                     </TableRow>
+                   ))}
+                   {(!guideRates || guideRates.length === 0) && (
+                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                   )}
+                 </TableBody>
+               </Table>
+             </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="sights_rates">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sights & Attractions Rates</CardTitle>
+            <CardDescription>Manage ticket prices and slot requirements</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <div className="border rounded-md">
+               <Table>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Attraction</TableHead>
+                     <TableHead>Ticket Type</TableHead>
+                     <TableHead>Price</TableHead>
+                     <TableHead>Validity</TableHead>
+                     <TableHead>Status</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {sightsRates?.map(r => (
+                     <TableRow key={r.id}>
+                       <TableCell className="font-medium">{r.attractionName}</TableCell>
+                       <TableCell>{r.ticketType}</TableCell>
+                       <TableCell>{r.currency} {r.pricePerPerson}</TableCell>
+                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
+                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                     </TableRow>
+                   ))}
+                   {(!sightsRates || sightsRates.length === 0) && (
+                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                   )}
+                 </TableBody>
+               </Table>
+             </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
 
       {/* Manifest Modal */}
       <Dialog open={!!selectedBookingId} onOpenChange={(v) => !v && setSelectedBookingId(null)}>

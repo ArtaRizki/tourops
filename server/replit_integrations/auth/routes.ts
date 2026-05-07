@@ -9,6 +9,7 @@ const ADMIN_ROLES = ["admin"];
 const STAFF_ROLES = [
   "airline_supplier", "country_manager", "hotel_manager",
   "transport_manager", "guide_manager", "sights_manager",
+  "admin",
 ];
 
 const loginSchema = z.object({
@@ -40,7 +41,7 @@ export function registerAuthRoutes(app: Express): void {
       if (portal === "admin" && !ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ message: "This account does not have admin access" });
       }
-      if (portal === "staff" && !STAFF_ROLES.includes(role)) {
+      if (portal === "staff" && !STAFF_ROLES.includes(role) && !ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ message: "This account does not have staff access" });
       }
       if (portal === "customer" && !CUSTOMER_ROLES.includes(role) && !ADMIN_ROLES.includes(role)) {

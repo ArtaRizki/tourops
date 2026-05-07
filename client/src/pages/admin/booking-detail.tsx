@@ -81,8 +81,11 @@ export default function AdminBookingDetail() {
   const [docForm, setDocForm] = useState({ docType: "", fileName: "", fileUrl: "", travelerId: "", workflowStepId: "" });
   const [showAddDoc, setShowAddDoc] = useState(false);
 
-  const [paymentForm, setPaymentForm] = useState({ amount: "", currency: "USD", method: "bank_transfer", notes: "" });
+  const [paymentForm, setPaymentForm] = useState({ amount: "", currency: "USD", method: "bank_transfer", notes: "", invoiceId: "" });
   const [showAddPayment, setShowAddPayment] = useState(false);
+
+  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: "", amount: "", currency: "USD", dueDate: "", notes: "" });
+  const [showAddInvoice, setShowAddInvoice] = useState(false);
 
   const { data: booking, isLoading } = useQuery<Booking>({ queryKey: ["/api/bookings", bookingId] });
   const { data: travelers } = useQuery<Traveler[]>({ queryKey: ["/api/bookings", bookingId, "travelers"] });
@@ -94,6 +97,10 @@ export default function AdminBookingDetail() {
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
   const { data: auditLogs } = useQuery<any[]>({ 
     queryKey: ["/api/audit-logs", "booking", bookingId],
+    enabled: !!bookingId 
+  });
+  const { data: invoices } = useQuery<any[]>({ 
+    queryKey: ["/api/bookings", bookingId, "invoices"],
     enabled: !!bookingId 
   });
 
@@ -177,12 +184,30 @@ export default function AdminBookingDetail() {
   });
 
   const createPayment = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/payments`, data),
+    mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/payments`, {
+      ...data,
+      amount: Math.round(parseFloat(data.amount) * 100)
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "invoices"] });
       toast({ title: "Payment added" });
       setShowAddPayment(false);
-      setPaymentForm({ amount: "", currency: "USD", method: "bank_transfer", notes: "" });
+      setPaymentForm({ amount: "", currency: "USD", method: "bank_transfer", notes: "", invoiceId: "" });
+    },
+  });
+
+  const createInvoice = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/invoices", { 
+      ...data, 
+      bookingId,
+      amount: Math.round(parseFloat(data.amount) * 100)
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "invoices"] });
+      toast({ title: "Invoice created" });
+      setShowAddInvoice(false);
+      setInvoiceForm({ invoiceNumber: "", amount: "", currency: "USD", dueDate: "", notes: "" });
     },
   });
 
@@ -265,6 +290,34 @@ export default function AdminBookingDetail() {
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
         <div className="flex gap-2">
+          {(booking.status === "submitted" || !booking.status) && (
+            <div className="flex flex-col items-end gap-1">
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => {
+                  const missingTravelers = (booking.partySizeExpected || 1) - (travelers?.length || 0);
+                  if (missingTravelers > 0) {
+                    if (!confirm(`Warning: This booking expects ${booking.partySizeExpected} travelers but only ${travelers?.length || 0} are recorded. Confirm anyway?`)) {
+                      return;
+                    }
+                  }
+                  updateBooking.mutate({ status: "confirmed" });
+                }}
+                disabled={updateBooking.isPending}
+                className="h-8 shadow-sm bg-emerald-600 hover:bg-emerald-700"
+                data-testid="button-confirm-booking"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirm Booking
+              </Button>
+              {(booking.partySizeExpected || 1) > (travelers?.length || 0) && (
+                <span className="text-[10px] text-amber-600 font-medium flex items-center">
+                  <AlertTriangle className="h-3 w-3 mr-1" /> Missing Travelers
+                </span>
+              )}
+            </div>
+          )}
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
             <Printer className="h-4 w-4 mr-2" />
             Print Summary
@@ -295,7 +348,23 @@ export default function AdminBookingDetail() {
             {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={booking.fulfillmentStatus || "pending"} onValueChange={(v) => updateBooking.mutate({ fulfillmentStatus: v })}>
+        <Select 
+          value={booking.fulfillmentStatus || "pending"} 
+          onValueChange={(v) => {
+            if (v === "completed") {
+              const missingPassports = travelers?.filter(t => {
+                const travelerDocs = documents?.filter(d => d.travelerId === t.id && d.docType === "passport");
+                return !travelerDocs || travelerDocs.length === 0;
+              });
+              if (missingPassports && missingPassports.length > 0) {
+                if (!confirm(`${missingPassports.length} traveler(s) are missing passports. Mark fulfillment as completed anyway?`)) {
+                  return;
+                }
+              }
+            }
+            updateBooking.mutate({ fulfillmentStatus: v });
+          }}
+        >
           <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -343,6 +412,7 @@ export default function AdminBookingDetail() {
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />Documents</TabsTrigger>
           <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />Messages</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />Payments</TabsTrigger>
+          <TabsTrigger value="invoices" data-testid="tab-invoices"><FileText className="h-3.5 w-3.5 mr-1" />Invoices</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
         </TabsList>
 
@@ -998,7 +1068,7 @@ export default function AdminBookingDetail() {
                         type="number"
                         value={paymentForm.amount}
                         onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                        placeholder="0"
+                        placeholder="0.00"
                         data-testid="input-payment-amount"
                       />
                     </div>
@@ -1022,6 +1092,18 @@ export default function AdminBookingDetail() {
                     </Select>
                   </div>
                   <div>
+                    <Label>Link to Invoice (Optional)</Label>
+                    <Select value={paymentForm.invoiceId} onValueChange={(v) => setPaymentForm({ ...paymentForm, invoiceId: v })}>
+                      <SelectTrigger data-testid="select-payment-invoice"><SelectValue placeholder="Select an invoice" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {invoices?.map((inv) => (
+                          <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.currency} {(inv.amount / 100).toFixed(2)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Notes</Label>
                     <Textarea
                       value={paymentForm.notes}
@@ -1036,10 +1118,11 @@ export default function AdminBookingDetail() {
                       if (paymentForm.amount) {
                         createPayment.mutate({
                           bookingId,
-                          amount: parseInt(paymentForm.amount),
+                          amount: paymentForm.amount,
                           currency: paymentForm.currency,
                           method: paymentForm.method,
                           notes: paymentForm.notes || undefined,
+                          invoiceId: paymentForm.invoiceId === "none" ? undefined : paymentForm.invoiceId || undefined,
                         });
                       }
                     }}
@@ -1053,43 +1136,161 @@ export default function AdminBookingDetail() {
 
           {payments && payments.length > 0 ? (
             <div className="space-y-2">
-              {payments.map((p) => (
-                <Card key={p.id} data-testid={`card-payment-${p.id}`}>
+              {payments.map((p) => {
+                const linkedInvoice = invoices?.find(inv => inv.id === p.invoiceId);
+                return (
+                  <Card key={p.id} data-testid={`card-payment-${p.id}`}>
+                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-sm" data-testid={`text-payment-amount-${p.id}`}>
+                            {p.currency} {(p.amount / 100).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${p.id}`}>
+                            {PAYMENT_METHODS[p.method || "bank_transfer"] || p.method}
+                            {linkedInvoice && <span className="ml-2 font-semibold text-primary">| Linked to {linkedInvoice.invoiceNumber}</span>}
+                          </p>
+                          {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={p.status === "paid" ? "default" : p.status === "failed" ? "destructive" : "secondary"}
+                          data-testid={`badge-payment-status-${p.id}`}
+                        >
+                          {PAYMENT_STATUSES[p.status || "pending"] || p.status}
+                        </Badge>
+                        {p.receiptUrl && (
+                          <Button size="sm" variant="ghost" onClick={() => window.open(p.receiptUrl!, "_blank")} title="View Receipt">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {p.status === "pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updatePayment.mutate({ id: p.id, status: "paid" })}
+                            data-testid={`button-mark-paid-${p.id}`}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />Mark Paid
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center py-12">
+                <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No payments recorded yet</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* TAB H: Invoices */}
+        <TabsContent value="invoices" className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {invoices?.length || 0} invoice(s)
+            </h3>
+            <Dialog open={showAddInvoice} onOpenChange={setShowAddInvoice}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-invoice"><Plus className="h-4 w-4 mr-2" />Create Invoice</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Create Invoice</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Invoice Number</Label>
+                    <Input
+                      value={invoiceForm.invoiceNumber}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
+                      placeholder="INV-2024-001"
+                      data-testid="input-invoice-number"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Amount</Label>
+                      <Input
+                        type="number"
+                        value={invoiceForm.amount}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
+                        placeholder="0.00"
+                        data-testid="input-invoice-amount"
+                      />
+                    </div>
+                    <div>
+                      <Label>Currency</Label>
+                      <Input
+                        value={invoiceForm.currency}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, currency: e.target.value })}
+                        placeholder="USD"
+                        data-testid="input-invoice-currency"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Due Date</Label>
+                    <Input
+                      type="date"
+                      value={invoiceForm.dueDate}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                      data-testid="input-invoice-due-date"
+                    />
+                  </div>
+                  <div>
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={invoiceForm.notes}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
+                      placeholder="Invoice notes..."
+                      data-testid="input-invoice-notes"
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      if (invoiceForm.invoiceNumber && invoiceForm.amount) {
+                        createInvoice.mutate(invoiceForm);
+                      }
+                    }}
+                    disabled={!invoiceForm.invoiceNumber || !invoiceForm.amount || createInvoice.isPending}
+                    data-testid="button-submit-invoice"
+                  >Create Invoice</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {invoices && invoices.length > 0 ? (
+            <div className="space-y-2">
+              {invoices.map((inv) => (
+                <Card key={inv.id} data-testid={`card-invoice-${inv.id}`}>
                   <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <FileText className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="font-medium text-sm" data-testid={`text-payment-amount-${p.id}`}>
-                          {p.currency} {p.amount}
+                        <p className="font-medium text-sm" data-testid={`text-invoice-number-${inv.id}`}>
+                          {inv.invoiceNumber}
                         </p>
-                        <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${p.id}`}>
-                          {PAYMENT_METHODS[p.method || "bank_transfer"] || p.method}
+                        <p className="text-xs text-muted-foreground">
+                          {inv.currency} {(inv.amount / 100).toFixed(2)} | Due: {inv.dueDate || "N/A"}
                         </p>
-                        {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={p.status === "paid" ? "default" : p.status === "failed" ? "destructive" : "secondary"}
-                        data-testid={`badge-payment-status-${p.id}`}
-                      >
-                        {PAYMENT_STATUSES[p.status || "pending"] || p.status}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={inv.status === "paid" ? "default" : inv.status === "sent" ? "secondary" : "outline"}>
+                        {inv.status?.toUpperCase() || "DRAFT"}
                       </Badge>
-                      {p.receiptUrl && (
-                        <Button size="sm" variant="ghost" onClick={() => window.open(p.receiptUrl!, "_blank")} title="View Receipt">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {p.status === "pending" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updatePayment.mutate({ id: p.id, status: "paid" })}
-                          data-testid={`button-mark-paid-${p.id}`}
-                        >
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />Mark Paid
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="sm" onClick={() => window.print()} title="Print Invoice">
+                         <Printer className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1098,8 +1299,8 @@ export default function AdminBookingDetail() {
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center py-12">
-                <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No payments recorded yet</p>
+                <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No invoices created yet</p>
               </CardContent>
             </Card>
           )}

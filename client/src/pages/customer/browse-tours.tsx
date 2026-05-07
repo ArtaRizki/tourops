@@ -6,8 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Link } from "wouter";
-import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { useState, useMemo } from "react";
 import type { Tour } from "@shared/schema";
 
@@ -21,13 +23,16 @@ const DURATION_OPTIONS = [
 ];
 
 export default function BrowseTours() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("any");
   const [durationFilter, setDurationFilter] = useState("any");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [maxPrice, setMaxPrice] = useState(10000);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: tours, isLoading } = useQuery<Tour[]>({ queryKey: ["/api/tours/public"] });
+  const { data: tours, isLoading } = useQuery<(Tour & { minDate?: string; maxDate?: string })[]>({ queryKey: ["/api/tours/public"] });
 
   const filtered = useMemo(() => {
     return (tours || []).filter((t) => {
@@ -52,16 +57,45 @@ export default function BrowseTours() {
       const price = t.basePrice || 0;
       const matchesPrice = price <= maxPrice;
 
-      return matchesSearch && matchesCategory && matchesDuration && matchesPrice;
-    });
-  }, [tours, search, categoryFilter, durationFilter, maxPrice]);
+      // Date Range
+      let matchesDate = true;
+      if (startDate && t.maxDate) {
+        matchesDate = t.maxDate >= startDate;
+      }
+      if (endDate && t.minDate) {
+        matchesDate = matchesDate && t.minDate <= endDate;
+      }
 
-  const hasActiveFilters = categoryFilter !== "any" || durationFilter !== "any" || maxPrice < 10000;
+      return matchesSearch && matchesCategory && matchesDuration && matchesPrice && matchesDate;
+    });
+  }, [tours, search, categoryFilter, durationFilter, maxPrice, startDate, endDate]);
+
+  const hasActiveFilters = categoryFilter !== "any" || durationFilter !== "any" || maxPrice < 10000 || startDate || endDate;
 
   const clearFilters = () => {
     setCategoryFilter("any");
     setDurationFilter("any");
     setMaxPrice(10000);
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const [joinCode, setJoinCode] = useState("");
+  const [, setLocation] = useLocation();
+
+  const handleJoinCode = async () => {
+    if (joinCode.length !== 6) {
+      toast({ title: "Invalid Code", description: "Please enter a 6-digit code", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const res = await apiRequest("GET", `/api/bookings/by-code/${joinCode.toUpperCase()}`);
+      const booking = await res.json();
+      setLocation(`/tours/${booking.tourId}?joinCode=${joinCode.toUpperCase()}`);
+    } catch (e: any) {
+      toast({ title: "Error", description: "Group not found or expired", variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -77,9 +111,31 @@ export default function BrowseTours() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-serif" data-testid="text-browse-title">Explore Tours</h1>
-        <p className="text-muted-foreground text-sm">Discover your next adventure — {tours?.length || 0} tours available</p>
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold font-serif" data-testid="text-browse-title">Explore Tours</h1>
+          <p className="text-muted-foreground text-sm">Discover your next adventure — {tours?.length || 0} tours available</p>
+        </div>
+        
+        <Card className="w-full md:w-auto bg-primary/5 border-primary/20 shadow-sm border-dashed">
+          <CardContent className="p-3 flex flex-col sm:flex-row gap-3 items-center">
+            <div className="flex items-center gap-2 text-primary font-medium">
+              <Users className="h-4 w-4" />
+              <span className="text-xs">Have a Join Code?</span>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Input 
+                placeholder="6-DIGIT CODE" 
+                className="w-full sm:w-32 h-8 text-center font-mono tracking-widest uppercase text-xs"
+                maxLength={6}
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinCode()}
+              />
+              <Button size="sm" className="h-8 text-xs" onClick={handleJoinCode}>Join Group</Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search + Filter Bar */}
@@ -113,7 +169,7 @@ export default function BrowseTours() {
         {showFilters && (
           <Card>
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm font-medium mb-2">Category</p>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -136,6 +192,23 @@ export default function BrowseTours() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-2">Travel Dates</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium mb-2">Max Price: ${maxPrice.toLocaleString()}</p>
