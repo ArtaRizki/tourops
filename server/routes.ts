@@ -2275,6 +2275,8 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const analytics = await storage.getAnalytics();
       res.json(analytics);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
   // ---- Pricing & Markups ----
   app.get("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {

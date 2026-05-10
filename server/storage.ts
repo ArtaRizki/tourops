@@ -1333,6 +1333,8 @@ export class DatabaseStorage implements IStorage {
       revenueByMonth,
       occupancy
     };
+  }
+
   // Import Jobs
   async getImportJobs(): Promise<ImportJob[]> {
     return db.select().from(importJobs).orderBy(desc(importJobs.startedAt));
