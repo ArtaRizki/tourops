@@ -1,0 +1,173 @@
+import OpenAI from "openai";
+import { storage } from "../storage";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export interface TourGenerationParams {
+  destination: string;
+  duration: number;
+  travelerType: string;
+  interests: string[];
+  budget: string;
+  pace: string;
+}
+
+export class AIService {
+  /**
+   * Generates a structured tour itinerary based on user preferences.
+   * Now includes verified context from our database.
+   */
+  async generateItinerary(params: TourGenerationParams) {
+    const { destination, duration, travelerType, interests, budget, pace } = params;
+
+    // Fetch verified context from DB (Top 10 sights and hotels for the destination)
+    // For now we search by destination name in city/country
+    const allSights = await storage.getAllSights();
+    const verifiedSights = allSights
+      .filter(s => s.name.toLowerCase().includes(destination.toLowerCase()))
+      .slice(0, 15)
+      .map(s => ({ id: s.id, name: s.name, description: s.description, cost: s.individualTicketCost }));
+
+    const allHotels = await storage.getAllHotels();
+    const verifiedHotels = allHotels
+      .filter(h => h.name.toLowerCase().includes(destination.toLowerCase()))
+      .slice(0, 10)
+      .map(h => ({ id: h.id, name: h.name, cost: h.basePrice }));
+
+    const systemPrompt = `
+      You are Tourop AI Tour Builder.
+      Your goal is to build a realistic day-by-day travel itinerary with structured items.
+      
+      VERIFIED DATA (Use these if applicable):
+      Sights: ${JSON.stringify(verifiedSights)}
+      Hotels: ${JSON.stringify(verifiedHotels)}
+
+      RULES:
+      1. Use only realistic geography and travel times.
+      2. Priority: Use VERIFIED DATA provided above. If you use a verified sight/hotel, include its "id".
+      3. If you suggest something NOT in the verified data, set "needsConfirmation" to true.
+      4. Each day must have 3-5 structured items (Sight, Meal, Hotel, Transport).
+      5. The output MUST be a valid JSON object matching the requested schema.
+      6. Tone: Professional, inspiring, and helpful.
+    `;
+
+    const userPrompt = `
+      Create a ${duration}-day itinerary for ${destination}.
+      Traveler Type: ${travelerType}
+      Interests: ${interests.join(", ")}
+      Budget Level: ${budget}
+      Pace: ${pace}
+      
+      The JSON output should have:
+      - title: A catchy name for the tour.
+      - description: A brief summary.
+      - category: One of [cultural, adventure, religious, leisure].
+      - days: An array of ${duration} objects, each with:
+        - dayNumber: number
+        - title: Title of the day
+        - description: Summary
+        - items: Array of objects:
+          - itemType: [sight, meal, hotel, transport, flight, custom]
+          - startTime: "HH:MM"
+          - title: Name of activity
+          - description: Short detail
+          - cost: estimated cost (number)
+          - sightId: (string, if from verified sights)
+          - hotelId: (string, if from verified hotels)
+          - needsConfirmation: boolean
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("AI returned empty content");
+      
+      return JSON.parse(content);
+    } catch (error) {
+      console.error("AI generation failed:", error);
+      throw new Error("Failed to generate itinerary with AI");
+    }
+  }
+
+  /**
+   * Enriches a sight's description.
+   */
+  async enrichSightDescription(name: string, currentDescription: string) {
+    const prompt = `
+      As a professional travel copywriter, rewrite and enrich the description for the following tourist attraction:
+      Name: ${name}
+      Original Description: ${currentDescription}
+      
+      The new description should be engaging, informative (around 100-150 words), and suitable for a high-end travel website. 
+      Focus on historical significance, key features, and why it's a must-visit.
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }]
+      });
+
+      return response.choices[0].message.content;
+    } catch (error) {
+      console.error("AI enrichment failed:", error);
+      throw new Error("Failed to enrich description with AI");
+    }
+  }
+  /**
+   * Analyzes global business performance and provides strategic advice.
+   */
+  async analyzeBusinessPerformance(stats: any) {
+    const prompt = `
+      You are a Senior Strategic Consultant for Tourop, a travel operations platform.
+      Review the following global sales statistics and provide a professional strategic analysis.
+      
+      STATS:
+      ${JSON.stringify(stats, null, 2)}
+      
+      OBJECTIVE:
+      1. Analyze the Gross Sales vs Net Profit.
+      2. Evaluate the top performing tours and their margin health.
+      3. Provide 3 specific, actionable recommendations to increase revenue or efficiency.
+      4. Suggest pricing adjustments for underperforming or high-demand assets.
+      
+      OUTPUT FORMAT:
+      Return a JSON object with:
+      - executiveSummary: string (2-3 sentences)
+      - insights: string[] (at least 4 bullet points)
+      - recommendations: { title: string, description: string, expectedImpact: string }[]
+      - pricingTips: string[]
+      
+      Tone: Executive, data-driven, and forward-looking.
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      });
+
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("AI returned empty analysis");
+      
+      return JSON.parse(content);
+    } catch (error) {
+      console.error("AI analysis failed:", error);
+      throw new Error("Failed to analyze performance with AI");
+    }
+  }
+}
+
+export const aiService = new AIService();

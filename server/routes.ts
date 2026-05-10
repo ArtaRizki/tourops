@@ -13,8 +13,15 @@ import {
 } from "./lib/constants";
 import { generateCode } from "./lib/utils";
 import { getQueueStats } from "./lib/emailQueue";
+import { pricingService } from "./lib/pricing";
+import { imageService } from "./lib/images";
+import { pdfService } from "./lib/pdf";
 import { scraperService } from "./lib/scrapers";
 import { airlineService } from "./lib/airline";
+import { hotelService } from "./lib/hotel";
+import { aiService } from "./lib/ai";
+import { queues } from "./lib/workers";
+import { scraperSafety } from "./lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -31,6 +38,7 @@ import {
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
+  insertAffiliateSchema, insertMarkupRuleSchema
 } from "@shared/schema";
 
 import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "./lib/messaging";
@@ -253,6 +261,14 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/ai/generate-itinerary", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const itinerary = await aiService.generateItinerary(req.body);
+      res.json(itinerary);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Tour Days ----
   app.get("/api/tours/:id/days", async (req, res) => {
     try { res.json(await storage.getTourDays(req.params.id as string)); }
@@ -336,9 +352,21 @@ export async function registerRoutes(
       const bookingCode = `BK-${generateCode(8)}`;
       const joinCode = req.body.bookingType === "leader_group" ? genCode(6) : undefined;
       const leaderUserId = (req.body.bookingType === "leader_group" || req.body.bookingType === "private_family") ? userId : undefined;
+      let affiliateId = undefined;
+      if (req.body.referralCode) {
+        const aff = await storage.getAffiliateByCode(req.body.referralCode);
+        if (aff) affiliateId = aff.id;
+      }
+
       const booking = await storage.createBooking({
-        ...req.body, customerId: userId, bookingCode, joinCode, leaderUserId,
-        status: "submitted" as const, fulfillmentStatus: "pending" as const,
+        ...req.body, 
+        customerId: userId, 
+        bookingCode, 
+        joinCode, 
+        leaderUserId, 
+        affiliateId,
+        status: "submitted" as const, 
+        fulfillmentStatus: "pending" as const,
       });
 
       // Notify Admins
@@ -365,8 +393,12 @@ export async function registerRoutes(
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
+      const userId = getUserId(req);
+      const profile = await storage.getProfileByUserIdWithEmail(userId!);
+      const userName = (profile?.user?.firstName ? `${profile.user.firstName} ${profile.user.lastName || ""}` : profile?.user?.username) || "Admin";
+
       const oldBooking = await storage.getBooking(req.params.id as string);
-      const updated = await storage.updateBooking(req.params.id as string, req.body);
+      const updated = await storage.updateBooking(req.params.id as string, req.body, userId, userName);
       
       // Audit trail for status changes
       if (req.body.status && req.body.status !== oldBooking?.status) {
@@ -386,6 +418,49 @@ export async function registerRoutes(
       // Auto-initialize workflows and manage capacity if status changed to confirmed
       if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
         await initializeBookingWorkflows(req.params.id as string);
+        
+        // Auto-payout for affiliate
+        if (updated.affiliateId) {
+          const aff = await storage.getAffiliates().then(list => list.find(a => a.id === updated.affiliateId));
+          if (aff) {
+            const commRate = parseFloat(aff.commissionRate?.toString() || "10");
+            const commAmount = (updated.totalPrice || 0) * (commRate / 100);
+            await storage.createAffiliatePayout({
+              affiliateId: aff.id,
+              bookingId: updated.id,
+              amount: commAmount.toString(),
+              status: "pending"
+            });
+          }
+        }
+        
+        // Automated Document Delivery: Generate Itinerary PDF
+        if (updated.tourId) {
+          try {
+            console.log(`[Automation] Generating automated itinerary for booking ${updated.bookingCode}`);
+            const { pdfService } = await import("./lib/pdf");
+            const pdfBuffer = await pdfService.generateItinerary(updated.tourId);
+            // In a real app, we would upload to S3/Storage and get a URL
+            // For now, we simulate by creating a document record
+            await storage.createDocument({
+              bookingId: updated.id,
+              docType: "voucher",
+              fileName: `Itinerary_${updated.bookingCode}.pdf`,
+              fileUrl: `/api/tours/${updated.tourId}/pdf`, // Link to the generation endpoint
+              status: "approved"
+            });
+
+            // Notify Customer
+            await storage.createNotification({
+              userId: updated.customerId,
+              title: "Booking Confirmed! ✨",
+              message: `Your booking ${updated.bookingCode} is confirmed. Your official itinerary PDF is now available in your documents.`,
+              type: "booking_update"
+            });
+          } catch (pdfErr) {
+            console.error("Automated PDF generation failed:", pdfErr);
+          }
+        }
         
         // Auto capacity management (deduct seats)
         if (oldBooking && oldBooking.departureId) {
@@ -642,54 +717,151 @@ export async function registerRoutes(
 
   // ---- Scraping ----
   app.post("/api/admin/scrape/countries", isAuthenticated, async (req, res) => {
+    let job;
     try {
       if (!await requireRole(req, res, ["admin"])) return;
+      job = await storage.createImportJob({ entityType: "country", status: "running" });
       const countriesList = await scraperService.scrapeCountries();
       const results = await storage.bulkCreateCountries(countriesList);
-      res.json({ success: true, count: results.length });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+      await storage.updateImportJob(job.id, { 
+        status: "completed", 
+        totalRecords: countriesList.length, 
+        processedRecords: results.length,
+        completedAt: new Date()
+      });
+      res.json({ success: true, count: results.length, jobId: job.id });
+    } catch (e: any) { 
+      if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
+      res.status(500).json({ message: e.message }); 
+    }
   });
 
   app.post("/api/admin/scrape/cities/:countryCode", isAuthenticated, async (req, res) => {
+    let job;
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const countryId = req.body.countryId as string;
       const country = await storage.getCountry(countryId);
       if (!country) return res.status(404).json({ message: "Country not found" });
+      
+      job = await storage.createImportJob({ entityType: "city", status: "running" });
       const citiesList = await scraperService.scrapeCities(req.params.countryCode as string, country.id);
       const results = await storage.bulkCreateCities(citiesList);
-      res.json({ success: true, count: results.length });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+      await storage.updateImportJob(job.id, { 
+        status: "completed", 
+        totalRecords: citiesList.length, 
+        processedRecords: results.length,
+        completedAt: new Date()
+      });
+      res.json({ success: true, count: results.length, jobId: job.id });
+    } catch (e: any) { 
+      if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
+      res.status(500).json({ message: e.message }); 
+    }
   });
 
   app.post("/api/admin/scrape/sights/:cityId", isAuthenticated, async (req, res) => {
+    let job;
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
-      const sightsList = await scraperService.scrapeSights(city.id, city.name);
+
+      job = await storage.createImportJob({ entityType: "sight", status: "running" });
+      const sightsList = await scraperService.scrapeSights(city.id, city.name, city.osmId || undefined);
       const results = await storage.bulkCreateSights(sightsList);
-      res.json({ success: true, count: results.length });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+      await storage.updateImportJob(job.id, { 
+        status: "completed", 
+        totalRecords: sightsList.length, 
+        processedRecords: results.length,
+        completedAt: new Date()
+      });
+      res.json({ success: true, count: results.length, jobId: job.id });
+    } catch (e: any) { 
+      if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
+      res.status(500).json({ message: e.message }); 
+    }
   });
 
   app.post("/api/admin/scrape/hotels/:cityId", isAuthenticated, async (req, res) => {
+    let job;
     try {
       if (!await requireRole(req, res, ["admin"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
-      const hotelsList = await scraperService.scrapeHotels(city.id, city.name);
+
+      job = await storage.createImportJob({ entityType: "hotel", status: "running" });
+      const hotelsList = await hotelService.searchPrices(city.name, "US", { from: new Date().toISOString(), to: new Date().toISOString() });
       const results = await storage.bulkCreateHotels(hotelsList);
-      res.json({ success: true, count: results.length });
+      await storage.updateImportJob(job.id, { 
+        status: "completed", 
+        totalRecords: hotelsList.length, 
+        processedRecords: results.length,
+        completedAt: new Date()
+      });
+      res.json({ success: true, count: results.length, jobId: job.id });
+    } catch (e: any) { 
+      if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
+      res.status(500).json({ message: e.message }); 
+    }
+  });
+
+  // ---- AI Features ----
+  app.post("/api/admin/ai/generate-tour", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const itinerary = await aiService.generateItinerary(req.body);
+      res.json(itinerary);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  // ---- Airline Search ----
+  app.post("/api/admin/ai/enrich-sight/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const sight = await storage.getSight(req.params.id as string);
+      if (!sight) return res.status(404).json({ message: "Sight not found" });
+      const enriched = await aiService.enrichSightDescription(sight.name, sight.description || "");
+      const updated = await storage.updateSight(sight.id, { longDescription: enriched });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Tour Day Items ----
+  app.get("/api/tour-days/:dayId/items", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getTourDayItems(req.params.dayId as string)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/tour-days/:dayId/items", isAuthenticated, async (req, res) => {
+    try {
+      const data = { ...req.body, tourDayId: req.params.dayId };
+      const item = await storage.createTourDayItem(data);
+      res.status(201).json(item);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/tour-day-items/:id", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.updateTourDayItem(req.params.id as string, req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/tour-day-items/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteTourDayItem(req.params.id as string);
+      res.sendStatus(204);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Airline Management ----
   app.get("/api/flights/search", async (req, res) => {
     try {
-      const { origin, destination, date, passengers, cabinClass } = req.query;
+      const origin = req.query.origin as string;
+      const destination = req.query.destination as string;
+      const date = req.query.date as string;
+      const passengers = req.query.passengers as string;
+      const cabinClass = req.query.cabinClass as string;
       if (!origin || !destination || !date) {
         return res.status(400).json({ message: "Origin, destination, and date are required" });
       }
@@ -2041,8 +2213,15 @@ export async function registerRoutes(
       }
       console.log("Default admin user created: username=admin, password=admin123");
     }
+
+    // Seed default pricing settings
+    const taxSetting = await storage.getGlobalSettingByKey("sales_tax_percent");
+    if (!taxSetting) await storage.updateGlobalSetting("sales_tax_percent", "11"); // 11% default
+    
+    const serviceFeeSetting = await storage.getGlobalSettingByKey("default_service_fee");
+    if (!serviceFeeSetting) await storage.updateGlobalSetting("default_service_fee", "25"); // $25 default
   } catch (e) {
-    console.error("Error seeding admin:", e);
+    console.error("Error seeding admin/settings:", e);
   }
 
   // ---- Notification Counts ----
@@ -2096,6 +2275,274 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const analytics = await storage.getAnalytics();
       res.json(analytics);
+  // ---- Pricing & Markups ----
+  app.get("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getMarkupRules());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Affiliates ----
+  app.get("/api/admin/affiliates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getAffiliates());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/affiliates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const parsed = insertAffiliateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+      res.json(await storage.createAffiliate(parsed.data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Tracking referral clicks
+  app.get("/ref/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const affiliate = await storage.getAffiliates().then(list => list.find(a => a.code === code));
+      if (affiliate) {
+        await storage.createAffiliateReferral({
+          affiliateId: affiliate.id,
+          clickId: req.query.clickId as string || undefined,
+          ipAddress: req.ip || undefined,
+          userAgent: req.get('user-agent') || undefined,
+        });
+      }
+      res.redirect("/?ref=" + code);
+    } catch (e: any) { res.redirect("/"); }
+  });
+
+  app.get("/api/admin/stats", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getGlobalSalesStats());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/audit-logs/:type/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getAuditLogs(req.params.type as string, req.params.id as string));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Data Import & Scrapers ----
+  app.get("/api/hotels/search", async (req, res) => {
+    try {
+      const { city, countryCode, from, to } = req.query;
+      if (!city || !countryCode) return res.status(400).json({ message: "city and countryCode are required" });
+      const hotels = await hotelService.searchPrices(city as string, countryCode as string, { 
+        from: (from as string) || new Date().toISOString(), 
+        to: (to as string) || new Date().toISOString() 
+      });
+      res.json(hotels);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/data-import/countries/run", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const job = await queues.countryImport.add('import-countries', {});
+      res.json({ message: "Country import started in background", jobId: job.id });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/data-import/cities/run", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const { countryCode, countryId } = req.body;
+      if (!countryCode || !countryId) return res.status(400).json({ message: "countryCode and countryId are required" });
+      const job = await queues.cityImport.add('import-cities', { countryCode, countryId });
+      res.json({ message: "City import started in background", jobId: job.id });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/data-import/sights/run", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const { cityId, cityName, osmId } = req.body;
+      if (!cityId || !cityName) return res.status(400).json({ message: "cityId and cityName are required" });
+      const job = await queues.sightDiscovery.add('import-sights', { cityId, cityName, osmId });
+      res.json({ message: "Sight import started in background", jobId: job.id });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/sights/:id/enrich", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const sight = await storage.getSight(req.params.id as string);
+      if (!sight) return res.status(404).json({ message: "Sight not found" });
+      const job = await queues.sightEnrichment.add('enrich-sight', { sightId: sight.id, sightName: sight.name });
+      res.json({ message: "Sight enrichment started in background", jobId: job.id });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/hotels/search-prices", isAuthenticated, async (req, res) => {
+    try {
+      const { cityId, cityName } = req.body;
+      if (!cityId || !cityName) return res.status(400).json({ message: "cityId and cityName are required" });
+      
+      // Scrape/Search hotels for this city
+      const hotels = await hotelService.searchPrices(cityName, "US", { from: new Date().toISOString(), to: new Date().toISOString() });
+      const result = await storage.bulkCreateHotels(hotels);
+      
+      // In a real scenario, we'd also create price snapshots here.
+      // For now, returning the created/updated hotels.
+      res.json({ message: `Found and updated ${result.length} hotels`, count: result.length, hotels: result });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/scraper/block", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const { domain } = req.body;
+      if (!domain) return res.status(400).json({ message: "domain is required" });
+      scraperSafety.blockDomain(domain);
+      res.json({ message: `Domain ${domain} blocked` });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/scraper/unblock", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const { domain } = req.body;
+      if (!domain) return res.status(400).json({ message: "domain is required" });
+      scraperSafety.unblockDomain(domain);
+      res.json({ message: `Domain ${domain} unblocked` });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/admin/audit-logs", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getAuditLogs());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/ai-consultant", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const stats = await storage.getGlobalSalesStats();
+      const analysis = await aiService.analyzeBusinessPerformance(stats);
+      res.json(analysis);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/flights/search", isAuthenticated, async (req, res) => {
+    try {
+      const { origin, destination, date, passengers, cabinClass } = req.query;
+      if (!origin || !destination || !date) {
+        return res.status(400).json({ message: "origin, destination, and date are required" });
+      }
+
+      const results = await airlineService.searchFlights({
+        origin: origin as string,
+        destination: destination as string,
+        date: date as string,
+        passengers: passengers ? parseInt(passengers as string) : 1,
+        cabinClass: (cabinClass as any) || "economy"
+      });
+
+      res.json(results);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/ai/tour-generator", isAuthenticated, async (req, res) => {
+    try {
+      const { destination, duration, travelerType, interests, budget, pace } = req.body;
+      if (!destination || !duration) return res.status(400).json({ message: "destination and duration are required" });
+      
+      const itinerary = await aiService.generateItinerary({
+        destination,
+        duration: parseInt(duration),
+        travelerType: travelerType || "solo",
+        interests: interests || [],
+        budget: budget || "medium",
+        pace: pace || "normal"
+      });
+      
+      res.json(itinerary);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      const parsed = insertMarkupRuleSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.createMarkupRule(parsed.data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.updateMarkupRule(req.params.id as string, req.body));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      await storage.deleteMarkupRule(req.params.id as string);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.getGlobalSettings());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      res.json(await storage.updateGlobalSetting(req.body.key, req.body.value));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/tours/:id/price-breakdown", isAuthenticated, async (req, res) => {
+    try {
+      const breakdown = await pricingService.calculateTourPrice(req.params.id as string);
+      res.json(breakdown);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Image Proxy & Optimization ----
+  app.get("/api/images/proxy", async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      const width = req.query.width as string;
+      const height = req.query.height as string;
+      if (!url) return res.status(400).json({ message: "URL is required" });
+
+      const result = await imageService.processImage(url as string, {
+        width: width ? parseInt(width as string) : undefined,
+        height: height ? parseInt(height as string) : undefined
+      });
+
+      if (typeof result === 'string') {
+        return res.redirect(result);
+      }
+
+      // Serve the local file path
+      res.redirect(result.path);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/tours/:id/pdf", isAuthenticated, async (req, res) => {
+    try {
+      const pdfBuffer = await pdfService.generateItinerary(req.params.id as string);
+      res.contentType("application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="itinerary-${req.params.id}.pdf"`);
+      res.send(pdfBuffer);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

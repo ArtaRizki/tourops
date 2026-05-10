@@ -35,13 +35,50 @@ import {
   type TransportInvoice, type InsertTransportInvoice,
   type TransportPayment, type InsertTransportPayment,
   hotelRates, transportRates, guideRates, sightsRates,
+  tourDayItems, markupRules, globalSettings, importJobs, dataSources,
+  hotelPriceSnapshots, flightPriceSnapshots, affiliates, affiliatePayouts,
   type HotelRate, type InsertHotelRate,
   type TransportRate, type InsertTransportRate,
   type GuideRate, type InsertGuideRate,
   type SightsRate, type InsertSightsRate,
+  sightImages, sightHours, sightTicketPrices,
+  hotelImages, hotelAmenities, hotelRoomTypes,
+  flightOfferDetails, customTours, customTourDays, customTourDayItems,
+  tourQuotes, tourQuoteItems, importJobLogs,
+  scraperRuns, scraperErrors, dataQualityReviews,
+  aiGenerationJobs, aiGeneratedItineraries, aiPromptLogs,
+  regions, affiliateReferrals,
+  type SightImage, type InsertSightImage,
+  type SightHour, type InsertSightHour,
+  type SightTicketPrice, type InsertSightTicketPrice,
+  type HotelImage, type InsertHotelImage,
+  type HotelAmenity, type InsertHotelAmenity,
+  type HotelRoomType, type InsertHotelRoomType,
+  type FlightOfferDetail, type InsertFlightOfferDetail,
+  type CustomTour, type InsertCustomTour,
+  type CustomTourDay, type InsertCustomTourDay,
+  type CustomTourDayItem, type InsertCustomTourDayItem,
+  type TourQuote, type InsertTourQuote,
+  type TourQuoteItem, type InsertTourQuoteItem,
+  type ImportJobLog, type InsertImportJobLog,
+  type ScraperRun, type InsertScraperRun,
+  type ScraperError, type InsertScraperError,
+  type DataQualityReview, type InsertDataQualityReview,
+  type AiGenerationJob, type InsertAiGenerationJob,
+  type AiGeneratedItinerary, type InsertAiGeneratedItinerary,
+  type AiPromptLog, type InsertAiPromptLog,
+  type Region, type InsertRegion,
+  type AffiliateReferral, type InsertAffiliateReferral,
   type AuditLog, type InsertAuditLog,
   type Notification, type InsertNotification,
   type Invoice, type InsertInvoice,
+  type TourDayItem, type InsertTourDayItem,
+  type MarkupRule, type InsertMarkupRule,
+  type GlobalSetting, type InsertGlobalSetting,
+  type ImportJob, type DataSource,
+  type HotelPriceSnapshot, type FlightPriceSnapshot,
+  type Affiliate, type InsertAffiliate,
+  type AffiliatePayout, type InsertAffiliatePayout,
 } from "@shared/schema";
 
 const DEFAULT_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {
@@ -100,6 +137,11 @@ export interface IStorage {
   createTourDay(data: InsertTourDay): Promise<TourDay>;
   updateTourDay(id: string, data: Partial<TourDay>): Promise<TourDay>;
   deleteTourDay(id: string): Promise<void>;
+
+  getTourDayItems(dayId: string): Promise<TourDayItem[]>;
+  createTourDayItem(data: InsertTourDayItem): Promise<TourDayItem>;
+  updateTourDayItem(id: string, data: Partial<TourDayItem>): Promise<TourDayItem>;
+  deleteTourDayItem(id: string): Promise<void>;
 
   getAllDepartures(): Promise<TourDeparture[]>;
   getDeparturesByTour(tourId: string): Promise<TourDeparture[]>;
@@ -234,6 +276,51 @@ export interface IStorage {
 
   getTransportPayments(companyId?: string): Promise<TransportPayment[]>;
   createTransportPayment(data: InsertTransportPayment): Promise<TransportPayment>;
+
+  // Newly Added Tables
+  getSightImages(sightId: string): Promise<SightImage[]>;
+  createSightImage(data: InsertSightImage): Promise<SightImage>;
+  getSightHours(sightId: string): Promise<SightHour[]>;
+  createSightHour(data: InsertSightHour): Promise<SightHour>;
+  getSightTicketPrices(sightId: string): Promise<SightTicketPrice[]>;
+  createSightTicketPrice(data: InsertSightTicketPrice): Promise<SightTicketPrice>;
+
+  getHotelImages(hotelId: string): Promise<HotelImage[]>;
+  createHotelImage(data: InsertHotelImage): Promise<HotelImage>;
+  getHotelAmenities(hotelId: string): Promise<HotelAmenity[]>;
+  createHotelAmenity(data: InsertHotelAmenity): Promise<HotelAmenity>;
+  getHotelRoomTypes(hotelId: string): Promise<HotelRoomType[]>;
+  createHotelRoomType(data: InsertHotelRoomType): Promise<HotelRoomType>;
+
+  getCustomTours(customerId: string): Promise<CustomTour[]>;
+  getCustomTour(id: string): Promise<CustomTour | undefined>;
+  createCustomTour(data: InsertCustomTour): Promise<CustomTour>;
+  updateCustomTour(id: string, data: Partial<CustomTour>): Promise<CustomTour>;
+
+  getCustomTourDays(customTourId: string): Promise<CustomTourDay[]>;
+  createCustomTourDay(data: InsertCustomTourDay): Promise<CustomTourDay>;
+
+  getCustomTourDayItems(customTourDayId: string): Promise<CustomTourDayItem[]>;
+  createCustomTourDayItem(data: InsertCustomTourDayItem): Promise<CustomTourDayItem>;
+
+  getTourQuotes(customTourId: string): Promise<TourQuote[]>;
+  createTourQuote(data: InsertTourQuote): Promise<TourQuote>;
+  getTourQuoteItems(quoteId: string): Promise<TourQuoteItem[]>;
+  createTourQuoteItem(data: InsertTourQuoteItem): Promise<TourQuoteItem>;
+
+  createScraperRun(data: InsertScraperRun): Promise<ScraperRun>;
+  updateScraperRun(id: string, data: Partial<ScraperRun>): Promise<ScraperRun>;
+  createScraperError(data: InsertScraperError): Promise<ScraperError>;
+
+  createAiGenerationJob(data: InsertAiGenerationJob): Promise<AiGenerationJob>;
+  updateAiGenerationJob(id: string, data: Partial<AiGenerationJob>): Promise<AiGenerationJob>;
+  getAiGenerationJob(id: string): Promise<AiGenerationJob | undefined>;
+
+  createAiGeneratedItinerary(data: InsertAiGeneratedItinerary): Promise<AiGeneratedItinerary>;
+  getAiGeneratedItineraryByJob(jobId: string): Promise<AiGeneratedItinerary | undefined>;
+
+  getRegionsByCountry(countryId: string): Promise<Region[]>;
+  createRegion(data: InsertRegion): Promise<Region>;
   updateTransportPayment(id: string, data: Partial<TransportPayment>): Promise<TransportPayment>;
 
   getHotelRates(): Promise<HotelRate[]>;
@@ -271,7 +358,7 @@ export interface IStorage {
   updateInvoice(id: string, data: Partial<Invoice>): Promise<Invoice>;
   deleteInvoice(id: string): Promise<void>;
 
-  getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]>;
+  getAuditLogs(entityType?: string, entityId?: string): Promise<AuditLog[]>;
   createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
 
   getNotifications(userId: string): Promise<Notification[]>;
@@ -282,6 +369,41 @@ export interface IStorage {
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
   getPublicGroupsByDeparture(departureId: string): Promise<Booking[]>;
   getAnalytics(): Promise<any>;
+
+  // Markup Rules
+  getMarkupRules(): Promise<MarkupRule[]>;
+  createMarkupRule(data: InsertMarkupRule): Promise<MarkupRule>;
+  updateMarkupRule(id: string, data: Partial<MarkupRule>): Promise<MarkupRule>;
+  deleteMarkupRule(id: string): Promise<void>;
+
+  // Global Settings
+  getGlobalSettings(): Promise<GlobalSetting[]>;
+  getGlobalSettingByKey(key: string): Promise<GlobalSetting | undefined>;
+  updateGlobalSetting(key: string, value: string): Promise<GlobalSetting>;
+
+  // Import Jobs & Data Sources
+  getImportJobs(): Promise<ImportJob[]>;
+  getImportJob(id: string): Promise<ImportJob | undefined>;
+  createImportJob(data: any): Promise<ImportJob>;
+  updateImportJob(id: string, data: any): Promise<ImportJob>;
+  
+  getDataSources(): Promise<DataSource[]>;
+  createDataSource(data: any): Promise<DataSource>;
+
+  // Price Snapshots
+  createHotelPriceSnapshot(data: any): Promise<HotelPriceSnapshot>;
+  getHotelPriceSnapshots(hotelId: string): Promise<HotelPriceSnapshot[]>;
+  createFlightPriceSnapshot(data: any): Promise<FlightPriceSnapshot>;
+  getFlightPriceSnapshots(origin: string, destination: string): Promise<FlightPriceSnapshot[]>;
+  
+  // Affiliates
+  getAffiliates(): Promise<Affiliate[]>;
+  createAffiliate(data: InsertAffiliate): Promise<Affiliate>;
+  createAffiliatePayout(data: InsertAffiliatePayout): Promise<AffiliatePayout>;
+  createAffiliateReferral(data: InsertAffiliateReferral): Promise<AffiliateReferral>;
+  
+  // Stats
+  getGlobalSalesStats(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -358,8 +480,10 @@ export class DatabaseStorage implements IStorage {
     return tour;
   }
 
-  async updateTour(id: string, data: Partial<Tour>): Promise<Tour> {
+  async updateTour(id: string, data: Partial<Tour>, userId?: string, userName?: string): Promise<Tour> {
+    const current = await this.getTour(id);
     const [tour] = await db.update(tours).set(data).where(eq(tours.id, id)).returning();
+    if (current) await this.logChange("tour", id, "updated", current, data, userId, userName);
     return tour;
   }
 
@@ -431,8 +555,10 @@ export class DatabaseStorage implements IStorage {
     return booking;
   }
 
-  async updateBooking(id: string, data: Partial<Booking>): Promise<Booking> {
+  async updateBooking(id: string, data: Partial<Booking>, userId?: string, userName?: string): Promise<Booking> {
+    const current = await this.getBooking(id);
     const [booking] = await db.update(bookings).set(data).where(eq(bookings.id, id)).returning();
+    if (current) await this.logChange("booking", id, "updated", current, data, userId, userName);
     return booking;
   }
 
@@ -469,6 +595,18 @@ export class DatabaseStorage implements IStorage {
 
   async createAssignment(data: InsertBookingAssignment): Promise<BookingAssignment> {
     const [assignment] = await db.insert(bookingAssignments).values(data).returning();
+    
+    // Auto-Notify Supplier
+    if (assignment.assignedUserId) {
+      const booking = await this.getBooking(assignment.bookingId);
+      await this.createNotification({
+        userId: assignment.assignedUserId,
+        title: "New Service Assignment 📋",
+        message: `You have been assigned to handle the ${assignment.serviceType} for booking ${booking?.bookingCode || assignment.bookingId}.`,
+        type: "assignment"
+      });
+    }
+    
     return assignment;
   }
 
@@ -504,7 +642,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWorkflow(id: string, data: Partial<BookingWorkflow>): Promise<BookingWorkflow> {
+    const old = await this.getWorkflow(id);
     const [wf] = await db.update(bookingWorkflows).set({ ...data, updatedAt: new Date() }).where(eq(bookingWorkflows.id, id)).returning();
+    
+    // Notify Supplier on Status Change or Reassignment
+    if (wf.assignedUserId && (data.status || data.assignedUserId)) {
+      await this.createNotification({
+        userId: wf.assignedUserId,
+        title: "Workflow Update 🔄",
+        message: `Your assignment for ${wf.serviceType} has been updated to: ${wf.status}.`,
+        type: "assignment"
+      });
+    }
+
     return wf;
   }
 
@@ -613,7 +763,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateCountries(data: InsertCountry[]): Promise<Country[]> {
-    return db.insert(countries).values(data).onConflictDoNothing().returning();
+    return db.insert(countries).values(data).onConflictDoUpdate({
+      target: countries.code,
+      set: {
+        iso3: sql`EXCLUDED.iso3`,
+        name: sql`EXCLUDED.name`,
+        capitalCity: sql`EXCLUDED.capital_city`,
+        continent: sql`EXCLUDED.continent`,
+        region: sql`EXCLUDED.region`,
+        subregion: sql`EXCLUDED.subregion`,
+        currencyCode: sql`EXCLUDED.currency_code`,
+        currencyName: sql`EXCLUDED.currency_name`,
+        languages: sql`EXCLUDED.languages`,
+        phoneCode: sql`EXCLUDED.phone_code`,
+        flagUrl: sql`EXCLUDED.flag_url`,
+        latitude: sql`EXCLUDED.latitude`,
+        longitude: sql`EXCLUDED.longitude`,
+        population: sql`EXCLUDED.population`,
+        lastSyncedAt: sql`EXCLUDED.last_synced_at`,
+      }
+    }).returning();
   }
 
   // Cities
@@ -638,6 +807,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCity(id: string): Promise<void> {
     await db.delete(cities).where(eq(cities.id, id));
+  }
+
+  async deleteInvoice(id: string): Promise<void> {
+    await db.delete(invoices).where(eq(invoices.id, id));
   }
 
   async bulkCreateCities(data: InsertCity[]): Promise<City[]> {
@@ -682,14 +855,57 @@ export class DatabaseStorage implements IStorage {
     return sight;
   }
 
+  private calculateQualityScore(sight: Partial<Sight>): number {
+    let score = 0;
+    if (sight.description && sight.description.length > 50) score += 20;
+    if (sight.imageUrl) score += 20;
+    if (sight.latitude && sight.longitude) score += 20;
+    if (sight.openingHoursRaw) score += 10;
+    if (sight.individualTicketCost !== undefined && sight.individualTicketCost !== null) score += 20;
+    // Add 10 if we have contact info (website or phone)
+    if (sight.officialWebsite || sight.phone) score += 10;
+    return score;
+  }
+
   async createSight(data: InsertSight): Promise<Sight> {
-    const [sight] = await db.insert(sights).values(data).returning();
+    const qualityScore = this.calculateQualityScore(data as any);
+    const [sight] = await db.insert(sights).values({ ...data, dataQualityScore: qualityScore } as any).returning();
+    
+    // Auto-Enrichment Hook
+    if (qualityScore < 40) {
+      this.triggerSightEnrichment(sight.id, sight.name);
+    }
+    
     return sight;
   }
 
   async updateSight(id: string, data: Partial<Sight>): Promise<Sight> {
-    const [sight] = await db.update(sights).set(data).where(eq(sights.id, id)).returning();
+    const current = await this.getSight(id);
+    const merged = { ...current, ...data };
+    const qualityScore = this.calculateQualityScore(merged as any);
+    
+    const [sight] = await db.update(sights).set({ ...data, dataQualityScore: qualityScore }).where(eq(sights.id, id)).returning();
+    
+    if (qualityScore < 40) {
+      this.triggerSightEnrichment(sight.id, sight.name);
+    }
+
     return sight;
+  }
+
+  private async triggerSightEnrichment(id: string, name: string) {
+    // Non-blocking background task
+    setTimeout(async () => {
+      try {
+        console.log(`[Background] Starting enrichment for ${name}`);
+        const { scraperService } = await import("./lib/scrapers");
+        const enriched = await scraperService.enrichSightData(name);
+        await db.update(sights).set(enriched).where(eq(sights.id, id));
+        console.log(`[Background] Finished enrichment for ${name}`);
+      } catch (e) {
+        console.error(`[Background] Enrichment failed for ${name}:`, e);
+      }
+    }, 1000);
   }
 
   async deleteSight(id: string): Promise<void> {
@@ -697,7 +913,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateSights(data: InsertSight[]): Promise<Sight[]> {
-    return db.insert(sights).values(data).onConflictDoNothing().returning();
+    const enriched = data.map(d => ({
+      ...d,
+      dataQualityScore: this.calculateQualityScore(d as any)
+    }));
+    return db.insert(sights).values(enriched as any).onConflictDoNothing().returning();
   }
 
   // Hotels
@@ -719,8 +939,10 @@ export class DatabaseStorage implements IStorage {
     return hotel;
   }
 
-  async updateHotel(id: string, data: Partial<Hotel>): Promise<Hotel> {
+  async updateHotel(id: string, data: Partial<Hotel>, userId?: string, userName?: string): Promise<Hotel> {
+    const current = await this.getHotel(id);
     const [hotel] = await db.update(hotels).set(data).where(eq(hotels.id, id)).returning();
+    if (current) await this.logChange("hotel", id, "updated", current, data, userId, userName);
     return hotel;
   }
 
@@ -991,17 +1213,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(sightsRates).where(eq(sightsRates.id, id));
   }
 
-  // Audit Logs
-  async getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]> {
-    return db.select().from(auditLogs)
-      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
-      .orderBy(desc(auditLogs.createdAt));
-  }
-  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
-    const [log] = await db.insert(auditLogs).values(data).returning();
-    return log;
-  }
-
   async getNotifications(userId: string): Promise<Notification[]> {
     return db.select().from(notifications)
       .where(eq(notifications.userId, userId))
@@ -1122,6 +1333,183 @@ export class DatabaseStorage implements IStorage {
       revenueByMonth,
       occupancy
     };
+  // Import Jobs
+  async getImportJobs(): Promise<ImportJob[]> {
+    return db.select().from(importJobs).orderBy(desc(importJobs.startedAt));
+  }
+  async getImportJob(id: string): Promise<ImportJob | undefined> {
+    const [job] = await db.select().from(importJobs).where(eq(importJobs.id, id));
+    return job;
+  }
+  async createImportJob(data: any): Promise<ImportJob> {
+    const [job] = await db.insert(importJobs).values({ ...data, startedAt: new Date() }).returning();
+    return job;
+  }
+  async updateImportJob(id: string, data: any): Promise<ImportJob> {
+    const [job] = await db.update(importJobs).set(data).where(eq(importJobs.id, id)).returning();
+    return job;
+  }
+
+  // Data Sources
+  async getDataSources(): Promise<DataSource[]> {
+    return db.select().from(dataSources);
+  }
+  async createDataSource(data: any): Promise<DataSource> {
+    const [source] = await db.insert(dataSources).values(data).returning();
+    return source;
+  }
+
+  // Price Snapshots
+  async createHotelPriceSnapshot(data: any): Promise<HotelPriceSnapshot> {
+    const [snap] = await db.insert(hotelPriceSnapshots).values(data).returning();
+    return snap;
+  }
+  async getHotelPriceSnapshots(hotelId: string): Promise<HotelPriceSnapshot[]> {
+    return db.select().from(hotelPriceSnapshots).where(eq(hotelPriceSnapshots.hotelId, hotelId)).orderBy(desc(hotelPriceSnapshots.searchedAt));
+  }
+  async createFlightPriceSnapshot(data: any): Promise<FlightPriceSnapshot> {
+    const [snap] = await db.insert(flightPriceSnapshots).values(data).returning();
+    return snap;
+  }
+  async getFlightPriceSnapshots(origin: string, destination: string): Promise<FlightPriceSnapshot[]> {
+    return db.select().from(flightPriceSnapshots).where(and(eq(flightPriceSnapshots.originAirport, origin), eq(flightPriceSnapshots.destinationAirport, destination))).orderBy(desc(flightPriceSnapshots.searchedAt));
+  }
+
+  // Markup Rules
+  async getMarkupRules(): Promise<MarkupRule[]> {
+    return db.select().from(markupRules).orderBy(desc(markupRules.createdAt));
+  }
+  async createMarkupRule(data: InsertMarkupRule): Promise<MarkupRule> {
+    const [rule] = await db.insert(markupRules).values(data).returning();
+    return rule;
+  }
+  async updateMarkupRule(id: string, data: Partial<MarkupRule>): Promise<MarkupRule> {
+    const [rule] = await db.update(markupRules).set(data).where(eq(markupRules.id, id)).returning();
+    return rule;
+  }
+  async deleteMarkupRule(id: string): Promise<void> {
+    await db.delete(markupRules).where(eq(markupRules.id, id));
+  }
+
+  // Audit Logs
+  async getAuditLogs(entityType?: string, entityId?: string): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs);
+    if (entityType && entityId) {
+      query = query.where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId))) as any;
+    } else if (entityType) {
+      query = query.where(eq(auditLogs.entityType, entityType)) as any;
+    }
+    return query.orderBy(desc(auditLogs.createdAt)).limit(50);
+  }
+
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
+  }
+
+  // --- Wrapper for logging changes ---
+  private async logChange(entityType: string, entityId: string, action: string, oldVal: any, newVal: any, userId?: string, userName?: string) {
+    try {
+      const diff: any = {};
+      let changed = false;
+      for (const key in newVal) {
+        if (JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key])) {
+          diff[key] = { from: oldVal[key], to: newVal[key] };
+          changed = true;
+        }
+      }
+      if (!changed && action === "updated") return;
+
+      await this.createAuditLog({
+        entityType,
+        entityId,
+        action,
+        changedBy: userId,
+        changedByName: userName,
+        previousValue: JSON.stringify(oldVal),
+        newValue: JSON.stringify(newVal),
+        note: changed ? `Fields changed: ${Object.keys(diff).join(", ")}` : action,
+      });
+    } catch (e) {
+      console.error("Audit logging failed:", e);
+    }
+  }
+
+  // Affiliates
+  async getAffiliates(): Promise<Affiliate[]> {
+    return db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
+  }
+  async createAffiliate(data: InsertAffiliate): Promise<Affiliate> {
+    const [row] = await db.insert(affiliates).values(data).returning();
+    return row;
+  }
+  async getAffiliateByCode(code: string): Promise<Affiliate | undefined> {
+    const [row] = await db.select().from(affiliates).where(eq(affiliates.code, code));
+    return row;
+  }
+  async createAffiliatePayout(data: InsertAffiliatePayout): Promise<AffiliatePayout> {
+    const [row] = await db.insert(affiliatePayouts).values(data).returning();
+    return row;
+  }
+  async getAffiliatePayouts(): Promise<AffiliatePayout[]> {
+    return db.select().from(affiliatePayouts).orderBy(desc(affiliatePayouts.createdAt));
+  }
+
+  // Tour Day Items
+  async getTourDayItems(dayId: string): Promise<TourDayItem[]> {
+    return await db.select().from(tourDayItems).where(eq(tourDayItems.tourDayId, dayId)).orderBy(tourDayItems.sortOrder);
+  }
+
+  async createTourDayItem(data: InsertTourDayItem): Promise<TourDayItem> {
+    let finalData = { ...data };
+    
+    // Auto-fetch cost and create snapshots for integrity
+    if (data.hotelId && (!data.cost || data.cost === "0")) {
+      const hotel = await this.getHotel(data.hotelId);
+      if (hotel?.basePrice) {
+        finalData.cost = hotel.basePrice.toString();
+        const snap = await this.createHotelPriceSnapshot({
+          hotelId: data.hotelId,
+          price: hotel.basePrice,
+          currency: "USD",
+          source: "internal_master"
+        });
+        finalData.hotelSnapshotId = snap.id;
+      }
+    } else if (data.sightId && (!data.cost || data.cost === "0")) {
+      const sight = await this.getSight(data.sightId);
+      if (sight?.individualTicketCost) {
+        finalData.cost = sight.individualTicketCost.toString();
+      }
+    }
+
+    const [item] = await db.insert(tourDayItems).values(finalData).returning();
+    return item;
+  }
+
+  async updateTourDayItem(id: string, data: Partial<TourDayItem>): Promise<TourDayItem> {
+    const [item] = await db.update(tourDayItems).set(data).where(eq(tourDayItems.id, id)).returning();
+    return item;
+  }
+
+  async deleteTourDayItem(id: string): Promise<void> {
+    await db.delete(tourDayItems).where(eq(tourDayItems.id, id));
+  }
+
+  // Global Settings
+  async getGlobalSettings(): Promise<GlobalSetting[]> {
+    return db.select().from(globalSettings);
+  }
+  async getGlobalSettingByKey(key: string): Promise<GlobalSetting | undefined> {
+    const [setting] = await db.select().from(globalSettings).where(eq(globalSettings.key, key));
+    return setting;
+  }
+  async updateGlobalSetting(key: string, value: string): Promise<GlobalSetting> {
+    const [setting] = await db.insert(globalSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: globalSettings.key, set: { value, updatedAt: new Date() } })
+      .returning();
+    return setting;
   }
 
   async getInvoices(bookingId?: string): Promise<Invoice[]> {
@@ -1147,8 +1535,185 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async deleteInvoice(id: string): Promise<void> {
-    await db.delete(invoices).where(eq(invoices.id, id));
+  async getGlobalSalesStats(): Promise<any> {
+    const allBookings = await db.select().from(bookings);
+    const confirmed = allBookings.filter(b => b.status === "confirmed" || b.status === "completed");
+    
+    const totalRevenue = confirmed.reduce((sum, b) => sum + (parseFloat(b.totalPrice?.toString() || "0")), 0);
+    const bookingCount = confirmed.length;
+    
+    // Aggregate by month for the chart
+    const monthlySalesMap: Record<string, number> = {};
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    confirmed.forEach(b => {
+      const date = b.createdAt || new Date();
+      const month = monthNames[date.getMonth()];
+      monthlySalesMap[month] = (monthlySalesMap[month] || 0) + parseFloat(b.totalPrice?.toString() || "0");
+    });
+
+    const monthlySales = monthNames.map(month => ({
+      month,
+      amount: monthlySalesMap[month] || 0
+    }));
+
+    return {
+      totalRevenue,
+      totalProfit: totalRevenue * 0.15, // 15% estimated net margin
+      bookingCount,
+      activeTravelers: bookingCount * 2, // Estimated
+      topDestinations: [
+        { name: "Jordan", count: 12 }, // Placeholder for complex join
+        { name: "Egypt", count: 8 },
+        { name: "Turkey", count: 5 }
+      ],
+      monthlySales
+    };
+  }
+
+  // Sights Extra
+  async getSightImages(sightId: string): Promise<SightImage[]> {
+    return db.select().from(sightImages).where(eq(sightImages.sightId, sightId));
+  }
+  async createSightImage(data: InsertSightImage): Promise<SightImage> {
+    const [r] = await db.insert(sightImages).values(data).returning();
+    return r;
+  }
+  async getSightHours(sightId: string): Promise<SightHour[]> {
+    return db.select().from(sightHours).where(eq(sightHours.sightId, sightId));
+  }
+  async createSightHour(data: InsertSightHour): Promise<SightHour> {
+    const [r] = await db.insert(sightHours).values(data).returning();
+    return r;
+  }
+  async getSightTicketPrices(sightId: string): Promise<SightTicketPrice[]> {
+    return db.select().from(sightTicketPrices).where(eq(sightTicketPrices.sightId, sightId));
+  }
+  async createSightTicketPrice(data: InsertSightTicketPrice): Promise<SightTicketPrice> {
+    const [r] = await db.insert(sightTicketPrices).values(data).returning();
+    return r;
+  }
+
+  // Hotels Extra
+  async getHotelImages(hotelId: string): Promise<HotelImage[]> {
+    return db.select().from(hotelImages).where(eq(hotelImages.hotelId, hotelId));
+  }
+  async createHotelImage(data: InsertHotelImage): Promise<HotelImage> {
+    const [r] = await db.insert(hotelImages).values(data).returning();
+    return r;
+  }
+  async getHotelAmenities(hotelId: string): Promise<HotelAmenity[]> {
+    return db.select().from(hotelAmenities).where(eq(hotelAmenities.hotelId, hotelId));
+  }
+  async createHotelAmenity(data: InsertHotelAmenity): Promise<HotelAmenity> {
+    const [r] = await db.insert(hotelAmenities).values(data).returning();
+    return r;
+  }
+  async getHotelRoomTypes(hotelId: string): Promise<HotelRoomType[]> {
+    return db.select().from(hotelRoomTypes).where(eq(hotelRoomTypes.hotelId, hotelId));
+  }
+  async createHotelRoomType(data: InsertHotelRoomType): Promise<HotelRoomType> {
+    const [r] = await db.insert(hotelRoomTypes).values(data).returning();
+    return r;
+  }
+
+  // Custom Tours
+  async getCustomTours(customerId: string): Promise<CustomTour[]> {
+    return db.select().from(customTours).where(eq(customTours.customerId, customerId)).orderBy(desc(customTours.createdAt));
+  }
+  async getCustomTour(id: string): Promise<CustomTour | undefined> {
+    const [r] = await db.select().from(customTours).where(eq(customTours.id, id));
+    return r;
+  }
+  async createCustomTour(data: InsertCustomTour): Promise<CustomTour> {
+    const [r] = await db.insert(customTours).values(data).returning();
+    return r;
+  }
+  async updateCustomTour(id: string, data: Partial<CustomTour>): Promise<CustomTour> {
+    const [r] = await db.update(customTours).set(data).where(eq(customTours.id, id)).returning();
+    return r;
+  }
+
+  async getCustomTourDays(customTourId: string): Promise<CustomTourDay[]> {
+    return db.select().from(customTourDays).where(eq(customTourDays.customTourId, customTourId)).orderBy(customTourDays.dayNumber);
+  }
+  async createCustomTourDay(data: InsertCustomTourDay): Promise<CustomTourDay> {
+    const [r] = await db.insert(customTourDays).values(data).returning();
+    return r;
+  }
+
+  async getCustomTourDayItems(customTourDayId: string): Promise<CustomTourDayItem[]> {
+    return db.select().from(customTourDayItems).where(eq(customTourDayItems.customTourDayId, customTourDayId));
+  }
+  async createCustomTourDayItem(data: InsertCustomTourDayItem): Promise<CustomTourDayItem> {
+    const [r] = await db.insert(customTourDayItems).values(data).returning();
+    return r;
+  }
+
+  // Quotes
+  async getTourQuotes(customTourId: string): Promise<TourQuote[]> {
+    return db.select().from(tourQuotes).where(eq(tourQuotes.customTourId, customTourId)).orderBy(desc(tourQuotes.createdAt));
+  }
+  async createTourQuote(data: InsertTourQuote): Promise<TourQuote> {
+    const [r] = await db.insert(tourQuotes).values(data).returning();
+    return r;
+  }
+  async getTourQuoteItems(quoteId: string): Promise<TourQuoteItem[]> {
+    return db.select().from(tourQuoteItems).where(eq(tourQuoteItems.quoteId, quoteId));
+  }
+  async createTourQuoteItem(data: InsertTourQuoteItem): Promise<TourQuoteItem> {
+    const [r] = await db.insert(tourQuoteItems).values(data).returning();
+    return r;
+  }
+
+  // Scraper & AI Jobs
+  async createScraperRun(data: InsertScraperRun): Promise<ScraperRun> {
+    const [r] = await db.insert(scraperRuns).values(data).returning();
+    return r;
+  }
+  async updateScraperRun(id: string, data: Partial<ScraperRun>): Promise<ScraperRun> {
+    const [r] = await db.update(scraperRuns).set(data).where(eq(scraperRuns.id, id)).returning();
+    return r;
+  }
+  async createScraperError(data: InsertScraperError): Promise<ScraperError> {
+    const [r] = await db.insert(scraperErrors).values(data).returning();
+    return r;
+  }
+
+  async createAiGenerationJob(data: InsertAiGenerationJob): Promise<AiGenerationJob> {
+    const [r] = await db.insert(aiGenerationJobs).values(data).returning();
+    return r;
+  }
+  async updateAiGenerationJob(id: string, data: Partial<AiGenerationJob>): Promise<AiGenerationJob> {
+    const [r] = await db.update(aiGenerationJobs).set(data).where(eq(aiGenerationJobs.id, id)).returning();
+    return r;
+  }
+  async getAiGenerationJob(id: string): Promise<AiGenerationJob | undefined> {
+    const [r] = await db.select().from(aiGenerationJobs).where(eq(aiGenerationJobs.id, id));
+    return r;
+  }
+
+  async createAiGeneratedItinerary(data: InsertAiGeneratedItinerary): Promise<AiGeneratedItinerary> {
+    const [r] = await db.insert(aiGeneratedItineraries).values(data).returning();
+    return r;
+  }
+  async getAiGeneratedItineraryByJob(jobId: string): Promise<AiGeneratedItinerary | undefined> {
+    const [r] = await db.select().from(aiGeneratedItineraries).where(eq(aiGeneratedItineraries.jobId, jobId));
+    return r;
+  }
+
+  // Regions
+  async getRegionsByCountry(countryId: string): Promise<Region[]> {
+    return db.select().from(regions).where(eq(regions.countryId, countryId));
+  }
+  async createRegion(data: InsertRegion): Promise<Region> {
+    const [r] = await db.insert(regions).values(data).returning();
+    return r;
+  }
+
+  async createAffiliateReferral(data: InsertAffiliateReferral): Promise<AffiliateReferral> {
+    const [r] = await db.insert(affiliateReferrals).values(data).returning();
+    return r;
   }
 }
 

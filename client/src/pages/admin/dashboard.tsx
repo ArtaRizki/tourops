@@ -1,16 +1,21 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Link } from "wouter";
 import {
   BookOpen, Users, AlertTriangle, CheckCircle, Clock,
   Calendar, ArrowRight, FileText, CreditCard, ClipboardList,
-  Workflow, MapPin, DollarSign,
+  Workflow, MapPin, DollarSign, Landmark, Hotel, Activity,
+  BrainCircuit, Sparkles, TrendingUp, ShieldCheck
 } from "lucide-react";
+import { useI18n } from "@/hooks/use-i18n";
+import { apiRequest } from "@/lib/queryClient";
 import { BOOKING_STATUSES, FULFILLMENT_STATUSES, BOOKING_TYPES } from "@/lib/constants";
-import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment } from "@shared/schema";
+import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment, Sight } from "@shared/schema";
 
 function StatCard({ title, value, icon: Icon, description, color }: {
   title: string; value: string | number; icon: any; description?: string; color?: string;
@@ -34,12 +39,15 @@ function StatCard({ title, value, icon: Icon, description, color }: {
 }
 
 export default function AdminDashboard() {
+  const { t, lang, setLang } = useI18n();
   const { data: bookings, isLoading: loadingBookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
   const { data: departures } = useQuery<TourDeparture[]>({ queryKey: ["/api/departures"] });
   const { data: tours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
   const { data: workflows } = useQuery<BookingWorkflow[]>({ queryKey: ["/api/workflows"] });
   const { data: documents } = useQuery<DocType[]>({ queryKey: ["/api/documents"] });
   const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
+  const { data: sights } = useQuery<Sight[]>({ queryKey: ["/api/master/sights"] });
+  const { data: stats, isLoading: loadingStats } = useQuery<any>({ queryKey: ["/api/admin/stats"] });
 
   const totalBookings = bookings?.length || 0;
   const confirmedBookings = bookings?.filter((b) => b.status === "confirmed").length || 0;
@@ -73,30 +81,53 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-serif" data-testid="text-admin-title">Admin Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Overview of your tour operations</p>
+    <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-xl">
+            <TrendingUp className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold font-serif tracking-tight">{t('welcome')}!</h1>
+            <p className="text-muted-foreground text-sm flex items-center gap-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              {t('adminOverview')}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/tours"><Button variant="outline" data-testid="button-manage-tours">Manage Tours</Button></Link>
-          <Link href="/admin/bookings"><Button data-testid="button-view-bookings">View Bookings</Button></Link>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border">
+            <Button 
+              variant={lang === 'en' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 text-[10px] px-3 font-bold"
+              onClick={() => setLang('en')}
+            >EN</Button>
+            <Button 
+              variant={lang === 'id' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 text-[10px] px-3 font-bold"
+              onClick={() => setLang('id')}
+            >ID</Button>
+          </div>
+          <AIAdvisorDialog />
+          <Link href="/admin/affiliates">
+            <Button variant="outline" className="gap-2 shadow-sm">
+              <Users className="h-4 w-4" /> {t('affiliates')}
+            </Button>
+          </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
-        <StatCard title="Total Bookings" value={totalBookings} icon={BookOpen} />
-        <StatCard title="Confirmed" value={confirmedBookings} icon={CheckCircle} color="bg-green-600" />
-        <StatCard title="Revenue (Paid)" value={`$${totalRevenue.toLocaleString()}`} icon={CreditCard} color="bg-primary" />
-        <StatCard title="Revenue (Pend)" value={`$${pendingRevenue.toLocaleString()}`} icon={DollarSign} color="bg-amber-500" />
-        <StatCard title="Open Departures" value={upcomingDepartures} icon={Calendar} />
-        <StatCard title="Tours" value={totalTours} icon={MapPin} />
-        <StatCard title="Pending Review" value={pendingBookings} icon={Clock} color="bg-amber-500" />
-        <StatCard title="Blocked" value={blockedFulfillments} icon={AlertTriangle} color={blockedFulfillments > 0 ? "bg-destructive" : "bg-muted"} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title={t('grossSales')} value={`$${(stats?.grossSales || 0).toLocaleString()}`} icon={DollarSign} color="bg-primary/5" />
+        <StatCard title={t('netProfit')} value={`$${(stats?.netProfit || 0).toLocaleString()}`} icon={TrendingUp} color="bg-emerald-50" />
+        <StatCard title={t('avgBooking')} value={`$${(stats?.avgBookingValue || 0).toLocaleString()}`} icon={CreditCard} color="bg-blue-50" />
+        <StatCard title={t('activeAssets')} value={stats?.activeAssets || 0} icon={Hotel} color="bg-amber-50" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Top Performing Tours</CardTitle>
@@ -122,6 +153,8 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        <LiveActivityFeed />
 
         <Card>
           <CardHeader>
@@ -169,7 +202,17 @@ export default function AdminDashboard() {
                   <Badge variant="destructive" className="h-5">{blockedWorkflows}</Badge>
                 </div>
               )}
-              {pendingDocs === 0 && pendingPayments === 0 && blockedWorkflows === 0 && (
+              {sights && sights.filter(s => (s.dataQualityScore || 0) < 70).length > 0 && (
+                <Link href="/admin/master-data">
+                  <div className="flex items-center justify-between text-sm cursor-pointer hover:text-primary">
+                    <span className="flex items-center gap-2"><Landmark className="h-3.5 w-3.5" /> Sights Needs Review</span>
+                    <Badge variant="secondary" className="h-5 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">
+                      {sights.filter(s => (s.dataQualityScore || 0) < 70).length}
+                    </Badge>
+                  </div>
+                </Link>
+              )}
+              {pendingDocs === 0 && pendingPayments === 0 && blockedWorkflows === 0 && (!sights || sights.filter(s => (s.dataQualityScore || 0) < 70).length === 0) && (
                 <p className="text-xs text-muted-foreground italic text-center py-2">All clear! No pending actions.</p>
               )}
             </div>
@@ -222,5 +265,150 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LiveActivityFeed() {
+  const { t } = useI18n();
+  const { data: logs, isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/audit-logs"] });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{t('systemActivity')}</CardTitle>
+        <Activity className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4 max-h-[400px] overflow-auto pr-2">
+          {logs?.map((log) => (
+            <div key={log.id} className="flex items-start gap-3 text-xs border-b pb-3 last:border-0 last:pb-0">
+              <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                log.action === 'confirmed' ? 'bg-green-500' : 
+                log.action === 'updated' ? 'bg-blue-500' : 'bg-muted'
+              }`} />
+              <div className="space-y-1 flex-1">
+                <p className="font-medium">
+                  {log.changedByName || 'System'} {log.action} <span className="capitalize">{log.entityType}</span> {log.entityId.slice(0,8)}
+                </p>
+                <p className="text-muted-foreground line-clamp-1">{log.note}</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString()}</p>
+              </div>
+            </div>
+          ))}
+          {logs?.length === 0 && <p className="text-center py-8 text-muted-foreground italic">No recent activity</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AIAdvisorDialog() {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+
+  const getAdvice = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/ai-consultant", {});
+      const data = await res.json();
+      setAnalysis(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-primary/10">
+          <BrainCircuit className="h-4 w-4 text-primary" /> {t('aiAdvice')}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto border-none shadow-2xl p-0 overflow-hidden">
+        <div className="bg-slate-900 text-white p-8 relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-primary/20 rounded-lg">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold">Tourop AI Strategy</h2>
+            </div>
+            <p className="text-slate-400 text-sm">Artificial Intelligence Business Consultant</p>
+          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        </div>
+        
+        <div className="p-8 space-y-6">
+          {!analysis && !loading && (
+            <div className="text-center py-12 space-y-4">
+              <BrainCircuit className="h-16 w-16 text-muted-foreground/20 mx-auto" />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">Analyze Business Performance</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">Our AI will review your gross sales, margins, and tour popularity to give you actionable strategic advice.</p>
+              </div>
+              <Button onClick={getAdvice} className="gap-2">Run Intelligence Engine</Button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <BrainCircuit className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <p className="text-sm font-medium animate-pulse">Consulting global travel trends...</p>
+            </div>
+          )}
+
+          {analysis && (
+            <div className="space-y-6">
+              <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl italic text-sm text-slate-700 dark:text-slate-300">
+                "{analysis.executiveSummary}"
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Activity className="h-3 w-3" /> Key Insights
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {analysis.insights.map((insight: string, idx: number) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      {insight}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="h-3 w-3" /> Strategic Recommendations
+                </h4>
+                <div className="space-y-3">
+                  {analysis.recommendations.map((rec: any, idx: number) => (
+                    <div key={idx} className="p-4 border rounded-xl hover:bg-slate-50 transition-colors">
+                      <p className="font-bold text-sm mb-1">{rec.title}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{rec.description}</p>
+                      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 border-none">
+                        Impact: {rec.expectedImpact}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="p-6 border-t bg-slate-50 flex justify-end">
+          <Button variant="outline" onClick={() => setOpen(false)}>Close Advisor</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

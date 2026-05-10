@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2 } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2, Sparkles } from "lucide-react";
 import type {
   Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency,
 } from "@shared/schema";
@@ -262,20 +262,37 @@ function CountriesTab() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [code, setCode] = useState("");
+  const [iso3, setIso3] = useState("");
   const [name, setName] = useState("");
+  const [capitalCity, setCapitalCity] = useState("");
+  const [continent, setContinent] = useState("");
   const [region, setRegion] = useState("");
-  const [currency, setCurrency] = useState("");
-  const [timezone, setTimezone] = useState("");
+  const [subregion, setSubregion] = useState("");
+  const [currencyCode, setCurrencyCode] = useState("");
+  const [currencyName, setCurrencyName] = useState("");
+  const [phoneCode, setPhoneCode] = useState("");
+  const [population, setPopulation] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   const { data: items, isLoading } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
 
-  const resetForm = () => { setCode(""); setName(""); setRegion(""); setCurrency(""); setTimezone(""); setIsActive(true); };
+  const resetForm = () => { 
+    setCode(""); setIso3(""); setName(""); setCapitalCity(""); setContinent(""); 
+    setRegion(""); setSubregion(""); setCurrencyCode(""); setCurrencyName(""); 
+    setPhoneCode(""); setPopulation(""); setLatitude(""); setLongitude(""); setIsActive(true); 
+  };
 
   const openEdit = (item: Country) => {
     setEditItem(item);
-    setCode(item.code); setName(item.name); setRegion(item.region || "");
-    setCurrency(item.currency || ""); setTimezone(item.timezone || ""); setIsActive(item.isActive ?? true);
+    setCode(item.code); setIso3(item.iso3 || ""); setName(item.name); 
+    setCapitalCity(item.capitalCity || ""); setContinent(item.continent || "");
+    setRegion(item.region || ""); setSubregion(item.subregion || "");
+    setCurrencyCode(item.currencyCode || ""); setCurrencyName(item.currencyName || "");
+    setPhoneCode(item.phoneCode || ""); setPopulation(String(item.population || ""));
+    setLatitude(String(item.latitude || "")); setLongitude(String(item.longitude || ""));
+    setIsActive(item.isActive ?? true);
     setShowForm(true);
   };
 
@@ -309,7 +326,12 @@ function CountriesTab() {
   });
 
   const handleSubmit = () => {
-    const data = { code, name, region: region || undefined, currency: currency || undefined, timezone: timezone || undefined, isActive };
+    const data = { 
+      code, iso3, name, capitalCity, continent, region, subregion, 
+      currencyCode, currencyName, phoneCode, 
+      population: population ? parseInt(population) : undefined, 
+      latitude, longitude, isActive 
+    };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
@@ -330,11 +352,12 @@ function CountriesTab() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-16">Flag</TableHead>
             <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Region</TableHead>
-            <TableHead>Currency</TableHead>
-            <TableHead>Timezone</TableHead>
+            <TableHead>Capital</TableHead>
+            <TableHead>Continent</TableHead>
+            <TableHead>Population</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -342,11 +365,22 @@ function CountriesTab() {
         <TableBody>
           {items?.map((item) => (
             <TableRow key={item.id} data-testid={`row-country-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-country-code-${item.id}`}>{item.code}</TableCell>
+              <TableCell>
+                {item.flagUrl ? (
+                  <img src={`/api/images/proxy?url=${encodeURIComponent(item.flagUrl)}&width=64`} alt={item.name} className="w-8 h-5 object-cover rounded shadow-sm" />
+                ) : (
+                  <div className="w-8 h-5 bg-muted rounded flex items-center justify-center text-[10px] text-muted-foreground">??</div>
+                )}
+              </TableCell>
+              <TableCell className="font-medium" data-testid={`text-country-code-${item.id}`}>
+                {item.code} <span className="text-xs text-muted-foreground ml-1">({item.iso3 || ""})</span>
+              </TableCell>
               <TableCell data-testid={`text-country-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell className="text-muted-foreground">{item.region || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{item.currency || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{item.timezone || "-"}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">{item.capitalCity || "-"}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">{item.continent || "-"}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {item.population ? item.population.toLocaleString() : "-"}
+              </TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
@@ -365,12 +399,32 @@ function CountriesTab() {
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editItem ? "Edit Country" : "Add Country"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Code *</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="US" data-testid="input-country-code" /></div>
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>ISO2 Code *</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="US" data-testid="input-country-code" /></div>
+              <div><Label>ISO3 Code</Label><Input value={iso3} onChange={(e) => setIso3(e.target.value)} placeholder="USA" data-testid="input-country-iso3" /></div>
+            </div>
             <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="United States" data-testid="input-country-name" /></div>
-            <div><Label>Region</Label><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="North America" data-testid="input-country-region" /></div>
-            <div><Label>Currency</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" data-testid="input-country-currency" /></div>
-            <div><Label>Timezone</Label><Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/New_York" data-testid="input-country-timezone" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Capital City</Label><Input value={capitalCity} onChange={(e) => setCapitalCity(e.target.value)} placeholder="Washington D.C." data-testid="input-country-capital" /></div>
+              <div><Label>Continent</Label><Input value={continent} onChange={(e) => setContinent(e.target.value)} placeholder="North America" data-testid="input-country-continent" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Region</Label><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Americas" data-testid="input-country-region" /></div>
+              <div><Label>Subregion</Label><Input value={subregion} onChange={(e) => setSubregion(e.target.value)} placeholder="Northern America" data-testid="input-country-subregion" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Currency Code</Label><Input value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)} placeholder="USD" data-testid="input-country-currency-code" /></div>
+              <div><Label>Currency Name</Label><Input value={currencyName} onChange={(e) => setCurrencyName(e.target.value)} placeholder="US Dollar" data-testid="input-country-currency-name" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Phone Code</Label><Input value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} placeholder="+1" data-testid="input-country-phone" /></div>
+              <div><Label>Population</Label><Input type="number" value={population} onChange={(e) => setPopulation(e.target.value)} placeholder="331000000" data-testid="input-country-population" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Latitude</Label><Input value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="38.8951" data-testid="input-country-lat" /></div>
+              <div><Label>Longitude</Label><Input value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="-77.0364" data-testid="input-country-lng" /></div>
+            </div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-country-active" />
               <Label>Active</Label>
@@ -399,16 +453,27 @@ function CitiesTab() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [asciiName, setAsciiName] = useState("");
   const [countryId, setCountryId] = useState("");
+  const [population, setPopulation] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [isCapital, setIsCapital] = useState(false);
+  const [isTourismCity, setIsTourismCity] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
   const { data: items, isLoading } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countriesList } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
 
-  const resetForm = () => { setName(""); setCountryId(""); setIsActive(true); };
+  const resetForm = () => { 
+    setName(""); setAsciiName(""); setCountryId(""); setPopulation(""); 
+    setLatitude(""); setLongitude(""); setIsCapital(false); setIsTourismCity(false); setIsActive(true); 
+  };
 
   const openEdit = (item: City) => {
-    setEditItem(item); setName(item.name); setCountryId(item.countryId);
+    setEditItem(item); setName(item.name); setAsciiName(item.asciiName || ""); setCountryId(item.countryId);
+    setPopulation(String(item.population || "")); setLatitude(String(item.latitude || "")); setLongitude(String(item.longitude || ""));
+    setIsCapital(item.isCapital ?? false); setIsTourismCity(item.isTourismCity ?? false);
     setIsActive(item.isActive ?? true); setShowForm(true);
   };
 
@@ -445,7 +510,11 @@ function CitiesTab() {
   });
 
   const handleSubmit = () => {
-    const data = { name, countryId, isActive };
+    const data = { 
+      name, asciiName, countryId, 
+      population: population ? parseInt(population) : undefined, 
+      latitude, longitude, isCapital, isTourismCity, isActive 
+    };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
@@ -476,6 +545,9 @@ function CitiesTab() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Country</TableHead>
+            <TableHead>Population</TableHead>
+            <TableHead>Coordinates</TableHead>
+            <TableHead>Rank</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -483,8 +555,17 @@ function CitiesTab() {
         <TableBody>
           {items?.map((item) => (
             <TableRow key={item.id} data-testid={`row-city-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-city-name-${item.id}`}>{item.name}</TableCell>
+              <TableCell className="font-medium" data-testid={`text-city-name-${item.id}`}>
+                {item.name} {item.isCapital && <Badge variant="outline" className="ml-2 text-[10px] uppercase">Capital</Badge>}
+              </TableCell>
               <TableCell className="text-muted-foreground">{getCountryName(item.countryId)}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {item.population ? item.population.toLocaleString() : "-"}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-[10px] font-mono">
+                {item.latitude && item.longitude ? `${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}` : "-"}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">{item.cityRank || 0}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
@@ -503,8 +584,9 @@ function CitiesTab() {
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editItem ? "Edit City" : "Add City"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tel Aviv" data-testid="input-city-name" /></div>
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jakarta" data-testid="input-city-name" /></div>
+            <div><Label>ASCII/English Name</Label><Input value={asciiName} onChange={(e) => setAsciiName(e.target.value)} placeholder="Jakarta" data-testid="input-city-ascii" /></div>
             <div>
               <Label>Country *</Label>
               <Select value={countryId} onValueChange={setCountryId}>
@@ -513,6 +595,21 @@ function CitiesTab() {
                   {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div><Label>Population</Label><Input type="number" value={population} onChange={(e) => setPopulation(e.target.value)} placeholder="10000000" data-testid="input-city-population" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Latitude</Label><Input value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="-6.2088" data-testid="input-city-lat" /></div>
+              <div><Label>Longitude</Label><Input value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="106.8456" data-testid="input-city-lng" /></div>
+            </div>
+            <div className="flex items-center gap-4 py-2">
+              <div className="flex items-center gap-2">
+                <Switch checked={isCapital} onCheckedChange={setIsCapital} data-testid="switch-city-capital" />
+                <Label>Capital City</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={isTourismCity} onCheckedChange={setIsTourismCity} data-testid="switch-city-tourism" />
+                <Label>Tourism City</Label>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-city-active" />
@@ -718,6 +815,15 @@ function SightsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const enrichMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/ai/enrich-sight/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] });
+      toast({ title: "Sight description enriched by AI!" });
+    },
+    onError: (e: Error) => toast({ title: "Enrichment failed", description: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
     const data = { name, cityId, description: description || undefined, longDescription: longDescription || undefined, category, ticketRequired, individualTicketCost: individualTicketCost || undefined, groupTicketCost: groupTicketCost || undefined, estimatedDuration: estimatedDuration || undefined, isActive };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
@@ -775,6 +881,15 @@ function SightsTab() {
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-sight-${item.id}`}><Pencil className="h-4 w-4" /></Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => enrichMutation.mutate(item.id)} 
+                    disabled={enrichMutation.isPending}
+                    title="Enrich with AI"
+                  >
+                    <Sparkles className={`h-4 w-4 ${enrichMutation.isPending ? "animate-pulse" : "text-primary"}`} />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-sight-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>

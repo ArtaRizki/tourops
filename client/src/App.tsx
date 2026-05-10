@@ -23,9 +23,11 @@ import AdminBookingDetail from "@/pages/admin/booking-detail";
 import AdminWorkflowDetail from "@/pages/admin/workflow-detail";
 import AdminUsers from "@/pages/admin/users";
 import AdminMasterData from "@/pages/admin/master-data";
+import AdminPricingSettings from "@/pages/admin/pricing-settings";
 import AdminTransport from "@/pages/admin/transport";
 import AdminRateCards from "@/pages/admin/rate-cards";
 import AdminReports from "@/pages/admin/reports";
+import AdminAffiliates from "@/pages/admin/affiliates";
 import BrowseTours from "@/pages/customer/browse-tours";
 import TourDetail from "@/pages/customer/tour-detail";
 import MyBookings from "@/pages/customer/my-bookings";
@@ -79,10 +81,12 @@ function AuthenticatedLayout() {
             <Route path="/admin/workflows/:id" component={AdminWorkflowDetail} />
             <Route path="/admin/users" component={AdminUsers} />
             <Route path="/admin/reports" component={AdminReports} />
+            <Route path="/admin/affiliates" component={AdminAffiliates} />
             <Route path="/admin/tour-generator" component={TourGenerator} />
             <Route path="/admin/tours/:id" component={TourDetail} />
             <Route path="/admin/airline-search" component={AirlineSearch} />
             <Route path="/admin/master-data" component={AdminMasterData} />
+            <Route path="/admin/pricing" component={AdminPricingSettings} />
             <Route path="/admin/transport" component={AdminTransport} />
             <Route path="/admin/rate-cards" component={AdminRateCards} />
 

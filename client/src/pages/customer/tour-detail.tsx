@@ -132,7 +132,7 @@ export default function TourDetail() {
                 bookingType: "join_leader_group",
                 leaderUserId: joinedGroupData.customerId,
                 partySizeExpected: partySize,
-                totalPrice: (tour.basePrice || 0) * partySize,
+                totalPrice: Number(tour.basePrice || 0) * partySize,
               }, {
                 onSuccess: () => {
                    setBookingConfirmed(true);
@@ -317,7 +317,7 @@ export default function TourDetail() {
                                 groupName: bookingType === "leader_group" ? groupName : undefined,
                                 partySizeExpected: partySize,
                                 notes,
-                                totalPrice: (dep.pricePerPerson || tour.basePrice || 0) * partySize,
+                                totalPrice: Number(dep.pricePerPerson || tour.basePrice || 0) * partySize,
                               })}
                               disabled={bookMutation.isPending}
                               data-testid="button-confirm-booking"

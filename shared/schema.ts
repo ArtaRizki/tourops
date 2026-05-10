@@ -1,19 +1,26 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, pgEnum, json, index, uniqueIndex, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, pgEnum, json, jsonb, index, uniqueIndex, numeric, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export * from "./models/auth";
 
 export const userRoleEnum = pgEnum("user_role", [
+  "super_admin",
   "admin",
   "customer",
   "airline_supplier",
   "country_manager",
+  "city_manager",
   "hotel_manager",
   "transport_manager",
   "guide_manager",
   "sights_manager",
+  "content_editor",
+  "flight_agent",
+  "tour_builder",
+  "supplier",
+  "travel_agent",
 ]);
 
 export const userProfiles = pgTable("user_profiles", {
@@ -39,6 +46,7 @@ export const departureStatusEnum = pgEnum("departure_status", ["open", "closed",
 export const tours = pgTable("tours", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
+  slug: text("slug").unique().notNull(),
   description: text("description"),
   highlights: text("highlights"),
   inclusions: text("inclusions"),
@@ -46,24 +54,25 @@ export const tours = pgTable("tours", {
   imageUrl: text("image_url"),
   galleryUrls: text("gallery_urls").array(),
   duration: integer("duration").notNull().default(1),
-  basePrice: integer("base_price").default(0),
-  childPrice: integer("child_price"),
-  singleSupplement: integer("single_supplement"),
-  currency: text("currency").default("USD"),
+  basePrice: numeric("base_price").notNull().default("0"),
+  markupAmount: numeric("markup_amount").notNull().default("0"),
+  totalPrice: numeric("total_price").notNull().default("0"),
+  isPriceConfirmed: boolean("is_price_confirmed").notNull().default(false),
+  childPrice: numeric("child_price"),
+  singleSupplement: numeric("single_supplement"),
   countries: text("countries").array(),
   tags: text("tags").array(),
   category: text("category"),
-  pdfItineraryUrl: text("pdf_itinerary_url"),
   internalNotes: text("internal_notes"),
-  isPublished: boolean("is_published").default(false),
-  createdBy: varchar("created_by"),
+  isPublished: boolean("is_published").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   categoryIdx: index("tours_category_idx").on(table.category),
   publishedIdx: index("tours_published_idx").on(table.isPublished),
 }));
 
-export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
+export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertTour = z.infer<typeof insertTourSchema>;
 export type Tour = typeof tours.$inferSelect;
 
@@ -76,13 +85,39 @@ export const tourDays = pgTable("tour_days", {
   countryCode: text("country_code"),
   city: text("city"),
   activities: text("activities"),
+  createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   tourIdIdx: index("tour_days_tour_id_idx").on(table.tourId),
 }));
 
-export const insertTourDaySchema = createInsertSchema(tourDays).omit({ id: true });
+export const insertTourDaySchema = createInsertSchema(tourDays).omit({ id: true, createdAt: true });
 export type InsertTourDay = z.infer<typeof insertTourDaySchema>;
 export type TourDay = typeof tourDays.$inferSelect;
+
+export const tourDayItems = pgTable("tour_day_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tourDayId: varchar("tour_day_id").notNull(),
+  itemType: text("item_type").notNull(), // 'arrival', 'departure', 'sight', 'hotel', 'meal', 'transport', 'flight', 'custom'
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  title: text("title").notNull(),
+  description: text("description"),
+  cost: numeric("cost").notNull().default("0"),
+  currency: text("currency").notNull().default("USD"),
+  sightId: varchar("sight_id"),
+  hotelId: varchar("hotel_id"),
+  flightSnapshotId: varchar("flight_snapshot_id"),
+  hotelSnapshotId: varchar("hotel_snapshot_id"),
+  isOptional: boolean("is_optional").notNull().default(false),
+  bookingRequired: boolean("booking_required").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+}, (table) => ({
+  dayIdIdx: index("tour_day_items_day_id_idx").on(table.tourDayId),
+}));
+
+export const insertTourDayItemSchema = createInsertSchema(tourDayItems).omit({ id: true });
+export type InsertTourDayItem = z.infer<typeof insertTourDayItemSchema>;
+export type TourDayItem = typeof tourDayItems.$inferSelect;
 
 export const tourDepartures = pgTable("tour_departures", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -137,6 +172,7 @@ export const bookings = pgTable("bookings", {
   notes: text("notes"),
   internalNotes: text("internal_notes"),
   isUrgent: boolean("is_urgent").default(false),
+  affiliateId: varchar("affiliate_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   customerIdIdx: index("bookings_customer_id_idx").on(table.customerId),
@@ -322,11 +358,24 @@ export type Payment = typeof payments.$inferSelect;
 
 export const countries = pgTable("countries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
+  code: text("code").notNull().unique(), // ISO2
+  iso3: text("iso3"),
   name: text("name").notNull(),
+  capitalCity: text("capital_city"),
+  continent: text("continent"),
   region: text("region"),
-  currency: text("currency"),
-  timezone: text("timezone"),
+  subregion: text("subregion"),
+  currencyCode: text("currency_code"),
+  currencyName: text("currency_name"),
+  languages: text("languages").array(),
+  phoneCode: text("phone_code"),
+  flagUrl: text("flag_url"),
+  latitude: numeric("latitude"),
+  longitude: numeric("longitude"),
+  population: integer("population"),
+  sourceName: text("source_name"),
+  sourceExternalId: text("source_external_id"),
+  lastSyncedAt: timestamp("last_synced_at"),
   isActive: boolean("is_active").default(true),
 });
 export const insertCountrySchema = createInsertSchema(countries).omit({ id: true });
@@ -336,9 +385,22 @@ export type Country = typeof countries.$inferSelect;
 export const cities = pgTable("cities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  asciiName: text("ascii_name"),
+  alternateNames: text("alternate_names").array(),
   countryId: varchar("country_id").notNull(),
+  population: integer("population"),
+  latitude: numeric("latitude"),
+  longitude: numeric("longitude"),
+  timezone: text("timezone"),
+  geonameId: text("geoname_id"),
+  osmId: text("osm_id"),
+  cityRank: integer("city_rank").default(0),
+  isCapital: boolean("is_capital").default(false),
+  isTourismCity: boolean("is_tourism_city").default(false),
   isAirportCity: boolean("is_airport_city").default(false),
   isActive: boolean("is_active").default(true),
+  sourceName: text("source_name"),
+  lastSyncedAt: timestamp("last_synced_at"),
 });
 export const insertCitySchema = createInsertSchema(cities).omit({ id: true });
 export type InsertCity = z.infer<typeof insertCitySchema>;
@@ -360,17 +422,40 @@ export const sightCategoryEnum = pgEnum("sight_category", ["museum", "landmark",
 export const sights = pgTable("sights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  slug: text("slug").unique(),
   cityId: varchar("city_id").notNull(),
+  status: varchar("status", { enum: ["draft", "approved", "published"] }).default("draft"),
   description: text("description"),
+  descriptionShort: text("description_short"),
   longDescription: text("long_description"),
   category: sightCategoryEnum("sight_category").default("other"),
+  subcategories: text("subcategories").array(),
+  latitude: numeric("latitude"),
+  longitude: numeric("longitude"),
+  officialWebsite: text("official_website"),
+  phone: text("phone"),
+  email: text("email"),
+  openingHoursRaw: text("opening_hours_raw"),
+  openingHoursStructured: jsonb("opening_hours_structured"),
   ticketRequired: boolean("ticket_required").default(false),
   individualTicketCost: numeric("individual_ticket_cost"),
+  ticketCostChild: numeric("ticket_cost_child"),
   groupTicketCost: numeric("group_ticket_cost"),
+  ticketCurrency: text("ticket_currency").default("USD"),
+  isFree: boolean("is_free").default(false),
   estimatedDuration: text("estimated_duration"),
+  bestTimeToVisit: text("best_time_to_visit"),
   imageUrl: text("image_url"),
-  openingHours: text("opening_hours"),
   address: text("address"),
+  accessibilityNotes: text("accessibility_notes"),
+  dressCode: text("dress_code"),
+  safetyNotes: text("safety_notes"),
+  bookingRequired: boolean("booking_required").default(false),
+  sourceName: text("source_name"),
+  sourceExternalId: text("source_external_id"),
+  sourceUrl: text("source_url"),
+  dataQualityScore: integer("data_quality_score").default(0),
+  lastSyncedAt: timestamp("last_synced_at"),
   isActive: boolean("is_active").default(true),
 });
 
@@ -384,13 +469,28 @@ export const hotels = pgTable("hotels", {
   cityId: varchar("city_id").notNull(),
   address: text("address"),
   description: text("description"),
+  slug: text("slug").unique(),
+  status: varchar("status", { enum: ["draft", "approved", "published"] }).default("draft"),
   starRating: integer("star_rating"),
+  guestRating: numeric("guest_rating"),
+  reviewCount: integer("review_count").default(0),
+  amenities: text("amenities").array(),
+  roomTypes: jsonb("room_types"),
+  checkinTime: text("checkin_time"),
+  checkoutTime: text("checkout_time"),
+  hotelPolicy: text("hotel_policy"),
+  cancellationPolicy: text("cancellation_policy"),
   basePrice: numeric("base_price"),
+  estimatedPriceMin: numeric("estimated_price_min"),
+  estimatedPriceMax: numeric("estimated_price_max"),
   currency: text("currency").default("USD"),
   imageUrl: text("image_url"),
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
   website: text("website"),
+  sourceHotelId: text("source_hotel_id"),
+  affiliateUrl: text("affiliate_url"),
+  lastPriceCheckedAt: timestamp("last_price_checked_at"),
   isActive: boolean("is_active").default(true),
 });
 
@@ -659,3 +759,383 @@ export const notifications = pgTable("notifications", {
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export const hotelPriceSnapshots = pgTable("hotel_price_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull(),
+  checkInDate: text("check_in_date").notNull(),
+  checkOutDate: text("check_out_date").notNull(),
+  adults: integer("adults").default(2),
+  rooms: integer("rooms").default(1),
+  priceTotal: numeric("price_total").notNull(),
+  currency: text("currency").default("USD"),
+  supplierName: text("supplier_name"),
+  searchedAt: timestamp("searched_at").defaultNow(),
+});
+
+export const flightPriceSnapshots = pgTable("flight_price_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  originAirport: text("origin_airport").notNull(),
+  destinationAirport: text("destination_airport").notNull(),
+  departureDate: text("departure_date").notNull(),
+  returnDate: text("return_date"),
+  airline: text("airline"),
+  priceTotal: numeric("price_total").notNull(),
+  currency: text("currency").default("USD"),
+  supplierName: text("supplier_name"),
+  searchedAt: timestamp("searched_at").defaultNow(),
+});
+
+export const importJobs = pgTable("import_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull(), // 'country', 'city', 'sight'
+  status: text("status").notNull(), // 'pending', 'running', 'completed', 'failed'
+  totalRecords: integer("total_records").default(0),
+  processedRecords: integer("processed_records").default(0),
+  errors: text("errors"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+
+
+export const dataSources = pgTable("data_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  baseUrl: text("base_url"),
+  apiKey: text("api_key"),
+  isActive: boolean("is_active").default(true),
+  lastUsedAt: timestamp("last_used_at"),
+});
+
+export type HotelPriceSnapshot = typeof hotelPriceSnapshots.$inferSelect;
+export type FlightPriceSnapshot = typeof flightPriceSnapshots.$inferSelect;
+export type ImportJob = typeof importJobs.$inferSelect;
+export type DataSource = typeof dataSources.$inferSelect;
+
+export const markupRules = pgTable("markup_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id"), // Null means global
+  serviceType: text("service_type"), // 'hotel', 'flight', 'transport', 'sight', 'all'
+  markupPercentage: numeric("markup_percentage").notNull(),
+  minProfit: numeric("min_profit").default("0"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const globalSettings = pgTable("global_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(), // e.g. 'default_service_fee'
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type MarkupRule = typeof markupRules.$inferSelect;
+export type InsertMarkupRule = z.infer<typeof insertMarkupRuleSchema>;
+export const insertMarkupRuleSchema = createInsertSchema(markupRules).omit({ id: true, createdAt: true });
+
+export type GlobalSetting = typeof globalSettings.$inferSelect;
+export type InsertGlobalSetting = z.infer<typeof insertGlobalSettingSchema>;
+export const insertGlobalSettingSchema = createInsertSchema(globalSettings).omit({ id: true, updatedAt: true });
+export const affiliates = pgTable("affiliates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  email: text("email"),
+  commissionRate: numeric("commission_rate").default("10"), // Percentage
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const affiliatePayouts = pgTable("affiliate_payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").notNull(),
+  bookingId: varchar("booking_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").default("pending"), // pending, paid
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const affiliateReferrals = pgTable("affiliate_referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").notNull(),
+  clickId: text("click_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  converted: boolean("converted").default(false),
+  bookingId: varchar("booking_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAffiliateSchema = createInsertSchema(affiliates).omit({ id: true, createdAt: true });
+export type Affiliate = typeof affiliates.$inferSelect;
+export type InsertAffiliate = z.infer<typeof insertAffiliateSchema>;
+
+export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).omit({ id: true, createdAt: true });
+export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
+export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
+
+// ---- ADDED FROM GAP ANALYSIS ----
+
+export const sightImages = pgTable("sight_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sightId: varchar("sight_id").notNull(),
+  url: text("url").notNull(),
+  caption: text("caption"),
+  licenseRaw: text("license_raw"),
+  author: text("author"),
+  width: integer("width"),
+  height: integer("height"),
+  dominantColor: text("dominant_color"),
+});
+
+export const sightHours = pgTable("sight_hours", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sightId: varchar("sight_id").notNull(),
+  dayOfWeek: integer("day_of_week").notNull(), // 0-6
+  openTime: text("open_time"), // HH:MM
+  closeTime: text("close_time"), // HH:MM
+  isClosed: boolean("is_closed").default(false),
+});
+
+export const sightTicketPrices = pgTable("sight_ticket_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sightId: varchar("sight_id").notNull(),
+  ticketType: text("ticket_type").notNull(), // e.g. adult, child, senior, group
+  price: numeric("price").notNull(),
+  currency: text("currency").default("USD"),
+  description: text("description"),
+});
+
+export const hotelImages = pgTable("hotel_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull(),
+  url: text("url").notNull(),
+  caption: text("caption"),
+  dominantColor: text("dominant_color"),
+});
+
+export const hotelAmenities = pgTable("hotel_amenities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull(),
+  amenity: text("amenity").notNull(),
+});
+
+export const hotelRoomTypes = pgTable("hotel_room_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hotelId: varchar("hotel_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  capacity: integer("capacity"),
+  basePrice: numeric("base_price"),
+});
+
+export const flightOfferDetails = pgTable("flight_offer_details", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id"),
+  airline: text("airline"),
+  flightNumber: text("flight_number"),
+  departureAirport: text("departure_airport"),
+  arrivalAirport: text("arrival_airport"),
+  departureTime: timestamp("departure_time"),
+  arrivalTime: timestamp("arrival_time"),
+  price: numeric("price"),
+  currency: text("currency"),
+  rawOfferData: jsonb("raw_offer_data"),
+});
+
+export const customTours = pgTable("custom_tours", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").default("draft"), // draft, requested, quoted, accepted, rejected
+  budget: numeric("budget"),
+  pax: integer("pax"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const customTourDays = pgTable("custom_tour_days", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customTourId: varchar("custom_tour_id").notNull(),
+  dayNumber: integer("day_number").notNull(),
+  title: text("title"),
+});
+
+export const customTourDayItems = pgTable("custom_tour_day_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customTourDayId: varchar("custom_tour_day_id").notNull(),
+  type: text("type").notNull(), // sight, hotel, transport
+  referenceId: varchar("reference_id"), // id of the sight/hotel etc
+  notes: text("notes"),
+});
+
+export const tourQuotes = pgTable("tour_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customTourId: varchar("custom_tour_id").notNull(),
+  supplierId: varchar("supplier_id"),
+  totalPrice: numeric("total_price"),
+  status: text("status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tourQuoteItems = pgTable("tour_quote_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  description: text("description"),
+  price: numeric("price"),
+});
+
+export const importJobLogs = pgTable("import_job_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobType: text("job_type").notNull(), // countries, cities, sights
+  status: text("status").notNull(), // running, completed, failed
+  recordsProcessed: integer("records_processed").default(0),
+  errors: jsonb("errors"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const scraperRuns = pgTable("scraper_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceName: text("source_name").notNull(),
+  target: text("target").notNull(),
+  status: text("status"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const scraperErrors = pgTable("scraper_errors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  runId: varchar("run_id").notNull(),
+  url: text("url"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const dataQualityReviews = pgTable("data_quality_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull(), // sight, hotel
+  entityId: varchar("entity_id").notNull(),
+  score: integer("score"),
+  issues: jsonb("issues"), // list of issues found
+  status: text("status").default("pending"), // pending, reviewed, fixed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const aiGenerationJobs = pgTable("ai_generation_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  prompt: text("prompt"),
+  status: text("status").default("pending"),
+  resultItineraryId: varchar("result_itinerary_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const aiGeneratedItineraries = pgTable("ai_generated_itineraries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id"),
+  title: text("title"),
+  content: jsonb("content"), // the generated JSON
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const aiPromptLogs = pgTable("ai_prompt_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  prompt: text("prompt"),
+  responseTokens: integer("response_tokens"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const regions = pgTable("regions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+});
+
+// Insert schemas and Types for new tables
+export const insertSightImageSchema = createInsertSchema(sightImages).omit({ id: true });
+export type InsertSightImage = z.infer<typeof insertSightImageSchema>;
+export type SightImage = typeof sightImages.$inferSelect;
+
+export const insertSightHourSchema = createInsertSchema(sightHours).omit({ id: true });
+export type InsertSightHour = z.infer<typeof insertSightHourSchema>;
+export type SightHour = typeof sightHours.$inferSelect;
+
+export const insertSightTicketPriceSchema = createInsertSchema(sightTicketPrices).omit({ id: true });
+export type InsertSightTicketPrice = z.infer<typeof insertSightTicketPriceSchema>;
+export type SightTicketPrice = typeof sightTicketPrices.$inferSelect;
+
+export const insertHotelImageSchema = createInsertSchema(hotelImages).omit({ id: true });
+export type InsertHotelImage = z.infer<typeof insertHotelImageSchema>;
+export type HotelImage = typeof hotelImages.$inferSelect;
+
+export const insertHotelAmenitySchema = createInsertSchema(hotelAmenities).omit({ id: true });
+export type InsertHotelAmenity = z.infer<typeof insertHotelAmenitySchema>;
+export type HotelAmenity = typeof hotelAmenities.$inferSelect;
+
+export const insertHotelRoomTypeSchema = createInsertSchema(hotelRoomTypes).omit({ id: true });
+export type InsertHotelRoomType = z.infer<typeof insertHotelRoomTypeSchema>;
+export type HotelRoomType = typeof hotelRoomTypes.$inferSelect;
+
+export const insertFlightOfferDetailSchema = createInsertSchema(flightOfferDetails).omit({ id: true });
+export type InsertFlightOfferDetail = z.infer<typeof insertFlightOfferDetailSchema>;
+export type FlightOfferDetail = typeof flightOfferDetails.$inferSelect;
+
+export const insertCustomTourSchema = createInsertSchema(customTours).omit({ id: true, createdAt: true });
+export type InsertCustomTour = z.infer<typeof insertCustomTourSchema>;
+export type CustomTour = typeof customTours.$inferSelect;
+
+export const insertCustomTourDaySchema = createInsertSchema(customTourDays).omit({ id: true });
+export type InsertCustomTourDay = z.infer<typeof insertCustomTourDaySchema>;
+export type CustomTourDay = typeof customTourDays.$inferSelect;
+
+export const insertCustomTourDayItemSchema = createInsertSchema(customTourDayItems).omit({ id: true });
+export type InsertCustomTourDayItem = z.infer<typeof insertCustomTourDayItemSchema>;
+export type CustomTourDayItem = typeof customTourDayItems.$inferSelect;
+
+export const insertTourQuoteSchema = createInsertSchema(tourQuotes).omit({ id: true, createdAt: true });
+export type InsertTourQuote = z.infer<typeof insertTourQuoteSchema>;
+export type TourQuote = typeof tourQuotes.$inferSelect;
+
+export const insertTourQuoteItemSchema = createInsertSchema(tourQuoteItems).omit({ id: true });
+export type InsertTourQuoteItem = z.infer<typeof insertTourQuoteItemSchema>;
+export type TourQuoteItem = typeof tourQuoteItems.$inferSelect;
+
+export const insertImportJobLogSchema = createInsertSchema(importJobLogs).omit({ id: true, startedAt: true });
+export type InsertImportJobLog = z.infer<typeof insertImportJobLogSchema>;
+export type ImportJobLog = typeof importJobLogs.$inferSelect;
+
+export const insertScraperRunSchema = createInsertSchema(scraperRuns).omit({ id: true, startedAt: true });
+export type InsertScraperRun = z.infer<typeof insertScraperRunSchema>;
+export type ScraperRun = typeof scraperRuns.$inferSelect;
+
+export const insertScraperErrorSchema = createInsertSchema(scraperErrors).omit({ id: true, createdAt: true });
+export type InsertScraperError = z.infer<typeof insertScraperErrorSchema>;
+export type ScraperError = typeof scraperErrors.$inferSelect;
+
+export const insertDataQualityReviewSchema = createInsertSchema(dataQualityReviews).omit({ id: true, createdAt: true });
+export type InsertDataQualityReview = z.infer<typeof insertDataQualityReviewSchema>;
+export type DataQualityReview = typeof dataQualityReviews.$inferSelect;
+
+export const insertAiGenerationJobSchema = createInsertSchema(aiGenerationJobs).omit({ id: true, createdAt: true });
+export type InsertAiGenerationJob = z.infer<typeof insertAiGenerationJobSchema>;
+export type AiGenerationJob = typeof aiGenerationJobs.$inferSelect;
+
+export const insertAiGeneratedItinerarySchema = createInsertSchema(aiGeneratedItineraries).omit({ id: true, createdAt: true });
+export type InsertAiGeneratedItinerary = z.infer<typeof insertAiGeneratedItinerarySchema>;
+export type AiGeneratedItinerary = typeof aiGeneratedItineraries.$inferSelect;
+
+export const insertAiPromptLogSchema = createInsertSchema(aiPromptLogs).omit({ id: true, createdAt: true });
+export type InsertAiPromptLog = z.infer<typeof insertAiPromptLogSchema>;
+export type AiPromptLog = typeof aiPromptLogs.$inferSelect;
+
+export const insertAffiliateReferralSchema = createInsertSchema(affiliateReferrals).omit({ id: true, createdAt: true });
+export type InsertAffiliateReferral = z.infer<typeof insertAffiliateReferralSchema>;
+export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
+
+export const insertRegionSchema = createInsertSchema(regions).omit({ id: true });
+export type InsertRegion = z.infer<typeof insertRegionSchema>;
+export type Region = typeof regions.$inferSelect;

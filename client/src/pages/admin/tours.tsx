@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X } from "lucide-react";
-import type { Tour, TourDay } from "@shared/schema";
+import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2 } from "lucide-react";
+import type { Tour, TourDay, TourDayItem } from "@shared/schema";
 
 export default function AdminTours() {
   const { toast } = useToast();
@@ -191,15 +191,23 @@ export default function AdminTours() {
           <h1 className="text-2xl font-bold font-serif">Tours</h1>
           <p className="text-muted-foreground text-sm">Manage your tour catalog</p>
         </div>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-tour"><Plus className="h-4 w-4 mr-2" />Create Tour</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Create New Tour</DialogTitle></DialogHeader>
-            <TourForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <AIGeneratorDialog onGenerated={(data) => {
+            setEditTour(null);
+            setShowCreate(true);
+            toast({ title: "Itinerary generated! Please review the details below." });
+          }} />
+
+          <Dialog open={showCreate} onOpenChange={setShowCreate}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-tour"><Plus className="h-4 w-4 mr-2" />Create Tour</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Create New Tour</DialogTitle></DialogHeader>
+              <TourForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -238,6 +246,7 @@ export default function AdminTours() {
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{tour.countries.join(", ")}</span>
                   )}
                   {tour.basePrice ? <span className="font-medium text-foreground">${tour.basePrice}</span> : null}
+                  <TourMarginBadge tourId={tour.id} />
                 </div>
                 {tour.tags && tour.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
@@ -262,6 +271,11 @@ export default function AdminTours() {
                   <Button size="icon" variant="ghost" onClick={() => setItineraryTour(tour)} data-testid={`button-itinerary-${tour.id}`}>
                     <ListOrdered className="h-4 w-4" />
                   </Button>
+                  <Button size="icon" variant="ghost" asChild data-testid={`button-pdf-${tour.id}`}>
+                    <a href={`/api/tours/${tour.id}/pdf`} target="_blank" rel="noreferrer">
+                      <FileDown className="h-4 w-4 text-primary" />
+                    </a>
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(tour.id)} data-testid={`button-delete-tour-${tour.id}`}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -273,9 +287,26 @@ export default function AdminTours() {
       )}
 
       <Dialog open={!!itineraryTour} onOpenChange={(open) => !open && setItineraryTour(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Itinerary: {itineraryTour?.title}</DialogTitle></DialogHeader>
-          {itineraryTour && <ItineraryEditor tourId={itineraryTour.id} duration={itineraryTour.duration} />}
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Itinerary & Analytics: {itineraryTour?.title}</DialogTitle></DialogHeader>
+          {itineraryTour && (
+            <Tabs defaultValue="schedule">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="schedule">Daily Schedule</TabsTrigger>
+                <TabsTrigger value="financials">Financial Analytics</TabsTrigger>
+                <TabsTrigger value="history">Change History</TabsTrigger>
+              </TabsList>
+              <TabsContent value="schedule">
+                <ItineraryEditor tourId={itineraryTour.id} duration={itineraryTour.duration} />
+              </TabsContent>
+              <TabsContent value="financials">
+                <FinancialAnalytics tourId={itineraryTour.id} />
+              </TabsContent>
+              <TabsContent value="history">
+                <TourHistory tourId={itineraryTour.id} />
+              </TabsContent>
+            </Tabs>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -375,24 +406,30 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
                 {editDay?.id === day.id ? (
                   <EditDayForm day={editDay} onSave={(data) => updateDay.mutate({ id: day.id, ...data })} onCancel={() => setEditDay(null)} isPending={updateDay.isPending} />
                 ) : (
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">Day {day.dayNumber}</Badge>
-                        <span className="font-medium text-sm">{day.title}</span>
-                        {day.countryCode && <Badge variant="secondary" className="text-xs">{day.countryCode}</Badge>}
-                        {day.city && <span className="text-xs text-muted-foreground">{day.city}</span>}
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">Day {day.dayNumber}</Badge>
+                          <span className="font-medium text-sm">{day.title}</span>
+                          {day.countryCode && <Badge variant="secondary" className="text-xs">{day.countryCode}</Badge>}
+                          {day.city && <span className="text-xs text-muted-foreground">{day.city}</span>}
+                        </div>
+                        {day.description && <p className="text-xs text-muted-foreground mt-1">{day.description}</p>}
                       </div>
-                      {day.description && <p className="text-xs text-muted-foreground mt-1">{day.description}</p>}
-                      {day.activities && <p className="text-xs text-muted-foreground mt-1">Activities: {day.activities}</p>}
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setEditDay(day)} data-testid={`button-edit-day-${day.id}`}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => deleteDay.mutate(day.id)} data-testid={`button-delete-day-${day.id}`}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditDay(day)} data-testid={`button-edit-day-${day.id}`}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteDay.mutate(day.id)} data-testid={`button-delete-day-${day.id}`}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                    
+                    <div className="border-t pt-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Schedule & Items</p>
+                      <DayItemsEditor dayId={day.id} />
                     </div>
                   </div>
                 )}
@@ -400,6 +437,185 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function DayItemsEditor({ dayId }: { dayId: string }) {
+  const { toast } = useToast();
+  const { data: items, isLoading } = useQuery<TourDayItem[]>({ queryKey: [`/api/tour-days/${dayId}/items`] });
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const { data: sights } = useQuery<any[]>({ 
+    queryKey: ["/api/master/sights"], 
+    enabled: searchQuery.length > 2 
+  });
+  const { data: hotels } = useQuery<any[]>({ 
+    queryKey: ["/api/hotels"], 
+    enabled: searchQuery.length > 2 
+  });
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [type, setType] = useState("custom");
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [cost, setCost] = useState("0");
+  const [time, setTime] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const filteredResults = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 2) return [];
+    const q = searchQuery.toLowerCase();
+    const sResults = (sights || []).filter(s => s.name.toLowerCase().includes(q)).map(s => ({ ...s, type: 'sight' }));
+    const hResults = (hotels || []).filter(h => h.name.toLowerCase().includes(q)).map(h => ({ ...h, type: 'hotel' }));
+    return [...sResults, ...hResults].slice(0, 10);
+  }, [searchQuery, sights, hotels]);
+
+  const handleSelectResult = (res: any) => {
+    setTitle(res.name);
+    setDesc(res.description || "");
+    setCost(res.individualTicketCost?.toString() || res.basePrice?.toString() || "0");
+    setType(res.type);
+    setSelectedId(res.id);
+    setSearchQuery("");
+  };
+
+  const createItem = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", `/api/tour-days/${dayId}/items`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] });
+      setShowAdd(false); setTitle(""); setDesc(""); setCost("0"); setTime(""); setSelectedId(null);
+    },
+  });
+
+  const deleteItem = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/tour-day-items/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] }),
+  });
+
+  const getItemIcon = (type: string) => {
+    switch (type) {
+      case 'meal': return <Utensils className="h-3 w-3" />;
+      case 'flight': return <Plane className="h-3 w-3" />;
+      case 'hotel': return <Hotel className="h-3 w-3" />;
+      case 'sight': return <MapPin className="h-3 w-3" />;
+      case 'transport': return <Activity className="h-3 w-3" />;
+      case 'arrival': return <Plane className="h-3 w-3 rotate-45" />;
+      case 'departure': return <Plane className="h-3 w-3 -rotate-45" />;
+      default: return <Clock className="h-3 w-3" />;
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-20 w-full" />;
+
+  return (
+    <div className="space-y-2">
+      {items?.map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded border border-dashed text-xs">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-muted rounded-full">{getItemIcon(item.itemType)}</div>
+            <div>
+              <div className="flex items-center gap-2">
+                {item.startTime && <span className="font-mono text-muted-foreground">{item.startTime}</span>}
+                <span className="font-medium">{item.title}</span>
+              </div>
+              {item.description && <p className="text-muted-foreground truncate max-w-[200px]">{item.description}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {parseFloat(item.cost.toString()) > 0 && (
+              <Badge variant="outline" className="font-mono font-normal">
+                ${item.cost}
+              </Badge>
+            )}
+            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteItem.mutate(item.id)}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {showAdd ? (
+        <div className="p-3 bg-muted/50 rounded-md space-y-3 mt-2 border border-primary/20">
+          <div className="relative">
+            <Label className="text-[10px]">Search Master Data (Sights/Hotels)</Label>
+            <div className="flex gap-1">
+              <Input 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                placeholder="Search database..." 
+                className="h-7 text-xs" 
+              />
+              <Search className="h-4 w-4 mt-1.5 text-muted-foreground" />
+            </div>
+            {filteredResults.length > 0 && (
+              <div className="absolute z-10 w-full bg-white border rounded shadow-lg mt-1 max-h-40 overflow-auto">
+                {filteredResults.map((res: any) => (
+                  <div 
+                    key={res.id} 
+                    className="p-2 text-[10px] hover:bg-muted cursor-pointer flex justify-between items-center"
+                    onClick={() => handleSelectResult(res)}
+                  >
+                    <span>{res.name} ({res.type})</span>
+                    <Badge variant="outline" className="text-[8px] h-4">Select</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-[10px]">Type</Label>
+              <select 
+                value={type} 
+                onChange={(e) => setType(e.target.value)}
+                className="w-full text-xs p-1 rounded border bg-white"
+              >
+                <option value="sight">Sight</option>
+                <option value="meal">Meal</option>
+                <option value="hotel">Hotel</option>
+                <option value="transport">Transport</option>
+                <option value="flight">Flight</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-[10px]">Time</Label>
+              <Input value={time} onChange={(e) => setTime(e.target.value)} placeholder="09:00" className="h-7 text-xs" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px]">Title *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Item name" className="h-7 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">Description</Label>
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Short note..." className="h-7 text-xs" />
+          </div>
+          <div>
+            <Label className="text-[10px]">Base Cost ($)</Label>
+            <Input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="h-7 text-xs" />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="h-7 text-[10px]" onClick={() => createItem.mutate({ 
+              itemType: type, title, description: desc, cost, startTime: time,
+              sightId: type === 'sight' ? selectedId : null,
+              hotelId: type === 'hotel' ? selectedId : null
+            })}>Add</Button>
+            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <Button 
+          variant="outline" 
+          className="w-full h-8 text-[10px] border-dashed" 
+          onClick={() => setShowAdd(true)}
+        >
+          <Plus className="h-3 w-3 mr-1" /> Add Schedule Item
+        </Button>
       )}
     </div>
   );
@@ -431,4 +647,231 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
       </div>
     </div>
   );
+}
+
+function AIGeneratorDialog({ onGenerated }: { onGenerated: (data: any) => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [dest, setDest] = useState("");
+  const [days, setDays] = useState("5");
+  const [pace, setPace] = useState("moderate");
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/ai/generate-itinerary", {
+        destination: dest,
+        duration: parseInt(days),
+        pace,
+        travelerType: "general",
+        interests: ["cultural", "leisure"],
+        budget: "mid-range"
+      });
+      const data = await res.json();
+      
+      // Step 2: Save the generated tour to DB
+      const createRes = await apiRequest("POST", "/api/tours", {
+        title: data.title,
+        description: data.description,
+        duration: parseInt(days),
+        category: data.category,
+        isPublished: false
+      });
+      const tour = await createRes.json();
+
+      // Step 3: Create days and items
+      for (const day of data.days) {
+        const dayRes = await apiRequest("POST", `/api/tours/${tour.id}/days`, {
+          dayNumber: day.dayNumber,
+          title: day.title,
+          description: day.description
+        });
+        const createdDay = await dayRes.json();
+
+        for (const item of day.items) {
+          await apiRequest("POST", `/api/tour-days/${createdDay.id}/items`, {
+            itemType: item.itemType,
+            title: item.title,
+            description: item.description,
+            cost: item.cost.toString(),
+            startTime: item.startTime,
+            sightId: item.sightId,
+            hotelId: item.hotelId
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      onGenerated(tour);
+      setOpen(false);
+      toast({ title: "Tour generated and saved as draft!" });
+    } catch (e: any) {
+      toast({ title: "AI Generation failed", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2 border-primary/50 hover:bg-primary/5">
+          <Sparkles className="h-4 w-4 text-primary" /> AI Generator
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Magic Tour Generator</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Destination City/Country</Label>
+            <Input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="e.g. Bali, Indonesia" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Duration (Days)</Label>
+              <Input type="number" value={days} onChange={(e) => setDays(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Pace</Label>
+              <select 
+                value={pace} 
+                onChange={(e) => setPace(e.target.value)}
+                className="w-full p-2 border rounded-md text-sm"
+              >
+                <option value="slow">Slow & Relaxed</option>
+                <option value="moderate">Moderate</option>
+                <option value="fast">Fast (Action-packed)</option>
+              </select>
+            </div>
+          </div>
+          <Button className="w-full gap-2" onClick={generate} disabled={loading || !dest}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Generate Professional Itinerary
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center">
+            Note: This will create a draft tour with structured schedule items using verified data where available.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FinancialAnalytics({ tourId }: { tourId: string }) {
+  const { data: pricing, isLoading } = useQuery<any>({ queryKey: [`/api/tours/${tourId}/price-breakdown`] });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-4">
+            <div className="text-[10px] uppercase text-muted-foreground font-semibold">Total Price</div>
+            <div className="text-2xl font-bold">${pricing?.totalPrice?.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="pt-4">
+            <div className="text-[10px] uppercase text-green-600 font-semibold">Net Profit</div>
+            <div className="text-2xl font-bold text-green-700">${pricing?.netProfit?.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+        <Card className={pricing?.marginPercentage < 10 ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-200"}>
+          <CardContent className="pt-4">
+            <div className="text-[10px] uppercase text-muted-foreground font-semibold">Margin</div>
+            <div className="text-2xl font-bold">{pricing?.marginPercentage?.toFixed(1)}%</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="rounded-md border">
+        <table className="w-full text-xs">
+          <thead className="bg-muted">
+            <tr>
+              <th className="p-2 text-left">Item / Category</th>
+              <th className="p-2 text-right">Cost</th>
+              <th className="p-2 text-right">Markup</th>
+              <th className="p-2 text-right">Selling</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {pricing?.breakdown.map((b: any, idx: number) => (
+              <tr key={idx} className="hover:bg-muted/50">
+                <td className="p-2">{b.item}</td>
+                <td className="p-2 text-right">${b.cost?.toFixed(2) || "0.00"}</td>
+                <td className="p-2 text-right text-green-600">+{b.markup?.toFixed(2) || b.amount?.toFixed(2) || "0.00"}</td>
+                <td className="p-2 text-right font-medium">${((b.cost || 0) + (b.markup || b.amount || 0)).toFixed(2)}</td>
+              </tr>
+            ))}
+            <tr className="bg-muted/30 font-semibold">
+              <td className="p-2">Totals</td>
+              <td className="p-2 text-right">${pricing?.baseCost?.toFixed(2)}</td>
+              <td className="p-2 text-right text-green-600">+${(pricing?.markupAmount + pricing?.serviceFee)?.toFixed(2)}</td>
+              <td className="p-2 text-right">${pricing?.totalPrice?.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="p-3 bg-muted rounded-md text-[10px] text-muted-foreground flex justify-between">
+        <span>Estimated Sales Tax ({((pricing?.tax / pricing?.totalPrice) * 100 || 0).toFixed(1)}%):</span>
+        <span className="font-mono">${pricing?.tax?.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
+function TourHistory({ tourId }: { tourId: string }) {
+  const { data: auditLogs, isLoading } = useQuery<any[]>({ 
+    queryKey: ["/api/audit-logs", "tour", tourId] 
+  });
+
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  return (
+    <div className="space-y-4">
+      {auditLogs && auditLogs.length > 0 ? (
+        <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
+          {auditLogs.map((log) => (
+            <div key={log.id} className="relative">
+              <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-semibold">{log.action?.toUpperCase()}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  By: <span className="font-medium text-foreground">{log.changedByName || "System"}</span>
+                </p>
+                {log.note && <p className="text-xs italic text-muted-foreground mt-1">"{log.note}"</p>}
+                <div className="mt-2 text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-dashed">
+                  <p className="uppercase font-bold text-[8px] mb-1">Raw Diff (Internal)</p>
+                  <pre className="whitespace-pre-wrap">{log.note.includes("Fields changed") ? log.note : "Initial creation or major update"}</pre>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-12 text-center">
+          <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground">No history found for this tour</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TourMarginBadge({ tourId }: { tourId: string }) {
+  const { data: pricing } = useQuery<any>({ queryKey: [`/api/tours/${tourId}/price-breakdown`] });
+  if (!pricing) return null;
+  
+  if (pricing.marginPercentage < 10) {
+    return <Badge variant="destructive" className="h-4 text-[8px]">Low Margin</Badge>;
+  }
+  return <Badge variant="outline" className="h-4 text-[8px] text-green-600 border-green-200">{pricing.marginPercentage.toFixed(0)}% Margin</Badge>;
 }

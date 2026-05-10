@@ -54,7 +54,7 @@ export default function BrowseTours() {
         (durationFilter === "16+" && t.duration >= 16);
 
       // Price
-      const price = t.basePrice || 0;
+      const price = Number(t.basePrice || 0);
       const matchesPrice = price <= maxPrice;
 
       // Date Range

@@ -15,7 +15,7 @@ import {
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
-  DollarSign, ClipboardList
+  DollarSign, ClipboardList, Bell
 } from "lucide-react";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@shared/schema";
@@ -115,6 +115,8 @@ export default function SupplierDashboard() {
         <h1 className="text-2xl font-bold font-serif" data-testid="text-supplier-title">{config.title}</h1>
         <p className="text-muted-foreground text-sm">{config.subtitle}</p>
       </div>
+
+      <SupplierNotifications />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -606,6 +608,39 @@ export default function SupplierDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+function SupplierNotifications() {
+  const { data: notifications, isLoading } = useQuery<any[]>({ queryKey: ["/api/notifications"] });
+  const { toast } = useToast();
+
+  const markRead = useMutation({
+    mutationFn: (id: string) => apiRequest("PATCH", `/api/notifications/${id}/read`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications"] }),
+  });
+
+  const unread = notifications?.filter(n => !n.read) || [];
+  if (unread.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      {unread.map((n) => (
+        <motion.div key={n.id} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+          <div className="flex items-center justify-between p-4 bg-primary/5 border border-primary/20 rounded-lg shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Bell className="h-4 w-4 text-primary animate-bounce" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">{n.title}</p>
+                <p className="text-xs text-muted-foreground">{n.message}</p>
+              </div>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => markRead.mutate(n.id)}>Dismiss</Button>
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }

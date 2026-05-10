@@ -4,9 +4,13 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { initEmailSystem } from "./lib/email";
 import { shutdownEmailQueue } from "./lib/emailQueue";
+import { startWorkers } from "./lib/workers";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Start background workers
+startWorkers();
 
 declare module "http" {
   interface IncomingMessage {
@@ -96,17 +100,21 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`serving on port ${port}`);
+  if (process.env.NODE_ENV !== "test") {
+    httpServer.listen(
+      {
+        port,
+        host: "0.0.0.0",
+      },
+      () => {
+        log(`serving on port ${port}`);
 
-      // Graceful shutdown: flush queue before exit
-      process.on("SIGTERM", () => { shutdownEmailQueue(); process.exit(0); });
-      process.on("SIGINT",  () => { shutdownEmailQueue(); process.exit(0); });
-    },
-  );
+        // Graceful shutdown: flush queue before exit
+        process.on("SIGTERM", () => { shutdownEmailQueue(); process.exit(0); });
+        process.on("SIGINT",  () => { shutdownEmailQueue(); process.exit(0); });
+      },
+    );
+  }
 })();
+
+export { app };
