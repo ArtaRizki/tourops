@@ -55,7 +55,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-proj-z0m6N4Yd_D8j4e5P0q2y3s5t7u9v0x1}
       APP_URL: http://tour-ops-software.local
     ports:
-      - "80:${PORT}"
+      - "5022:${PORT}"
     networks:
       - tour-ops
 
