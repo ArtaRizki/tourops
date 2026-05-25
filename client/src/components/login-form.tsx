@@ -87,6 +87,18 @@ export function LoginForm({ portal, title, subtitle }: LoginFormProps) {
             Sign In
           </Button>
         </form>
+        {portal === "customer" && (
+          <div className="mt-4 text-center text-sm">
+            <span className="text-muted-foreground">Don't have an account? </span>
+            <button 
+              type="button" 
+              className="text-primary hover:underline font-medium"
+              onClick={() => setError("Public registration is currently closed. Please contact your tour operator or use an invite code to join.")}
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/components/login-form";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import {
   Globe,
   Shield,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 export default function LandingPage() {
+  const { toast } = useToast();
   return (
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -108,7 +110,10 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <Card className="hover-elevate">
+            <Card 
+              className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
+              onClick={() => toast({ title: "Group Booking", description: "Our platform supports complex group hierarchies and dynamic pricing based on party size." })}
+            >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <Users className="h-6 w-6 text-primary" />
@@ -120,7 +125,10 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate">
+            <Card 
+              className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
+              onClick={() => toast({ title: "Seamless Fulfillment", description: "All suppliers are integrated. From flights to local guides, everything is confirmed automatically." })}
+            >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-primary" />
@@ -132,7 +140,10 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate">
+            <Card 
+              className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
+              onClick={() => toast({ title: "Global Reach", description: "Our multi-country tour engine handles border crossings, visas, and multi-currency operations." })}
+            >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <MapPin className="h-6 w-6 text-primary" />
@@ -180,6 +191,14 @@ export default function LandingPage() {
                 </div>
               </a>
             ))}
+          </div>
+
+          <div className="mt-12 text-center">
+            <a href="#login">
+              <Button variant="outline" size="lg" className="rounded-full px-8 hover:bg-primary hover:text-primary-foreground transition-colors">
+                Explore All Destinations <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </a>
           </div>
         </div>
       </section>
@@ -246,15 +265,44 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="py-8 border-t bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            <span className="font-bold">TourOps</span>
+      <footer className="py-12 border-t bg-card text-card-foreground">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Globe className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg">TourOps</span>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Premium tour operations and booking platform. Simplifying global travel for everyone.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            &copy; 2026 TourOps. All rights reserved.
-          </p>
+          <div>
+            <h4 className="font-semibold mb-4">Company</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Contact Support</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Legal</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Cookie Policy</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Connect</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><a href="#" className="hover:text-primary transition-colors">Twitter</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Instagram</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">LinkedIn</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
+          &copy; 2026 TourOps Inc. All rights reserved.
         </div>
       </footer>
     </div>
