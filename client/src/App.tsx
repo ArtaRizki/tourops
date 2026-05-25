@@ -1,5 +1,5 @@
 import { Switch, Route, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { queryClient, getQueryFn } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
@@ -43,8 +43,10 @@ import TransportDashboard from "@/pages/ops/transport-dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function AuthenticatedLayout() {
-  const { data: profile, isLoading: profileLoading } = useQuery<UserProfile>({
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery<UserProfile | null>({
     queryKey: ["/api/user-profile"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: false,
   });
 
   const role = profile?.role;
@@ -64,6 +66,11 @@ function AuthenticatedLayout() {
         </div>
       </div>
     );
+  }
+
+  // If profile fetch failed (e.g. session lost), redirect to login
+  if (profileError || profile === null) {
+    return <Redirect to="/" />;
   }
 
   return (

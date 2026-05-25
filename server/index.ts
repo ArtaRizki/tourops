@@ -9,8 +9,6 @@ import { startWorkers } from "./lib/workers";
 const app = express();
 const httpServer = createServer(app);
 
-// Start background workers
-startWorkers();
 
 declare module "http" {
   interface IncomingMessage {
@@ -69,6 +67,9 @@ app.use((req, res, next) => {
 (async () => {
   // Initialise email queue before routes so notifications work from first request
   initEmailSystem();
+
+  // Start background workers asynchronously — app boots even if Redis is unavailable
+  startWorkers().catch((err) => console.warn('[Workers] Startup error:', err.message));
 
   await registerRoutes(httpServer, app);
 
