@@ -163,9 +163,10 @@ export default function LandingPage() {
               { name: "Japan", img: "/images/tour-japan.png", tours: 4 },
               { name: "Kenya Safari", img: "/images/tour-safari.png", tours: 2 },
             ].map((dest) => (
-              <div
+              <a
                 key={dest.name}
-                className="group relative rounded-md overflow-hidden aspect-[4/3]"
+                href="#login"
+                className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
               >
                 <img
                   src={dest.img}
@@ -177,7 +178,7 @@ export default function LandingPage() {
                   <h3 className="text-white font-semibold text-lg">{dest.name}</h3>
                   <p className="text-white/70 text-sm">{dest.tours} tours available</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
