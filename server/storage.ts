@@ -763,6 +763,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateCountries(data: InsertCountry[]): Promise<Country[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(countries).values(data).onConflictDoUpdate({
       target: countries.code,
       set: {
@@ -814,6 +815,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateCities(data: InsertCity[]): Promise<City[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(cities).values(data).onConflictDoNothing().returning();
   }
 
@@ -842,6 +844,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateAirports(data: InsertAirport[]): Promise<Airport[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(airports).values(data).onConflictDoNothing().returning();
   }
 
@@ -913,6 +916,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateSights(data: InsertSight[]): Promise<Sight[]> {
+    if (!data || data.length === 0) return [];
     const enriched = data.map(d => ({
       ...d,
       dataQualityScore: this.calculateQualityScore(d as any)
@@ -951,6 +955,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateHotels(data: InsertHotel[]): Promise<Hotel[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(hotels).values(data).onConflictDoNothing().returning();
   }
 
@@ -979,6 +984,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateTransportCompanies(data: InsertTransportCompany[]): Promise<TransportCompany[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(transportCompanies).values(data).returning();
   }
 
@@ -1007,6 +1013,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkCreateAirlineAgencies(data: InsertAirlineAgency[]): Promise<AirlineAgency[]> {
+    if (!data || data.length === 0) return [];
     return db.insert(airlineAgencies).values(data).returning();
   }
 
