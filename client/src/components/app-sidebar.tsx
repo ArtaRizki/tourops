@@ -67,7 +67,7 @@ export function AppSidebar() {
     const role = profile?.role;
     if (role === "admin" || role === "country_manager") {
       return [
-        { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
+        { title: t("dashboard"), url: role === "admin" ? "/admin" : "/ops", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },

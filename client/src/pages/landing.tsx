@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/components/login-form";
+import { RegisterForm } from "@/components/register-form";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -18,6 +20,7 @@ import {
 
 export default function LandingPage() {
   const { toast } = useToast();
+  const [showRegister, setShowRegister] = useState(false);
   return (
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -37,8 +40,11 @@ export default function LandingPage() {
               <Link href="/staff/login">
                 <Button variant="outline" data-testid="button-staff-portal">Staff Portal</Button>
               </Link>
-              <a href="#login">
-                <Button data-testid="button-login">Sign In</Button>
+              <a href="#login" onClick={() => setShowRegister(false)}>
+                <Button variant="outline" data-testid="button-login">Sign In</Button>
+              </a>
+              <a href="#login" onClick={() => setShowRegister(true)}>
+                <Button data-testid="button-register">Sign Up</Button>
               </a>
             </div>
           </div>
@@ -234,16 +240,44 @@ export default function LandingPage() {
       <section id="login" className="py-20 bg-card">
         <div className="max-w-md mx-auto px-4">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold font-serif mb-3">Customer Sign In</h2>
+            <h2 className="text-3xl font-bold font-serif mb-3">
+              {showRegister ? "Create Account" : "Customer Sign In"}
+            </h2>
             <p className="text-muted-foreground">
-              Log in to browse tours, manage bookings, and track your trips.
+              {showRegister
+                ? "Register to start browsing and booking tours."
+                : "Log in to browse tours, manage bookings, and track your trips."}
             </p>
+            {/* Tab switcher */}
+            <div className="flex rounded-lg border p-1 mt-4 bg-background">
+              <button
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  !showRegister ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowRegister(false)}
+              >
+                Sign In
+              </button>
+              <button
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  showRegister ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowRegister(true)}
+              >
+                Sign Up
+              </button>
+            </div>
           </div>
-          <LoginForm
-            portal="customer"
-            title="Sign In to Your Account"
-            subtitle="Enter your customer credentials below."
-          />
+          {showRegister ? (
+            <RegisterForm onShowLogin={() => setShowRegister(false)} />
+          ) : (
+            <LoginForm
+              portal="customer"
+              title="Sign In to Your Account"
+              subtitle="Enter your customer credentials below."
+              onShowRegister={() => setShowRegister(true)}
+            />
+          )}
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-muted-foreground">
               Admin access?{" "}

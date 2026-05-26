@@ -218,7 +218,7 @@ export async function registerRoutes(
   // ---- Tours ----
   app.get("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       res.json(await storage.getAllTours());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -238,7 +238,7 @@ export async function registerRoutes(
 
   app.post("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const userId = getUserId(req);
       const parsed = insertTourSchema.safeParse({ ...req.body, createdBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -248,14 +248,14 @@ export async function registerRoutes(
 
   app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       res.json(await storage.updateTour(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteTour(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -263,7 +263,7 @@ export async function registerRoutes(
 
   app.post("/api/ai/generate-itinerary", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const itinerary = await aiService.generateItinerary(req.body);
       res.json(itinerary);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -277,7 +277,7 @@ export async function registerRoutes(
 
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTourDay(parsed.data));
@@ -719,7 +719,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/countries", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       job = await storage.createImportJob({ entityType: "country", status: "running" });
       const countriesList = await scraperService.scrapeCountries();
       const results = await storage.bulkCreateCountries(countriesList);
@@ -739,7 +739,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/cities/:countryCode", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const countryId = req.body.countryId as string;
       const country = await storage.getCountry(countryId);
       if (!country) return res.status(404).json({ message: "Country not found" });
@@ -763,7 +763,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/sights/:cityId", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
@@ -787,7 +787,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/hotels/:cityId", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
@@ -1463,7 +1463,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertCountrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCountry(parsed.data));
@@ -1471,7 +1471,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertCountrySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCountry(req.params.id as string, parsed.data));
@@ -1479,7 +1479,7 @@ export async function registerRoutes(
   });
   app.delete("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteCountry(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1487,7 +1487,7 @@ export async function registerRoutes(
 
   app.post("/api/master/countries/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertCountrySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -1502,7 +1502,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/cities", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertCitySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCity(parsed.data));
@@ -1510,7 +1510,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCity(req.params.id as string, parsed.data));
@@ -1518,14 +1518,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/cities/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const allCountries = await storage.getAllCountries();
       const countryNameMap = new Map<string, string>();
       for (const c of allCountries) countryNameMap.set(c.name.toLowerCase(), c.id);
@@ -1569,7 +1569,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/airports", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertAirportSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirport(parsed.data));
@@ -1577,7 +1577,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertAirportSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirport(req.params.id as string, parsed.data));
@@ -1585,14 +1585,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteAirport(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airports/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const allCities = await storage.getAllCities();
       const cityNameMap = new Map<string, string>();
       for (const c of allCities) cityNameMap.set(c.name.toLowerCase(), c.id);
@@ -1638,7 +1638,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertSightSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSight(parsed.data));
@@ -1646,7 +1646,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertSightSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateSight(req.params.id as string, parsed.data));
@@ -1654,14 +1654,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteSight(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/sights/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const validCategories = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
       const categoryMap: Record<string, string> = {
         "cultural": "landmark", "historical": "historical", "religious": "religious",
@@ -1744,7 +1744,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertTransportCompanySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportCompany(parsed.data));
@@ -1752,7 +1752,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateTransportCompany(req.params.id as string, parsed.data));
@@ -1760,14 +1760,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/transport-companies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertTransportCompanySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -1782,7 +1782,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertAirlineAgencySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirlineAgency(parsed.data));
@@ -1790,7 +1790,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirlineAgency(req.params.id as string, parsed.data));
@@ -1798,14 +1798,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airline-agencies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertAirlineAgencySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -2224,6 +2224,23 @@ export async function registerRoutes(
     console.error("Error seeding admin/settings:", e);
   }
 
+  // ---- Notifications ----
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const list = await storage.getNotifications(userId);
+      res.json(list.map(n => ({ ...n, read: n.isRead })));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const updated = await storage.markNotificationAsRead(req.params.id as string);
+      res.json({ ...updated, read: updated.isRead });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Notification Counts ----
   app.get("/api/notifications/counts", isAuthenticated, async (req, res) => {
     try {
@@ -2321,7 +2338,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/stats", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       res.json(await storage.getGlobalSalesStats());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
