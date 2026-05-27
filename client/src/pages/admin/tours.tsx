@@ -193,8 +193,8 @@ export default function AdminTours() {
         </div>
         <div className="flex gap-2">
           <AIGeneratorDialog onGenerated={(data) => {
-            setEditTour(null);
-            setShowCreate(true);
+            setShowCreate(false);
+            setEditTour(data);
             toast({ title: "Itinerary generated! Please review the details below." });
           }} />
 
