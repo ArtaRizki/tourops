@@ -240,7 +240,11 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["admin", "country_manager"])) return;
       const userId = getUserId(req);
-      const parsed = insertTourSchema.safeParse({ ...req.body, createdBy: userId });
+      const payload = { ...req.body, createdBy: userId };
+      if (!payload.slug && payload.title) {
+        payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
+      }
+      const parsed = insertTourSchema.safeParse(payload);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTour(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
