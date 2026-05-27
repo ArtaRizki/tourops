@@ -56,6 +56,8 @@ services:
       APP_URL: http://tour-ops-software.local
     ports:
       - "80:${PORT}"
+    volumes:
+      - ./uploads:/app/uploads
     networks:
       - tour-ops
 

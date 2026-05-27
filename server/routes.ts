@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import multer from "multer";
+import path from "path";
 import { 
   sendNewBookingNotification, 
   sendBookingConfirmedNotification, 
@@ -226,6 +228,26 @@ export async function registerRoutes(
   app.get("/api/tours/public", async (_req, res) => {
     try { res.json(await storage.getPublishedTours()); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Configure multer storage
+  const uploadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "uploads/");
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  });
+  const upload = multer({ storage: uploadStorage });
+
+  app.post("/api/upload", isAuthenticated, upload.single("image"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    // Return the URL to access the uploaded file
+    res.json({ url: `/uploads/${req.file.filename}` });
   });
 
   app.get("/api/tours/:id", async (req, res) => {

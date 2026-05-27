@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
 import type { Tour, TourDay, TourDayItem } from "@shared/schema";
 
 export default function AdminTours() {
@@ -73,6 +73,33 @@ export default function AdminTours() {
     const [tags, setTags] = useState((tour?.tags || []).join(", "));
     const [category, setCategory] = useState(tour?.category || "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!res.ok) throw new Error("Upload failed");
+        
+        const data = await res.json();
+        setImageUrl(data.url);
+        toast({ title: "Image uploaded successfully" });
+      } catch (error) {
+        toast({ title: "Failed to upload image", variant: "destructive" });
+      } finally {
+        setIsUploading(false);
+      }
+    };
 
     return (
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -133,9 +160,18 @@ export default function AdminTours() {
           </div>
         </div>
 
-        <div>
-          <Label>Cover Image URL</Label>
-          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Cover Image URL</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
+          </div>
+          <div>
+            <Label>Or Upload Image</Label>
+            <div className="flex gap-2">
+              <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+              {isUploading && <Loader2 className="h-4 w-4 animate-spin mt-2" />}
+            </div>
+          </div>
         </div>
 
         <div>
