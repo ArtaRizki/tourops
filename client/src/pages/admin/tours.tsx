@@ -173,6 +173,21 @@ export default function AdminTours() {
             </div>
           </div>
         </div>
+        
+        {imageUrl && (
+          <div className="mt-2">
+            <Label className="text-xs text-muted-foreground">Image Preview</Label>
+            <div className="mt-1 border rounded-md overflow-hidden bg-muted flex items-center justify-center max-h-48 max-w-sm">
+              <img 
+                src={imageUrl} 
+                alt="Preview" 
+                className="object-cover w-full h-full max-h-48" 
+                onError={(e) => (e.currentTarget.style.display = 'none')} 
+                onLoad={(e) => (e.currentTarget.style.display = 'block')} 
+              />
+            </div>
+          </div>
+        )}
 
         <div>
           <Label>Gallery URLs (comma separated)</Label>
