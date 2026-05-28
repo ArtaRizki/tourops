@@ -28,6 +28,24 @@ import { authStorage } from "./replit_integrations/auth/storage";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(process.cwd(), "public", "uploads", "images");
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
+    }
+  })
+});
+
 import {
   insertTourSchema, insertTourDepartureSchema, insertBookingSchema,
   insertTravelerSchema, insertBookingAssignmentSchema, insertMessageSchema,
@@ -129,6 +147,12 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  app.post("/api/upload", isAuthenticated, upload.single("image"), (req, res) => {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    // Using posix paths for URLs
+    res.json({ url: `/uploads/images/${req.file.filename}` });
+  });
 
   // ---- User Profiles ----
   app.get("/api/user-profile", isAuthenticated, async (req, res) => {
@@ -1815,7 +1839,7 @@ export async function registerRoutes(
 
   // Helper: get transport manager's company ID (returns null for admin, enforces scope for transport_manager)
   async function getTransportScope(req: Request, res: Response): Promise<{ companyId: string | undefined; isAdmin: boolean } | null> {
-    const userId = (req as any).user?.id;
+    const userId = req.session.userId;
     if (!userId) { res.status(401).json({ message: "Unauthorized" }); return null; }
     const profile = await storage.getProfileByUserId(userId);
     if (!profile) { res.status(403).json({ message: "No profile" }); return null; }
@@ -2349,6 +2373,7 @@ export async function registerRoutes(
   app.post("/api/admin/data-import/countries/run", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["admin"])) return;
+      if (!queues.countryImport) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.countryImport.add('import-countries', {});
       res.json({ message: "Country import started in background", jobId: job.id });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2359,6 +2384,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const { countryCode, countryId } = req.body;
       if (!countryCode || !countryId) return res.status(400).json({ message: "countryCode and countryId are required" });
+      if (!queues.cityImport) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.cityImport.add('import-cities', { countryCode, countryId });
       res.json({ message: "City import started in background", jobId: job.id });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2369,6 +2395,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const { cityId, cityName, osmId } = req.body;
       if (!cityId || !cityName) return res.status(400).json({ message: "cityId and cityName are required" });
+      if (!queues.sightDiscovery) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.sightDiscovery.add('import-sights', { cityId, cityName, osmId });
       res.json({ message: "Sight import started in background", jobId: job.id });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2379,6 +2406,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin"])) return;
       const sight = await storage.getSight(req.params.id as string);
       if (!sight) return res.status(404).json({ message: "Sight not found" });
+      if (!queues.sightEnrichment) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.sightEnrichment.add('enrich-sight', { sightId: sight.id, sightName: sight.name });
       res.json({ message: "Sight enrichment started in background", jobId: job.id });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

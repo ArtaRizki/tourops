@@ -74,6 +74,25 @@ export default function AdminTours() {
     const [category, setCategory] = useState(tour?.category || "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
 
+    const uploadImageMutation = useMutation({
+      mutationFn: async (file: File) => {
+        const formData = new FormData();
+        formData.append("image", file);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Failed to upload image");
+        const data = await res.json();
+        return data.url;
+      },
+      onSuccess: (url) => {
+        setImageUrl(url);
+        toast({ title: "Image uploaded successfully" });
+      },
+      onError: () => toast({ title: "Failed to upload image", variant: "destructive" }),
+    });
+
     return (
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
         <div className="grid grid-cols-2 gap-4">
@@ -133,9 +152,28 @@ export default function AdminTours() {
           </div>
         </div>
 
-        <div>
-          <Label>Cover Image URL</Label>
-          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Cover Image URL</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
+          </div>
+          <div>
+            <Label>Or Upload Image</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    uploadImageMutation.mutate(file);
+                  }
+                }} 
+                disabled={uploadImageMutation.isPending} 
+              />
+              {uploadImageMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            </div>
+          </div>
         </div>
 
         <div>

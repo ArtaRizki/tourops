@@ -330,8 +330,8 @@ function AIAdvisorDialog() {
           <BrainCircuit className="h-4 w-4 text-primary" /> {t('aiAdvice')}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto border-none shadow-2xl p-0 overflow-hidden">
-        <div className="bg-slate-900 text-white p-8 relative overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col gap-0 border-none shadow-2xl p-0 overflow-hidden">
+        <div className="bg-slate-900 text-white p-8 relative overflow-hidden shrink-0">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-primary/20 rounded-lg">
@@ -344,7 +344,7 @@ function AIAdvisorDialog() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         </div>
         
-        <div className="p-8 space-y-6">
+        <div className="p-8 space-y-6 overflow-y-auto flex-1 min-h-0">
           {!analysis && !loading && (
             <div className="text-center py-12 space-y-4">
               <BrainCircuit className="h-16 w-16 text-muted-foreground/20 mx-auto" />
@@ -378,9 +378,9 @@ function AIAdvisorDialog() {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {analysis.insights.map((insight: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <div key={idx} className="flex items-start gap-2 text-xs p-3 bg-slate-50 dark:bg-slate-800 rounded-lg min-w-0">
                       <div className="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                      {insight}
+                      <span className="flex-1 min-w-0 break-words">{insight}</span>
                     </div>
                   ))}
                 </div>
@@ -394,7 +394,7 @@ function AIAdvisorDialog() {
                   {analysis.recommendations.map((rec: any, idx: number) => (
                     <div key={idx} className="p-4 border rounded-xl hover:bg-slate-50 transition-colors">
                       <p className="font-bold text-sm mb-1">{rec.title}</p>
-                      <p className="text-xs text-muted-foreground mb-2">{rec.description}</p>
+                      <p className="text-xs text-muted-foreground mb-2 break-words">{rec.description}</p>
                       <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 border-none">
                         Impact: {rec.expectedImpact}
                       </Badge>
@@ -405,7 +405,7 @@ function AIAdvisorDialog() {
             </div>
           )}
         </div>
-        <div className="p-6 border-t bg-slate-50 flex justify-end">
+        <div className="p-6 border-t bg-slate-50 flex justify-end shrink-0">
           <Button variant="outline" onClick={() => setOpen(false)}>Close Advisor</Button>
         </div>
       </DialogContent>

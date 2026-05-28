@@ -83,6 +83,7 @@ function CompaniesTab() {
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<TransportCompany | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [countryId, setCountryId] = useState("");
@@ -125,6 +126,16 @@ function CompaniesTab() {
     setShowForm(true);
   };
 
+  const createMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/master/transport-companies", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] });
+      setShowForm(false);
+      toast({ title: "Company created" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/master/transport-companies/${id}`, data),
     onSuccess: () => {
@@ -135,11 +146,20 @@ function CompaniesTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/master/transport-companies/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] });
+      setDeleteId(null);
+      toast({ title: "Company deleted" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
-    if (!editItem) return;
     const vt = vehicleTypes.split(",").map((s) => s.trim()).filter(Boolean);
-    updateMutation.mutate({
-      id: editItem.id, name, countryId: countryId || undefined,
+    const data = {
+      name, countryId: countryId || undefined,
       vehicleTypes: vt.length > 0 ? vt : undefined,
       contactName: contactName || undefined, contactPhone: contactPhone || undefined,
       contactEmail: contactEmail || undefined, addressLine1: addressLine1 || undefined,
@@ -147,7 +167,12 @@ function CompaniesTab() {
       postalCode: postalCode || undefined, bankName: bankName || undefined,
       bankAccountNumber: bankAccountNumber || undefined, bankSwift: bankSwift || undefined,
       bankIban: bankIban || undefined, taxId: taxId || undefined, notes: notes || undefined,
-    });
+    };
+    if (editItem) {
+      updateMutation.mutate({ id: editItem.id, ...data });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const getCountryName = (cId: string | null) => countriesList?.find((c) => c.id === cId)?.name || "-";
@@ -156,14 +181,24 @@ function CompaniesTab() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => { setEditItem(null); resetForm(); setShowForm(true); }} data-testid="button-add-company">
+          <Plus className="h-4 w-4 mr-2" />Add Company
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {companies?.map((company) => (
           <Card key={company.id} data-testid={`card-company-${company.id}`}>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-base">{company.name}</CardTitle>
-              <Button size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
-                <Pencil className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
               <p className="text-muted-foreground" data-testid={`text-company-country-${company.id}`}>
@@ -220,12 +255,14 @@ function CompaniesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-company">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!name || updateMutation.isPending} data-testid="button-save-company">
-              {updateMutation.isPending ? "Saving..." : "Save"}
+            <Button onClick={handleSubmit} disabled={!name || updateMutation.isPending || createMutation.isPending} data-testid="button-save-company">
+              {(updateMutation.isPending || createMutation.isPending) ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} isPending={deleteMutation.isPending} entityName="Company" />
     </div>
   );
 }
