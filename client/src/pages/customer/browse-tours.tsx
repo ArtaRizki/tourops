@@ -248,19 +248,13 @@ export default function BrowseTours() {
           {filtered.map((tour) => (
             <Link key={tour.id} href={`/tours/${tour.id}`}>
               <Card className="overflow-hidden hover-elevate cursor-pointer group h-full flex flex-col" data-testid={`card-public-tour-${tour.id}`}>
-                {tour.imageUrl ? (
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={tour.imageUrl}
-                      alt={tour.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                ) : (
-                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <MapPin className="h-12 w-12 text-primary/30" />
-                  </div>
-                )}
+                <div className="aspect-video overflow-hidden">
+                  <img
+                    src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800"}
+                    alt={tour.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
                 <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
                   <div className="flex flex-wrap gap-1">
                     {tour.category && (
@@ -281,18 +275,18 @@ export default function BrowseTours() {
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-4 pt-1">
-                    {tour.basePrice ? (
+                    {Number(tour.basePrice) > 0 ? (
                       <div>
                         <span className="text-lg font-bold flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />{tour.basePrice.toLocaleString()}
+                          <DollarSign className="h-4 w-4" />{Number(tour.basePrice).toLocaleString()}
                           <span className="text-xs font-normal text-muted-foreground">/person</span>
                         </span>
-                        {tour.childPrice && (
-                          <p className="text-xs text-muted-foreground">Child: ${tour.childPrice.toLocaleString()}</p>
+                        {Number(tour.childPrice) > 0 && (
+                          <p className="text-xs text-muted-foreground">Child: ${Number(tour.childPrice).toLocaleString()}</p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">Contact for pricing</span>
+                      <span className="text-sm text-muted-foreground font-medium">Contact for pricing</span>
                     )}
                     <Button variant="ghost" size="sm">
                       View Details <ArrowRight className="ml-1 h-3 w-3" />

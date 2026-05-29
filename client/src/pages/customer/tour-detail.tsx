@@ -159,11 +159,9 @@ export default function TourDetail() {
         </Link>
       </div>
 
-      {tour.imageUrl && (
-        <div className="aspect-video overflow-hidden rounded-md">
-          <img src={tour.imageUrl} alt={tour.title} className="w-full h-full object-cover" />
-        </div>
-      )}
+      <div className="aspect-video overflow-hidden rounded-md">
+        <img src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={tour.title} className="w-full h-full object-cover" />
+      </div>
 
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -175,17 +173,17 @@ export default function TourDetail() {
             </div>
           </div>
           <div className="text-right">
-            {tour.basePrice ? (
+            {Number(tour.basePrice) > 0 ? (
               <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Starting from</p>
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-3xl font-bold text-primary">${tour.basePrice.toLocaleString()}</span>
+                  <span className="text-3xl font-bold text-primary">${Number(tour.basePrice).toLocaleString()}</span>
                   <span className="text-sm text-muted-foreground">/person</span>
                 </div>
-                {(tour.childPrice || tour.singleSupplement) && (
+                {(Number(tour.childPrice) > 0 || Number(tour.singleSupplement) > 0) && (
                   <div className="mt-2 pt-2 border-t border-primary/10 text-xs text-muted-foreground space-y-1">
-                    {tour.childPrice && <p>Child: ${tour.childPrice.toLocaleString()}</p>}
-                    {tour.singleSupplement && <p>Single Supp: +${tour.singleSupplement.toLocaleString()}</p>}
+                    {Number(tour.childPrice) > 0 && <p>Child: ${Number(tour.childPrice).toLocaleString()}</p>}
+                    {Number(tour.singleSupplement) > 0 && <p>Single Supp: +${Number(tour.singleSupplement).toLocaleString()}</p>}
                   </div>
                 )}
               </div>
