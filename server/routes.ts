@@ -63,8 +63,11 @@ import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "./lib/messaging";
 import { generateCode as genCode } from "./lib/utils";
 
 const ALL_STAFF_ROLES = [
-  "admin", "country_manager", "hotel_manager", "transport_manager",
-  "guide_manager", "sights_manager", "airline_supplier"
+  "admin", "super_admin",
+  "airline_supplier", "country_manager", "city_manager",
+  "hotel_manager", "transport_manager", "guide_manager",
+  "sights_manager", "content_editor", "flight_agent",
+  "tour_builder", "supplier", "travel_agent",
 ];
 
 function getUserId(req: Request): string | undefined {

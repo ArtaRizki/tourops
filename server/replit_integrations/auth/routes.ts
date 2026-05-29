@@ -5,11 +5,13 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 const CUSTOMER_ROLES = ["customer"];
-const ADMIN_ROLES = ["admin"];
+const ADMIN_ROLES = ["admin", "super_admin"];
 const STAFF_ROLES = [
-  "airline_supplier", "country_manager", "hotel_manager",
-  "transport_manager", "guide_manager", "sights_manager",
-  "admin",
+  "admin", "super_admin",
+  "airline_supplier", "country_manager", "city_manager",
+  "hotel_manager", "transport_manager", "guide_manager",
+  "sights_manager", "content_editor", "flight_agent",
+  "tour_builder", "supplier", "travel_agent",
 ];
 
 const loginSchema = z.object({
