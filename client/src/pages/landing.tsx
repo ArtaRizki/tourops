@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { LoginForm } from "@/components/login-form";
+import { RegisterForm } from "@/components/register-form";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import {
   Globe,
   Shield,
@@ -18,6 +22,10 @@ import {
 
 export default function LandingPage() {
   const { toast } = useToast();
+  const { t } = useLanguage();
+  // Check URL hash to determine initial tab
+  const initialShowRegister = typeof window !== 'undefined' && window.location.hash === '#register';
+  const [showRegister, setShowRegister] = useState(initialShowRegister);
   return (
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -33,12 +41,16 @@ export default function LandingPage() {
               <a href="#how-it-works" className="text-sm text-muted-foreground hover-elevate px-2 py-1 rounded-md">How It Works</a>
             </div>
             <div className="flex items-center gap-2">
+              <LanguageSwitcher />
               <ThemeToggle />
               <Link href="/staff/login">
-                <Button variant="outline" data-testid="button-staff-portal">Staff Portal</Button>
+                <Button variant="outline" data-testid="button-staff-portal">{t("staff_portal")}</Button>
               </Link>
-              <a href="#login">
-                <Button data-testid="button-login">Sign In</Button>
+              <a href="#login" onClick={() => setShowRegister(false)}>
+                <Button variant="outline" data-testid="button-login">{t("sign_in")}</Button>
+              </a>
+              <a href="#register" onClick={() => setShowRegister(true)}>
+                <Button data-testid="button-register">{t("sign_up")}</Button>
               </a>
             </div>
           </div>
@@ -61,39 +73,38 @@ export default function LandingPage() {
               <Plane className="h-3 w-3 mr-1" /> Professional Tour Operations
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 font-serif leading-tight">
-              Book Unforgettable
+              {t("hero_title_1")}
               <br />
-              <span className="text-primary-foreground/90">Tour Experiences</span>
+              <span className="text-primary-foreground/90">{t("hero_title_2")}</span>
             </h1>
             <p className="text-lg text-white/80 mb-8 max-w-lg leading-relaxed">
-              From group adventures to custom family vacations, discover curated tours 
-              with seamless booking, expert guides, and end-to-end trip management.
+              {t("hero_subtitle")}
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <a href="#login">
                 <Button size="lg" data-testid="button-get-started">
-                  Get Started
+                  {t("get_started")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </a>
-              <a href="#destinations">
+              <a href="/tours">
                 <Button size="lg" variant="outline" className="text-white border-white/30 backdrop-blur-sm bg-white/10">
-                  Explore Tours
+                  {t("explore_tours")}
                 </Button>
               </a>
             </div>
             <div className="flex flex-wrap items-center gap-4 mt-8">
               <div className="flex items-center gap-1 text-white/70 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>Free to browse</span>
+                <span>{t("free_to_browse")}</span>
               </div>
               <div className="flex items-center gap-1 text-white/70 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>Instant booking</span>
+                <span>{t("instant_booking")}</span>
               </div>
               <div className="flex items-center gap-1 text-white/70 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>Full trip support</span>
+                <span>{t("full_trip_support")}</span>
               </div>
             </div>
           </div>
@@ -103,54 +114,54 @@ export default function LandingPage() {
       <section id="features" className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold font-serif mb-4">Why Choose TourOps</h2>
+            <h2 className="text-3xl font-bold font-serif mb-4">{t("why_choose")}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              A complete tour booking platform built for travelers and operators alike
+              {t("why_choose_subtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             <Card 
               className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
-              onClick={() => toast({ title: "Group Booking", description: "Our platform supports complex group hierarchies and dynamic pricing based on party size." })}
+              onClick={() => toast({ title: t("group_family_booking"), description: t("group_family_desc") })}
             >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <Users className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Group & Family Booking</h3>
+                <h3 className="font-semibold text-lg mb-2">{t("group_family_booking")}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  Book as a group leader, join existing groups via invite code, or plan a private family vacation with custom itineraries.
+                  {t("group_family_desc")}
                 </p>
               </CardContent>
             </Card>
 
             <Card 
               className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
-              onClick={() => toast({ title: "Seamless Fulfillment", description: "All suppliers are integrated. From flights to local guides, everything is confirmed automatically." })}
+              onClick={() => toast({ title: t("end_to_end"), description: t("end_to_end_desc") })}
             >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">End-to-End Fulfillment</h3>
+                <h3 className="font-semibold text-lg mb-2">{t("end_to_end")}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  Track your booking from confirmation to completion. Airlines, hotels, transport, guides, and attractions are all managed for you.
+                  {t("end_to_end_desc")}
                 </p>
               </CardContent>
             </Card>
 
             <Card 
               className="hover-elevate cursor-pointer transition-all hover:border-primary/50"
-              onClick={() => toast({ title: "Global Reach", description: "Our multi-country tour engine handles border crossings, visas, and multi-currency operations." })}
+              onClick={() => toast({ title: t("multi_country"), description: t("multi_country_desc") })}
             >
               <CardContent className="p-6">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                   <MapPin className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Multi-Country Tours</h3>
+                <h3 className="font-semibold text-lg mb-2">{t("multi_country")}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  Explore tours spanning multiple destinations with day-by-day itineraries, local experts, and country-level operational support.
+                  {t("multi_country_desc")}
                 </p>
               </CardContent>
             </Card>
@@ -161,9 +172,9 @@ export default function LandingPage() {
       <section id="destinations" className="py-20 bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold font-serif mb-4">Popular Destinations</h2>
+            <h2 className="text-3xl font-bold font-serif mb-4">{t("popular_destinations")}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Handpicked tours to the world's most extraordinary locations
+              {t("popular_destinations_subtitle")}
             </p>
           </div>
 
@@ -176,7 +187,7 @@ export default function LandingPage() {
             ].map((dest) => (
               <a
                 key={dest.name}
-                href="#login"
+                href="/tours"
                 className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
               >
                 <img
@@ -187,16 +198,16 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <h3 className="text-white font-semibold text-lg">{dest.name}</h3>
-                  <p className="text-white/70 text-sm">{dest.tours} tours available</p>
+                  <p className="text-white/70 text-sm">{dest.tours} {t("tours_available")}</p>
                 </div>
               </a>
             ))}
           </div>
 
           <div className="mt-12 text-center">
-            <a href="#login">
+            <a href="/tours">
               <Button variant="outline" size="lg" className="rounded-full px-8 hover:bg-primary hover:text-primary-foreground transition-colors">
-                Explore All Destinations <ArrowRight className="ml-2 h-4 w-4" />
+                {t("explore_all_destinations")} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </a>
           </div>
@@ -206,18 +217,18 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold font-serif mb-4">How It Works</h2>
+            <h2 className="text-3xl font-bold font-serif mb-4">{t("how_it_works")}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Simple steps to your dream vacation
+              {t("how_it_works_subtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: "1", icon: Globe, title: "Browse Tours", desc: "Explore our curated catalog of tours worldwide" },
-              { step: "2", icon: Calendar, title: "Pick a Date", desc: "Choose from available departure dates and group types" },
-              { step: "3", icon: Users, title: "Book & Invite", desc: "Create a booking and invite travelers to join" },
-              { step: "4", icon: Plane, title: "Travel", desc: "We handle flights, hotels, guides, and everything else" },
+              { step: "1", icon: Globe, title: t("step_browse"), desc: t("step_browse_desc") },
+              { step: "2", icon: Calendar, title: t("step_pick_date"), desc: t("step_pick_date_desc") },
+              { step: "3", icon: Users, title: t("step_book_invite"), desc: t("step_book_invite_desc") },
+              { step: "4", icon: Plane, title: t("step_travel"), desc: t("step_travel_desc") },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-4 text-xl font-bold">
@@ -232,32 +243,61 @@ export default function LandingPage() {
       </section>
 
       <section id="login" className="py-20 bg-card">
+        <span id="register" />
         <div className="max-w-md mx-auto px-4">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold font-serif mb-3">Customer Sign In</h2>
+            <h2 className="text-3xl font-bold font-serif mb-3">
+              {showRegister ? t("create_account") : t("customer_sign_in")}
+            </h2>
             <p className="text-muted-foreground">
-              Log in to browse tours, manage bookings, and track your trips.
+              {showRegister
+                ? t("register_subtitle")
+                : t("login_to_browse")}
             </p>
+            {/* Tab switcher */}
+            <div className="flex rounded-lg border p-1 mt-4 bg-background">
+              <button
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  !showRegister ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowRegister(false)}
+              >
+                {t("sign_in")}
+              </button>
+              <button
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  showRegister ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setShowRegister(true)}
+              >
+                {t("sign_up")}
+              </button>
+            </div>
           </div>
-          <LoginForm
-            portal="customer"
-            title="Sign In to Your Account"
-            subtitle="Enter your customer credentials below."
-          />
+          {showRegister ? (
+            <RegisterForm onShowLogin={() => setShowRegister(false)} />
+          ) : (
+            <LoginForm
+              portal="customer"
+              title="Sign In to Your Account"
+              subtitle="Enter your customer credentials below."
+              onShowRegister={() => setShowRegister(true)}
+            />
+          )}
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              Admin access?{" "}
+              {t("admin_portal")}?{" "}
               <Link href="/admin/login">
                 <span className="text-primary underline cursor-pointer" data-testid="link-admin-login">
-                  Admin Portal
+                  {t("admin_portal")}
                 </span>
               </Link>
             </p>
             <p className="text-sm text-muted-foreground">
-              Staff or operations?{" "}
+              {t("staff_portal")}?{" "}
               <Link href="/staff/login">
                 <span className="text-primary underline cursor-pointer" data-testid="link-staff-login">
-                  Staff Portal
+                  {t("staff_portal")}
                 </span>
               </Link>
             </p>
@@ -277,23 +317,23 @@ export default function LandingPage() {
             </p>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Company</h4>
+            <h4 className="font-semibold mb-4">{t("company")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact Support</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("about_us")}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("careers")}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("contact_support")}</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
+            <h4 className="font-semibold mb-4">{t("legal")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Cookie Policy</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("terms_of_service")}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("privacy_policy")}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("cookie_policy")}</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Connect</h4>
+            <h4 className="font-semibold mb-4">{t("connect")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#" className="hover:text-primary transition-colors">Twitter</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Instagram</a></li>
@@ -302,7 +342,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          &copy; 2026 TourOps Inc. All rights reserved.
+          &copy; 2026 TourOps Inc. {t("all_rights_reserved")}
         </div>
       </footer>
     </div>

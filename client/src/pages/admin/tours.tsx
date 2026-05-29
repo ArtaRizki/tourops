@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
 import type { Tour, TourDay, TourDayItem } from "@shared/schema";
 
 export default function AdminTours() {
@@ -73,25 +73,33 @@ export default function AdminTours() {
     const [tags, setTags] = useState((tour?.tags || []).join(", "));
     const [category, setCategory] = useState(tour?.category || "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
+    const [isUploading, setIsUploading] = useState(false);
 
-    const uploadImageMutation = useMutation({
-      mutationFn: async (file: File) => {
-        const formData = new FormData();
-        formData.append("image", file);
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
         const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
-        if (!res.ok) throw new Error("Failed to upload image");
+        
+        if (!res.ok) throw new Error("Upload failed");
+        
         const data = await res.json();
-        return data.url;
-      },
-      onSuccess: (url) => {
-        setImageUrl(url);
+        setImageUrl(data.url);
         toast({ title: "Image uploaded successfully" });
-      },
-      onError: () => toast({ title: "Failed to upload image", variant: "destructive" }),
-    });
+      } catch (error) {
+        toast({ title: "Failed to upload image", variant: "destructive" });
+      } finally {
+        setIsUploading(false);
+      }
+    };
 
     return (
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -159,22 +167,27 @@ export default function AdminTours() {
           </div>
           <div>
             <Label>Or Upload Image</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Input 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    uploadImageMutation.mutate(file);
-                  }
-                }} 
-                disabled={uploadImageMutation.isPending} 
-              />
-              {uploadImageMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            <div className="flex gap-2">
+              <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+              {isUploading && <Loader2 className="h-4 w-4 animate-spin mt-2" />}
             </div>
           </div>
         </div>
+        
+        {imageUrl && (
+          <div className="mt-2">
+            <Label className="text-xs text-muted-foreground">Image Preview</Label>
+            <div className="mt-1 border rounded-md overflow-hidden bg-muted flex items-center justify-center max-h-48 max-w-sm">
+              <img 
+                src={imageUrl} 
+                alt="Preview" 
+                className="object-cover w-full h-full max-h-48" 
+                onError={(e) => (e.currentTarget.style.display = 'none')} 
+                onLoad={(e) => (e.currentTarget.style.display = 'block')} 
+              />
+            </div>
+          </div>
+        )}
 
         <div>
           <Label>Gallery URLs (comma separated)</Label>
@@ -231,8 +244,8 @@ export default function AdminTours() {
         </div>
         <div className="flex gap-2">
           <AIGeneratorDialog onGenerated={(data) => {
-            setEditTour(null);
-            setShowCreate(true);
+            setShowCreate(false);
+            setEditTour(data);
             toast({ title: "Itinerary generated! Please review the details below." });
           }} />
 

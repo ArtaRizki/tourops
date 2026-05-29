@@ -11,6 +11,7 @@ import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useState, useMemo } from "react";
+import { PublicHeader } from "@/components/public-header";
 import type { Tour } from "@shared/schema";
 
 const TOUR_CATEGORIES = ["Adventure", "Cultural", "Beach", "City Break", "Wildlife", "Religious", "Historical", "Nature"];
@@ -111,6 +112,7 @@ export default function BrowseTours() {
 
   return (
     <div className="p-6 space-y-6">
+      <PublicHeader />
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold font-serif" data-testid="text-browse-title">Explore Tours</h1>

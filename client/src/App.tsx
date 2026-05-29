@@ -114,6 +114,7 @@ function AuthenticatedLayout() {
             {/* Ops Routes */}
             <Route path="/ops" component={OpsDashboard} />
             <Route path="/ops/transport" component={TransportDashboard} />
+            <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
 
             {/* Redirects */}
             <Route path="/admin/login">
@@ -162,6 +163,9 @@ function AppRouter() {
       <Switch>
         <Route path="/staff/login" component={StaffLoginPage} />
         <Route path="/admin/login" component={AdminLoginPage} />
+        <Route path="/tours/:id/brochure" component={TourBrochure} />
+        <Route path="/tours/:id" component={TourDetail} />
+        <Route path="/tours" component={BrowseTours} />
         <Route component={LandingPage} />
       </Switch>
     );

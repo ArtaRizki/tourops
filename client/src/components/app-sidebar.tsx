@@ -67,7 +67,7 @@ export function AppSidebar() {
     const role = profile?.role;
     if (role === "admin" || role === "country_manager") {
       return [
-        { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
+        { title: t("dashboard"), url: role === "admin" ? "/admin" : "/ops", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
@@ -144,7 +144,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 space-y-4">
         <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-800 border shadow-sm">
-           <span className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Language</span>
+           <span className="text-[10px] font-bold uppercase text-muted-foreground ml-1">{t("language")}</span>
            <div className="flex gap-1">
              <Button 
                variant={language === "en" ? "default" : "ghost"} 
@@ -152,6 +152,12 @@ export function AppSidebar() {
                className="h-6 text-[10px] px-2 font-bold"
                onClick={() => setLanguage("en")}
              >EN</Button>
+             <Button 
+               variant={language === "es" ? "default" : "ghost"} 
+               size="sm" 
+               className="h-6 text-[10px] px-2 font-bold"
+               onClick={() => setLanguage("es")}
+             >ES</Button>
              <Button 
                variant={language === "id" ? "default" : "ghost"} 
                size="sm" 

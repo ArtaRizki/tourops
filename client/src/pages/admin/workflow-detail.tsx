@@ -24,7 +24,7 @@ const stepStatusIcons: Record<string, any> = {
 };
 
 export default function AdminWorkflowDetail() {
-  const [, params] = useRoute("/admin/workflows/:id");
+  const [, params] = useRoute("/:prefix/workflows/:id");
   const { toast } = useToast();
   const workflowId = params?.id;
 
