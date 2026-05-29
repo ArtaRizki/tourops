@@ -155,6 +155,7 @@ export interface IStorage {
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
   createBooking(data: InsertBooking): Promise<Booking>;
   updateBooking(id: string, data: Partial<Booking>): Promise<Booking>;
+  deleteBooking(id: string): Promise<void>;
 
   getTraveler(id: string): Promise<Traveler | undefined>;
   getTravelers(bookingId: string): Promise<Traveler[]>;
@@ -560,6 +561,28 @@ export class DatabaseStorage implements IStorage {
     const [booking] = await db.update(bookings).set(data).where(eq(bookings.id, id)).returning();
     if (current) await this.logChange("booking", id, "updated", current, data, userId, userName);
     return booking;
+  }
+
+  async deleteBooking(id: string): Promise<void> {
+    try {
+      // Cascade delete manually since schema lacks onDelete: "cascade"
+      await db.delete(travelers).where(eq(travelers.bookingId, id));
+      await db.delete(documents).where(eq(documents.bookingId, id));
+      await db.delete(payments).where(eq(payments.bookingId, id));
+      await db.delete(messages).where(eq(messages.bookingId, id));
+      await db.delete(bookingAssignments).where(eq(bookingAssignments.bookingId, id));
+
+      const wfList = await db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, id));
+      for (const wf of wfList) {
+        await db.delete(workflowSteps).where(eq(workflowSteps.workflowId, wf.id));
+      }
+      await db.delete(bookingWorkflows).where(eq(bookingWorkflows.bookingId, id));
+
+      await db.delete(bookings).where(eq(bookings.id, id));
+    } catch (e: any) {
+      console.error('Failed to delete booking and cascade references:', e);
+      throw e;
+    }
   }
 
   async getTraveler(id: string): Promise<Traveler | undefined> {

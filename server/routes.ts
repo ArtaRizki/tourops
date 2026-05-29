@@ -526,6 +526,14 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.delete("/api/bookings/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["admin"])) return;
+      await storage.deleteBooking(req.params.id as string);
+      res.json({ success: true, message: "Booking deleted" });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/bookings/join", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
