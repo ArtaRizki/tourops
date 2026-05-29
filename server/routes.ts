@@ -31,9 +31,6 @@ import { authStorage } from "./replit_integrations/auth/storage";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -253,31 +250,6 @@ export async function registerRoutes(
   app.get("/api/tours/public", async (_req, res) => {
     try { res.json(await storage.getPublishedTours()); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  // Configure multer storage
-  const uploadDir = path.join(process.cwd(), "uploads");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  const uploadStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + path.extname(file.originalname));
-    },
-  });
-  const upload = multer({ storage: uploadStorage });
-
-  app.post("/api/upload", isAuthenticated, upload.single("image"), (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
-    // Return the URL to access the uploaded file
-    res.json({ url: `/uploads/${req.file.filename}` });
   });
 
   app.get("/api/tours/:id", async (req, res) => {
