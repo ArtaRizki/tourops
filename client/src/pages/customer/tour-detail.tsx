@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { PublicHeader } from "@/components/public-header";
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -98,6 +99,7 @@ export default function TourDetail() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      <PublicHeader />
       {/* Join Group Dialog (Automatic) */}
       <Dialog open={!!urlJoinCode && !!joinedGroupData && !bookingConfirmed} onOpenChange={(v) => !v && navigate(`/tours/${tourId}`)}>
         <DialogContent className="sm:max-w-md">

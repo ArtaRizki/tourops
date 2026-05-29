@@ -20,7 +20,9 @@ import {
 
 export default function LandingPage() {
   const { toast } = useToast();
-  const [showRegister, setShowRegister] = useState(false);
+  // Check URL hash to determine initial tab
+  const initialShowRegister = typeof window !== 'undefined' && window.location.hash === '#register';
+  const [showRegister, setShowRegister] = useState(initialShowRegister);
   return (
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -43,7 +45,7 @@ export default function LandingPage() {
               <a href="#login" onClick={() => setShowRegister(false)}>
                 <Button variant="outline" data-testid="button-login">Sign In</Button>
               </a>
-              <a href="#login" onClick={() => setShowRegister(true)}>
+              <a href="#register" onClick={() => setShowRegister(true)}>
                 <Button data-testid="button-register">Sign Up</Button>
               </a>
             </div>
@@ -82,7 +84,7 @@ export default function LandingPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </a>
-              <a href="#destinations">
+              <a href="/tours">
                 <Button size="lg" variant="outline" className="text-white border-white/30 backdrop-blur-sm bg-white/10">
                   Explore Tours
                 </Button>
@@ -182,7 +184,7 @@ export default function LandingPage() {
             ].map((dest) => (
               <a
                 key={dest.name}
-                href="#login"
+                href="/tours"
                 className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
               >
                 <img
@@ -200,7 +202,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 text-center">
-            <a href="#login">
+            <a href="/tours">
               <Button variant="outline" size="lg" className="rounded-full px-8 hover:bg-primary hover:text-primary-foreground transition-colors">
                 Explore All Destinations <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -238,6 +240,7 @@ export default function LandingPage() {
       </section>
 
       <section id="login" className="py-20 bg-card">
+        <span id="register" />
         <div className="max-w-md mx-auto px-4">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold font-serif mb-3">

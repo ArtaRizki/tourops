@@ -163,6 +163,9 @@ function AppRouter() {
       <Switch>
         <Route path="/staff/login" component={StaffLoginPage} />
         <Route path="/admin/login" component={AdminLoginPage} />
+        <Route path="/tours/:id/brochure" component={TourBrochure} />
+        <Route path="/tours/:id" component={TourDetail} />
+        <Route path="/tours" component={BrowseTours} />
         <Route component={LandingPage} />
       </Switch>
     );
