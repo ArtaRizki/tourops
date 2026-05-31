@@ -24,9 +24,10 @@ conn.on("ready", () => {
     });
 
     // Write commands one after another
-    stream.write("cd tourops\n");
+    stream.write("cd ~/tourops-src\n");
     stream.write("git pull origin main\n");
     stream.write("docker build -t tourops:latest .\n");
+    stream.write("cd ~/tourops\n");
     stream.write("docker compose down\n");
     stream.write("docker compose up -d\n");
     stream.write("exit\n");
