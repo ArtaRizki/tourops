@@ -267,8 +267,8 @@ async function seedAll() {
     const existingLeaderTravelers = await db.select().from(travelers).where(eq(travelers.bookingId, leaderBooking.id));
     if (existingLeaderTravelers.length === 0) {
       await db.insert(travelers).values([
-        { bookingId: leaderBooking.id, firstName: leaderUser.username || "Leader", lastName: "Primary", email: leaderUser.email, isLeadTraveler: true, nationality: "ID", gender: "male" },
-        { bookingId: leaderBooking.id, firstName: "Companion", lastName: "One", email: "companion1@example.com", isLeadTraveler: false, nationality: "ID", gender: "female" },
+        { bookingId: leaderBooking.id, firstName: leaderUser.username || "Leader", lastName: "Primary", nationality: "ID", gender: "male" },
+        { bookingId: leaderBooking.id, firstName: "Companion", lastName: "One", nationality: "ID", gender: "female" },
       ]);
     }
 
@@ -370,7 +370,6 @@ async function seedAll() {
         bookingId: pBooking.id,
         firstName: pUser.username || pUser.firstName || "Traveler",
         lastName: pUser.lastName || "Guest",
-        email: pUser.email, isLeadTraveler: true,
         nationality: "ID", gender: "male",
       });
 
@@ -396,9 +395,9 @@ async function seedAll() {
       }).returning();
 
       await db.insert(travelers).values([
-        { bookingId: familyBooking.id, firstName: "Parent", lastName: "One", email: "parent@example.com", isLeadTraveler: true, nationality: "ID", gender: "male" },
-        { bookingId: familyBooking.id, firstName: "Child", lastName: "One", email: null, isLeadTraveler: false, nationality: "ID", gender: "female", dob: "2015-03-10" },
-        { bookingId: familyBooking.id, firstName: "Child", lastName: "Two", email: null, isLeadTraveler: false, nationality: "ID", gender: "male", dob: "2018-07-25" },
+        { bookingId: familyBooking.id, firstName: "Parent", lastName: "One", nationality: "ID", gender: "male" },
+        { bookingId: familyBooking.id, firstName: "Child", lastName: "One", nationality: "ID", gender: "female", dob: "2015-03-10" },
+        { bookingId: familyBooking.id, firstName: "Child", lastName: "Two", nationality: "ID", gender: "male", dob: "2018-07-25" },
       ]);
       console.log(`  ✓ Family booking created: ${familyBooking.bookingCode}`);
     }

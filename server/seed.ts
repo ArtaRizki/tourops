@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { tours, tourDays, tourDepartures } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 async function seed() {
   console.log("🌱 Starting seeder...");
@@ -64,7 +64,7 @@ async function seed() {
       { tourId: baliTour.id, dayNumber: 3, title: "Temple Tour", description: "Visit Uluwatu and Tanah Lot.", city: "Badung", countryCode: "ID" }
     ];
     for (const day of days) {
-      const existing = await db.select().from(tourDays).where(eq(tourDays.tourId, baliTour.id)).where(eq(tourDays.dayNumber, day.dayNumber));
+      const existing = await db.select().from(tourDays).where(and(eq(tourDays.tourId, baliTour.id), eq(tourDays.dayNumber, day.dayNumber)));
       if (existing.length === 0) await db.insert(tourDays).values(day);
     }
   }
@@ -79,7 +79,7 @@ async function seed() {
     ];
     for (const dep of departures) {
       // Just insert if doesn't exist (simplistic check by date)
-      const existing = await db.select().from(tourDepartures).where(eq(tourDepartures.tourId, baliTour.id)).where(eq(tourDepartures.startDate, dep.startDate));
+      const existing = await db.select().from(tourDepartures).where(and(eq(tourDepartures.tourId, baliTour.id), eq(tourDepartures.startDate, dep.startDate)));
       if (existing.length === 0) await db.insert(tourDepartures).values(dep);
     }
   }
@@ -90,7 +90,7 @@ async function seed() {
       { tourId: japanTour.id, startDate: "2027-03-20", endDate: "2027-03-28", capacityTotal: 25, capacityBooked: 10, pricePerPerson: 1200, status: "open" as const },
     ];
     for (const dep of departures) {
-      const existing = await db.select().from(tourDepartures).where(eq(tourDepartures.tourId, japanTour.id)).where(eq(tourDepartures.startDate, dep.startDate));
+      const existing = await db.select().from(tourDepartures).where(and(eq(tourDepartures.tourId, japanTour.id), eq(tourDepartures.startDate, dep.startDate)));
       if (existing.length === 0) await db.insert(tourDepartures).values(dep);
     }
   }

@@ -78,10 +78,10 @@ async function seedBookings() {
     // Add traveler for leader
     await db.insert(travelers).values({
       bookingId: leaderBookingId,
-      firstName: leaderUser.username,
-      lastName: "Leader",
-      email: leaderUser.email,
-      isLeadTraveler: true
+      firstName: leaderUser.username || "Leader",
+      lastName: "Primary",
+      nationality: "ID",
+      gender: "male"
     });
   } else {
     leaderBookingId = existingLeaderBookings[0].id;
@@ -112,10 +112,10 @@ async function seedBookings() {
 
       await db.insert(travelers).values({
         bookingId: pBooking.id,
-        firstName: pUser.username,
-        lastName: "Participant",
-        email: pUser.email,
-        isLeadTraveler: true
+        firstName: pUser.username || "Participant",
+        lastName: "Guest",
+        nationality: "ID",
+        gender: "male"
       });
     } else {
       console.log(`Participant ${pUser.username} already has a booking.`);
