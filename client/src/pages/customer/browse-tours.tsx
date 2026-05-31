@@ -25,7 +25,13 @@ const DURATION_OPTIONS = [
 
 export default function BrowseTours() {
   const { toast } = useToast();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("search") || "";
+    }
+    return "";
+  });
   const [categoryFilter, setCategoryFilter] = useState("any");
   const [durationFilter, setDurationFilter] = useState("any");
   const [startDate, setStartDate] = useState("");

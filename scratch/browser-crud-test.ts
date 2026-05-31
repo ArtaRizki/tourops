@@ -102,23 +102,34 @@ async function loginViaUI(page: Page, baseUrl: string, account: typeof ACCOUNTS[
       }
     }
 
-    await delay(4000);
+    await delay(5000);
 
-    // Check if login succeeded
-    const currentUrl = page.url();
-    const pageContent = await page.content();
+    // Check if login succeeded with robustness for redirects
+    let currentUrl = "";
+    let pageContent = "";
+    let errorEl = null;
+
+    try {
+      currentUrl = page.url();
+      pageContent = await page.content();
+      errorEl = await page.$('[data-testid="text-login-error"]');
+    } catch (err: any) {
+      console.log(`      ⚠️ Navigation redirect active, waiting for stability: ${err.message}`);
+      await delay(3000);
+      currentUrl = page.url();
+      pageContent = await page.content();
+      errorEl = await page.$('[data-testid="text-login-error"]').catch(() => null);
+    }
     
-    // Check for error element using data-testid
-    const errorEl = await page.$('[data-testid="text-login-error"]');
     if (errorEl) {
-      const errMsg = await page.evaluate(el => el.textContent, errorEl);
+      const errMsg = await page.evaluate(el => el?.textContent, errorEl).catch(() => "Unknown error");
       console.log(`      ❌ Login form returned error: ${errMsg}`);
       return false;
     }
 
     const hasError = pageContent.includes("Invalid username") || 
                      pageContent.includes("invalid") ||
-                     currentUrl.includes("login") && pageContent.includes("failed");
+                     (currentUrl.includes("login") && pageContent.includes("failed"));
     
     if (hasError) {
       console.log(`      ❌ Page content indicates login failure.`);

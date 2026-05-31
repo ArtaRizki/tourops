@@ -187,7 +187,7 @@ export default function LandingPage() {
             ].map((dest) => (
               <a
                 key={dest.name}
-                href="/tours"
+                href={`/tours?search=${encodeURIComponent(dest.name)}`}
                 className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
               >
                 <img

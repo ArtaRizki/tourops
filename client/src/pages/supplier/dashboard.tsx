@@ -35,6 +35,7 @@ const ROLE_CONFIG: Record<string, { title: string; subtitle: string; icon: any }
   guide_manager: { title: "Guide Dashboard", subtitle: "Manage your tour guide assignments", icon: UserCheck },
   sights_manager: { title: "Sights Dashboard", subtitle: "Manage your tickets and entry permits", icon: Ticket },
   admin: { title: "Supplier Overview (Admin)", subtitle: "Viewing all supplier tasks", icon: Globe },
+  super_admin: { title: "Supplier Overview (Super Admin)", subtitle: "Viewing all supplier tasks", icon: Globe },
 };
 
 export default function SupplierDashboard() {
@@ -157,19 +158,19 @@ export default function SupplierDashboard() {
             <ClipboardList className="h-4 w-4 mr-2" />
             Tasks
           </TabsTrigger>
-          {(profile?.role === "hotel_manager" || profile?.role === "admin") && (
+          {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="hotel_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <Hotel className="h-4 w-4 mr-2" />
               Hotel Rates
             </TabsTrigger>
           )}
-          {(profile?.role === "guide_manager" || profile?.role === "admin") && (
+          {(profile?.role === "guide_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="guide_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <UserCheck className="h-4 w-4 mr-2" />
               Guide Rates
             </TabsTrigger>
           )}
-          {(profile?.role === "sights_manager" || profile?.role === "admin") && (
+          {(profile?.role === "sights_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="sights_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <Ticket className="h-4 w-4 mr-2" />
               Sights Rates

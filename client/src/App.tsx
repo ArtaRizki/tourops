@@ -131,7 +131,7 @@ function AuthenticatedLayout() {
 
             <Route path="/">
               {() => {
-                if (role === "admin") return <Redirect to="/admin" />;
+                if (role === "admin" || role === "super_admin") return <Redirect to="/admin" />;
                 const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager"];
                 if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
                 if (role === "country_manager" || role === "transport_manager") return <Redirect to="/ops" />;

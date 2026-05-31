@@ -30,7 +30,8 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 
 function getRoleIcon(role: string | undefined) {
   switch (role) {
-    case "admin": return Settings;
+    case "admin":
+    case "super_admin": return Settings;
     case "airline_supplier": return Plane;
     case "country_manager": return Globe;
     case "hotel_manager": return Hotel;
@@ -43,6 +44,7 @@ function getRoleIcon(role: string | undefined) {
 
 function getRoleLabel(role: string | undefined) {
   const labels: Record<string, string> = {
+    super_admin: "Super Admin",
     admin: "HQ Admin",
     customer: "Customer",
     airline_supplier: "Airline Supplier",
@@ -65,9 +67,9 @@ export function AppSidebar() {
 
   const getNav = () => {
     const role = profile?.role;
-    if (role === "admin" || role === "country_manager") {
+    if (role === "admin" || role === "super_admin" || role === "country_manager") {
       return [
-        { title: t("dashboard"), url: role === "admin" ? "/admin" : "/ops", icon: LayoutDashboard },
+        { title: t("dashboard"), url: (role === "admin" || role === "super_admin") ? "/admin" : "/ops", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
