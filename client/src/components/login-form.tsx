@@ -6,6 +6,16 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { LogIn, Loader2, AlertCircle } from "lucide-react";
 
+function getRedirectUrl(role: string, portal: string): string {
+  if (role === "admin" || role === "super_admin") return "/admin";
+  const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
+  const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "travel_agent"];
+  if (supplierRoles.includes(role)) return "/supplier";
+  if (opsRoles.includes(role)) return (role === "country_manager" || role === "transport_manager") ? "/ops" : "/ops/role";
+  // customer or unknown
+  return "/tours";
+}
+
 interface LoginFormProps {
   portal: "customer" | "admin" | "staff";
   title: string;
@@ -37,7 +47,7 @@ export function LoginForm({ portal, title, subtitle, onShowRegister }: LoginForm
         return;
       }
       await refetch();
-      window.location.href = "/";
+      window.location.href = getRedirectUrl(data.role || "", portal);
     } catch {
       setError("Network error. Please try again.");
     } finally {
