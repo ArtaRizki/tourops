@@ -269,8 +269,7 @@ export async function registerRoutes(
   app.post("/api/tours", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
-      const userId = getUserId(req);
-      const payload = { ...req.body, createdBy: userId };
+      const payload = { ...req.body };
       if (!payload.slug && payload.title) {
         payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
       }

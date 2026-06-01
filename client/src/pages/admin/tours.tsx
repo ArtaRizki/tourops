@@ -30,7 +30,7 @@ export default function AdminTours() {
       setShowCreate(false);
       toast({ title: "Tour created successfully" });
     },
-    onError: () => toast({ title: "Failed to create tour", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed to create tour", description: err.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -102,50 +102,23 @@ export default function AdminTours() {
     };
 
     return (
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+        {/* Row 1: Title full width */}
+        <div>
+          <Label>Tour Title *</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ancient Greece Explorer" data-testid="input-tour-title" />
+        </div>
+
+        {/* Row 2: Category | Duration | Base Price | Child Price | Single Supp */}
+        <div className="grid grid-cols-5 gap-3">
           <div className="col-span-2">
-            <Label>Tour Title *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ancient Greece Explorer" data-testid="input-tour-title" />
-          </div>
-          <div>
             <Label>Category</Label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Adventure" />
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Adventure, Cultural, Religious" />
           </div>
           <div>
             <Label>Duration (days)</Label>
             <Input type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 1)} data-testid="input-tour-duration" />
           </div>
-        </div>
-
-        <div>
-          <Label>Description</Label>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tour description..." data-testid="input-tour-description" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Highlights</Label>
-            <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." />
-          </div>
-          <div>
-            <Label>Internal Notes</Label>
-            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Inclusions</Label>
-            <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} placeholder="What's included..." />
-          </div>
-          <div>
-            <Label>Exclusions</Label>
-            <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="What's not included..." />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
           <div>
             <Label>Base Price ($)</Label>
             <Input type="number" value={basePrice} onChange={(e) => setBasePrice(parseInt(e.target.value) || 0)} data-testid="input-tour-price" />
@@ -154,54 +127,81 @@ export default function AdminTours() {
             <Label>Child Price ($)</Label>
             <Input type="number" value={childPrice} onChange={(e) => setChildPrice(parseInt(e.target.value) || 0)} />
           </div>
+        </div>
+
+        {/* Row 3: Description | Highlights */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Single Supp. ($)</Label>
-            <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tour description..." rows={3} data-testid="input-tour-description" />
+          </div>
+          <div>
+            <Label>Highlights</Label>
+            <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." rows={3} />
           </div>
         </div>
 
+        {/* Row 4: Inclusions | Exclusions */}
         <div className="grid grid-cols-2 gap-4">
           <div>
+            <Label>Inclusions</Label>
+            <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} placeholder="What's included..." rows={2} />
+          </div>
+          <div>
+            <Label>Exclusions</Label>
+            <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="What's not included..." rows={2} />
+          </div>
+        </div>
+
+        {/* Row 5: Internal Notes | Single Supplement + Countries */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Internal Notes</Label>
+            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." rows={2} />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <Label>Single Supplement ($)</Label>
+              <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
+            </div>
+            <div>
+              <Label>Countries (comma separated)</Label>
+              <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="GR, IT, ES" />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 6: Image Upload + Tags */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label>Cover Image URL</Label>
             <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
-          </div>
-          <div>
             <Label>Or Upload Image</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
-              {isUploading && <Loader2 className="h-4 w-4 animate-spin mt-2" />}
+              {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
             </div>
           </div>
-        </div>
-        
-        {imageUrl && (
-          <div className="mt-2">
-            <Label className="text-xs text-muted-foreground">Image Preview</Label>
-            <div className="mt-1 border rounded-md overflow-hidden bg-muted flex items-center justify-center max-h-48 max-w-sm">
-              <img 
-                src={imageUrl} 
-                alt="Preview" 
-                className="object-cover w-full h-full max-h-48" 
-                onError={(e) => (e.currentTarget.style.display = 'none')} 
-                onLoad={(e) => (e.currentTarget.style.display = 'block')} 
-              />
+          <div className="space-y-2">
+            <div>
+              <Label>Tags (comma separated)</Label>
+              <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
             </div>
-          </div>
-        )}
-
-        <div>
-          <Label>Gallery URLs (comma separated)</Label>
-          <Input value={galleryUrls} onChange={(e) => setGalleryUrls(e.target.value)} placeholder="url1, url2, url3" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Countries (comma separated)</Label>
-            <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="GR, IT, ES" />
-          </div>
-          <div>
-            <Label>Tags (comma separated)</Label>
-            <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
+            <div>
+              <Label>Gallery URLs (comma separated)</Label>
+              <Input value={galleryUrls} onChange={(e) => setGalleryUrls(e.target.value)} placeholder="url1, url2, url3" />
+            </div>
+            {imageUrl && (
+              <div className="border rounded-md overflow-hidden bg-muted h-24">
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  className="object-cover w-full h-full"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                  onLoad={(e) => (e.currentTarget.style.display = 'block')}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -209,8 +209,9 @@ export default function AdminTours() {
           className="w-full"
           onClick={() => onSubmit({
             ...(tour?.id ? { id: tour.id } : {}),
-            title, description, highlights, inclusions, exclusions, imageUrl, 
-            duration, basePrice, childPrice, singleSupplement, category, internalNotes,
+            title, description, highlights, inclusions, exclusions, imageUrl,
+            duration, basePrice: String(basePrice), childPrice: String(childPrice),
+            singleSupplement: String(singleSupplement), category, internalNotes,
             galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
             countries: countries.split(",").map((c) => c.trim()).filter(Boolean),
             tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -253,7 +254,7 @@ export default function AdminTours() {
             <DialogTrigger asChild>
               <Button data-testid="button-create-tour"><Plus className="h-4 w-4 mr-2" />Create Tour</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-3xl">
               <DialogHeader><DialogTitle>Create New Tour</DialogTitle></DialogHeader>
               <TourForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} />
             </DialogContent>
@@ -314,7 +315,7 @@ export default function AdminTours() {
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-3xl">
                       <DialogHeader><DialogTitle>Edit Tour</DialogTitle></DialogHeader>
                       <TourForm tour={editTour} onSubmit={(data) => updateMutation.mutate(data)} isPending={updateMutation.isPending} />
                     </DialogContent>
