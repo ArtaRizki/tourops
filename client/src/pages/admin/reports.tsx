@@ -11,7 +11,7 @@ import * as XLSX from "xlsx";
 import { Badge } from "@/components/ui/badge";
 
 export default function AdminReports() {
-  const { data: analytics, isLoading } = useQuery<any>({
+  const { data: analytics, isLoading, isError } = useQuery<any>({
     queryKey: ["/api/admin/analytics"],
   });
 
@@ -39,6 +39,18 @@ export default function AdminReports() {
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
         </div>
         <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (isError || !analytics) {
+    return (
+      <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
+        <BarChart3 className="h-16 w-16 text-muted-foreground/30" />
+        <h2 className="text-xl font-semibold text-slate-700">Unable to Load Reports</h2>
+        <p className="text-muted-foreground max-w-sm">
+          Analytics data could not be loaded. Please check your permissions or try refreshing the page.
+        </p>
       </div>
     );
   }

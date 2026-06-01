@@ -70,6 +70,9 @@ const ALL_STAFF_ROLES = [
   "tour_builder", "supplier", "travel_agent",
 ];
 
+// Both admin and super_admin have full administrative access
+const ADMIN_ROLES = ["admin", "super_admin"];
+
 function getUserId(req: Request): string | undefined {
   return req.session?.userId;
 }
@@ -176,7 +179,7 @@ export async function registerRoutes(
 
   app.patch("/api/user-profiles/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const updateSchema = z.object({ role: z.string().optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -186,7 +189,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/users", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const createSchema = z.object({
         username: z.string().min(3).max(50),
         password: z.string().min(4),
@@ -230,7 +233,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/users/:id/password", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const pwSchema = z.object({ password: z.string().min(4) });
       const parsed = pwSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -245,7 +248,7 @@ export async function registerRoutes(
   // ---- Tours ----
   app.get("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getAllTours());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -265,7 +268,7 @@ export async function registerRoutes(
 
   app.post("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const userId = getUserId(req);
       const payload = { ...req.body, createdBy: userId };
       if (!payload.slug && payload.title) {
@@ -279,14 +282,14 @@ export async function registerRoutes(
 
   app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.updateTour(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteTour(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -294,7 +297,7 @@ export async function registerRoutes(
 
   app.post("/api/ai/generate-itinerary", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const itinerary = await aiService.generateItinerary(req.body);
       res.json(itinerary);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -308,7 +311,7 @@ export async function registerRoutes(
 
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTourDay(parsed.data));
@@ -317,14 +320,14 @@ export async function registerRoutes(
 
   app.patch("/api/tour-days/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateTourDay(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tour-days/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteTourDay(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -333,7 +336,7 @@ export async function registerRoutes(
   // ---- Departures ----
   app.get("/api/departures", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAllDepartures());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -345,7 +348,7 @@ export async function registerRoutes(
 
   app.post("/api/departures", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertTourDepartureSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDeparture(parsed.data));
@@ -354,7 +357,7 @@ export async function registerRoutes(
 
   app.patch("/api/departures/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateDeparture(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -423,7 +426,7 @@ export async function registerRoutes(
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const userId = getUserId(req);
       const profile = await storage.getProfileByUserIdWithEmail(userId!);
       const userName = (profile?.user?.firstName ? `${profile.user.firstName} ${profile.user.lastName || ""}` : profile?.user?.username) || "Admin";
@@ -531,7 +534,7 @@ export async function registerRoutes(
 
   app.delete("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteBooking(req.params.id as string);
       res.json({ success: true, message: "Booking deleted" });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -749,7 +752,7 @@ export async function registerRoutes(
   // ---- Audit Logs ----
   app.get("/api/audit-logs/:entityType/:entityId", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAuditLogs(req.params.entityType as string, req.params.entityId as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -758,7 +761,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/countries", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       job = await storage.createImportJob({ entityType: "country", status: "running" });
       const countriesList = await scraperService.scrapeCountries();
       const results = await storage.bulkCreateCountries(countriesList);
@@ -778,7 +781,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/cities/:countryCode", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const countryId = req.body.countryId as string;
       const country = await storage.getCountry(countryId);
       if (!country) return res.status(404).json({ message: "Country not found" });
@@ -802,7 +805,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/sights/:cityId", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
@@ -826,7 +829,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/hotels/:cityId", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
@@ -993,7 +996,7 @@ export async function registerRoutes(
   // ---- Travelers ----
   app.get("/api/bookings/:id/travelers", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getTravelers(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1049,14 +1052,14 @@ export async function registerRoutes(
 
   app.patch("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateTraveler(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteTraveler(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1110,7 +1113,7 @@ export async function registerRoutes(
 
   app.post("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const userId = getUserId(req);
       const assignData = { ...req.body, bookingId: req.params.id as string, assignedBy: userId };
       const assignment = await storage.createAssignment(assignData);
@@ -1166,14 +1169,14 @@ export async function registerRoutes(
 
   app.patch("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateAssignment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteAssignment(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1256,7 +1259,7 @@ export async function registerRoutes(
 
   app.patch("/api/documents/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const userId = getUserId(req);
       const updated = await storage.updateDocument(req.params.id as string, { ...req.body, reviewedBy: userId });
       
@@ -1286,14 +1289,14 @@ export async function registerRoutes(
   // ---- Messages ----
   app.get("/api/messages", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAllMessages());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/messages", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getMessages(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1316,21 +1319,21 @@ export async function registerRoutes(
   // ---- Payments ----
   app.get("/api/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAllPayments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getPayments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const userId = getUserId(req);
       const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, createdBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -1340,7 +1343,7 @@ export async function registerRoutes(
 
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const updated = await storage.updatePayment(req.params.id as string, req.body);
       
       // Notify customer if payment is confirmed as paid (non-blocking)
@@ -1502,7 +1505,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertCountrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCountry(parsed.data));
@@ -1510,7 +1513,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertCountrySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCountry(req.params.id as string, parsed.data));
@@ -1518,7 +1521,7 @@ export async function registerRoutes(
   });
   app.delete("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteCountry(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1526,7 +1529,7 @@ export async function registerRoutes(
 
   app.post("/api/master/countries/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertCountrySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -1541,7 +1544,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/cities", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertCitySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCity(parsed.data));
@@ -1549,7 +1552,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCity(req.params.id as string, parsed.data));
@@ -1557,14 +1560,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/cities/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const allCountries = await storage.getAllCountries();
       const countryNameMap = new Map<string, string>();
       for (const c of allCountries) countryNameMap.set(c.name.toLowerCase(), c.id);
@@ -1608,7 +1611,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/airports", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertAirportSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirport(parsed.data));
@@ -1616,7 +1619,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertAirportSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirport(req.params.id as string, parsed.data));
@@ -1624,14 +1627,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteAirport(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airports/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const allCities = await storage.getAllCities();
       const cityNameMap = new Map<string, string>();
       for (const c of allCities) cityNameMap.set(c.name.toLowerCase(), c.id);
@@ -1677,7 +1680,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertSightSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSight(parsed.data));
@@ -1685,7 +1688,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertSightSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateSight(req.params.id as string, parsed.data));
@@ -1693,14 +1696,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteSight(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/sights/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const validCategories = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
       const categoryMap: Record<string, string> = {
         "cultural": "landmark", "historical": "historical", "religious": "religious",
@@ -1783,7 +1786,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertTransportCompanySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportCompany(parsed.data));
@@ -1791,7 +1794,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateTransportCompany(req.params.id as string, parsed.data));
@@ -1799,14 +1802,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/transport-companies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertTransportCompanySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -1821,7 +1824,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertAirlineAgencySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirlineAgency(parsed.data));
@@ -1829,7 +1832,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirlineAgency(req.params.id as string, parsed.data));
@@ -1837,14 +1840,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airline-agencies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertAirlineAgencySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -2037,7 +2040,7 @@ export async function registerRoutes(
   });
   app.patch("/api/transport/invoices/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const data = { ...req.body };
       if (data.status === "approved" && !data.approvedAt) {
         data.approvedAt = new Date();
@@ -2056,7 +2059,7 @@ export async function registerRoutes(
   });
   app.post("/api/transport/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertTransportPaymentSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportPayment(parsed.data));
@@ -2064,7 +2067,7 @@ export async function registerRoutes(
   });
   app.patch("/api/transport/payments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateTransportPayment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2081,13 +2084,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Hotel Rates ----
   app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getHotelRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertHotelRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createHotelRate(parsed.data));
@@ -2095,7 +2098,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/hotel/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const rows = z.array(insertHotelRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateHotelRates(rows.data));
@@ -2103,7 +2106,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateHotelRate(req.params.id as string, data));
@@ -2111,7 +2114,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteHotelRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2120,13 +2123,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Transport Rates ----
   app.get("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getTransportRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertTransportRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportRate(parsed.data));
@@ -2134,7 +2137,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/transport/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const rows = z.array(insertTransportRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateTransportRates(rows.data));
@@ -2142,7 +2145,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateTransportRate(req.params.id as string, data));
@@ -2150,7 +2153,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteTransportRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2159,13 +2162,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Guide Rates ----
   app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getGuideRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertGuideRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createGuideRate(parsed.data));
@@ -2173,7 +2176,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/guide/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const rows = z.array(insertGuideRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateGuideRates(rows.data));
@@ -2181,7 +2184,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateGuideRate(req.params.id as string, data));
@@ -2189,7 +2192,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteGuideRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2198,13 +2201,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Sights Rates ----
   app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getSightsRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertSightsRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSightsRate(parsed.data));
@@ -2212,7 +2215,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/sights/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const rows = z.array(insertSightsRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateSightsRates(rows.data));
@@ -2220,7 +2223,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateSightsRate(req.params.id as string, data));
@@ -2228,7 +2231,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2321,14 +2324,14 @@ export async function registerRoutes(
   // ---- Admin: Email Queue Diagnostics ----
   app.get("/api/admin/email-queue", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(getQueueStats());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const analytics = await storage.getAnalytics();
       res.json(analytics);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2336,7 +2339,7 @@ export async function registerRoutes(
   // ---- Pricing & Markups ----
   app.get("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getMarkupRules());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2344,14 +2347,14 @@ export async function registerRoutes(
   // ---- Affiliates ----
   app.get("/api/admin/affiliates", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAffiliates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/admin/affiliates", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertAffiliateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
       res.json(await storage.createAffiliate(parsed.data));
@@ -2377,14 +2380,14 @@ export async function registerRoutes(
 
   app.get("/api/admin/stats", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getGlobalSalesStats());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/audit-logs/:type/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAuditLogs(req.params.type as string, req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2404,7 +2407,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/data-import/countries/run", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       if (!queues.countryImport) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.countryImport.add('import-countries', {});
       res.json({ message: "Country import started in background", jobId: job.id });
@@ -2413,7 +2416,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/data-import/cities/run", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const { countryCode, countryId } = req.body;
       if (!countryCode || !countryId) return res.status(400).json({ message: "countryCode and countryId are required" });
       if (!queues.cityImport) return res.status(503).json({ message: "Background queues are not available" });
@@ -2424,7 +2427,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/data-import/sights/run", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const { cityId, cityName, osmId } = req.body;
       if (!cityId || !cityName) return res.status(400).json({ message: "cityId and cityName are required" });
       if (!queues.sightDiscovery) return res.status(503).json({ message: "Background queues are not available" });
@@ -2435,7 +2438,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/sights/:id/enrich", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const sight = await storage.getSight(req.params.id as string);
       if (!sight) return res.status(404).json({ message: "Sight not found" });
       if (!queues.sightEnrichment) return res.status(503).json({ message: "Background queues are not available" });
@@ -2461,7 +2464,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/scraper/block", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const { domain } = req.body;
       if (!domain) return res.status(400).json({ message: "domain is required" });
       scraperSafety.blockDomain(domain);
@@ -2471,7 +2474,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/scraper/unblock", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const { domain } = req.body;
       if (!domain) return res.status(400).json({ message: "domain is required" });
       scraperSafety.unblockDomain(domain);
@@ -2481,14 +2484,14 @@ export async function registerRoutes(
 
   app.get("/api/admin/audit-logs", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAuditLogs());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/admin/ai-consultant", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const stats = await storage.getGlobalSalesStats();
       const analysis = await aiService.analyzeBusinessPerformance(stats);
       res.json(analysis);
@@ -2534,7 +2537,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertMarkupRuleSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createMarkupRule(parsed.data));
@@ -2543,14 +2546,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateMarkupRule(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteMarkupRule(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2558,14 +2561,14 @@ export async function registerRoutes(
 
   app.get("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getGlobalSettings());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["admin"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateGlobalSetting(req.body.key, req.body.value));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
