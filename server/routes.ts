@@ -406,7 +406,7 @@ export async function registerRoutes(
       // Notify Admins
       try {
         const allProfiles = await storage.getAllProfiles();
-        const admins = allProfiles.filter(p => p.role === "admin" && p.user?.email);
+        const admins = allProfiles.filter(p => (p.role === "admin" || p.role === "super_admin") && p.user?.email);
         const customerProfile = await storage.getProfileByUserIdWithEmail(userId);
         const customerName = customerProfile?.user?.firstName ? `${customerProfile.user.firstName} ${customerProfile.user.lastName || ""}` : (customerProfile?.user?.username || "Pelanggan");
         
@@ -1009,7 +1009,7 @@ export async function registerRoutes(
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
       const isOwner = booking.customerId === userId;
-      const isAdmin = profile.role === "admin";
+      const isAdmin = profile.role === "admin" || profile.role === "super_admin";
       const isLeaderOfGroup = booking.leaderUserId === userId;
       if (!isOwner && !isAdmin && !isLeaderOfGroup) {
         return res.status(403).json({ message: "Forbidden" });
@@ -1028,7 +1028,7 @@ export async function registerRoutes(
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
       const isOwner = booking.customerId === userId;
-      const isAdmin = profile.role === "admin";
+      const isAdmin = profile.role === "admin" || profile.role === "super_admin";
       const isLeaderOfGroup = booking.leaderUserId === userId;
       if (!isOwner && !isAdmin && !isLeaderOfGroup) {
         return res.status(403).json({ message: "Forbidden" });
@@ -1219,7 +1219,7 @@ export async function registerRoutes(
       const profile = await storage.getOrCreateProfile(userId);
       const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
-      if (profile.role === "admin" || wf.assignedUserId === userId) {
+      if (profile.role === "admin" || profile.role === "super_admin" || wf.assignedUserId === userId) {
         res.json(await storage.updateWorkflow(req.params.id as string, req.body));
       } else {
         res.status(403).json({ message: "Forbidden" });
@@ -1400,14 +1400,14 @@ export async function registerRoutes(
       // Verify supplier is assigned to at least one workflow for this booking
       const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
-      if (!isAssigned && profile.role !== "admin") {
+      if (!isAssigned && profile.role !== "admin" && profile.role !== "super_admin") {
         return res.status(403).json({ message: "Access denied to this booking" });
       }
 
       const travelers = await storage.getTravelers(req.params.id as string);
       const allDocuments = await storage.getDocuments(req.params.id as string);
       // Filter documents: supplier sees their own uploads or all if admin
-      const documents = profile.role === "admin" 
+      const documents = (profile.role === "admin" || profile.role === "super_admin")
         ? allDocuments 
         : allDocuments.filter(d => d.uploadedBy === userId);
       
@@ -1424,7 +1424,7 @@ export async function registerRoutes(
 
       const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
-      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+      if (!isAssigned && profile.role !== "admin" && profile.role !== "super_admin") return res.status(403).json({ message: "Access denied" });
 
       const allMessages = await storage.getMessages(req.params.id as string);
       res.json(allMessages.filter(m => m.visibility === "internal_only" || m.senderUserId === userId));
@@ -1440,7 +1440,7 @@ export async function registerRoutes(
 
       const workflows = await storage.getWorkflows(req.params.id as string);
       const isAssigned = workflows.some(w => w.assignedUserId === userId);
-      if (!isAssigned && profile.role !== "admin") return res.status(403).json({ message: "Access denied" });
+      if (!isAssigned && profile.role !== "admin" && profile.role !== "super_admin") return res.status(403).json({ message: "Access denied" });
 
       const { messageText } = req.body;
       const message = await storage.createMessage({
@@ -1465,7 +1465,7 @@ export async function registerRoutes(
 
       const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
-      if (wf.assignedUserId !== userId && profile.role !== "admin") {
+      if (wf.assignedUserId !== userId && profile.role !== "admin" && profile.role !== "super_admin") {
         return res.status(403).json({ message: "Not assigned to this workflow" });
       }
 
@@ -1861,7 +1861,7 @@ export async function registerRoutes(
     if (!userId) { res.status(401).json({ message: "Unauthorized" }); return null; }
     const profile = await storage.getProfileByUserId(userId);
     if (!profile) { res.status(403).json({ message: "No profile" }); return null; }
-    if (profile.role === "admin") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
+    if (profile.role === "admin" || profile.role === "super_admin") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
     if (profile.role === "transport_manager") {
       if (!profile.transportCompanyId) { res.status(403).json({ message: "Not linked to a transport company" }); return null; }
       return { companyId: profile.transportCompanyId, isAdmin: false };
@@ -2250,7 +2250,7 @@ export async function registerRoutes(
         email: "admin@tourops.com",
       });
       const profile = await storage.getOrCreateProfile(adminUser.id);
-      if (profile.role !== "admin") {
+      if (profile.role !== "admin" && profile.role !== "super_admin") {
         await storage.updateProfile(profile.id, { role: "admin" });
       }
       console.log("Default admin user created: username=admin, password=admin123");
@@ -2291,7 +2291,7 @@ export async function registerRoutes(
       const profile = await storage.getProfileByUserId(userId);
       const role = profile?.role;
 
-      if (role === "admin") {
+      if (role === "admin" || role === "super_admin") {
         const allDocs = await storage.getAllDocuments();
         const allPayments = await storage.getAllPayments();
         const allWorkflows = await storage.getAllWorkflows();
