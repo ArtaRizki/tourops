@@ -40,6 +40,7 @@ import ManagePassengers from "@/pages/customer/manage-passengers";
 import SupplierDashboard from "@/pages/supplier/dashboard";
 import OpsDashboard from "@/pages/ops/dashboard";
 import TransportDashboard from "@/pages/ops/transport-dashboard";
+import GenericRoleDashboard from "@/pages/ops/generic-dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function AuthenticatedLayout() {
@@ -114,6 +115,7 @@ function AuthenticatedLayout() {
             {/* Ops Routes */}
             <Route path="/ops" component={OpsDashboard} />
             <Route path="/ops/transport" component={TransportDashboard} />
+            <Route path="/ops/role" component={GenericRoleDashboard} />
             <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
 
             {/* Redirects */}
@@ -122,9 +124,10 @@ function AuthenticatedLayout() {
             </Route>
             <Route path="/staff/login">
               {() => {
-                const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager"];
+                const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
+                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "travel_agent"];
                 if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
-                if (role === "country_manager" || role === "transport_manager") return <Redirect to="/ops" />;
+                if (opsRoles.includes(role || "")) return <Redirect to={role === "country_manager" || role === "transport_manager" ? "/ops" : "/ops/role"} />;
                 return <Redirect to="/admin" />;
               }}
             </Route>
@@ -132,9 +135,10 @@ function AuthenticatedLayout() {
             <Route path="/">
               {() => {
                 if (role === "admin" || role === "super_admin") return <Redirect to="/admin" />;
-                const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager"];
+                const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
+                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "travel_agent"];
                 if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
-                if (role === "country_manager" || role === "transport_manager") return <Redirect to="/ops" />;
+                if (opsRoles.includes(role || "")) return <Redirect to={role === "country_manager" || role === "transport_manager" ? "/ops" : "/ops/role"} />;
                 return <Redirect to="/tours" />;
               }}
             </Route>

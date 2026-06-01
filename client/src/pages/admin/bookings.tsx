@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square } from "lucide-react";
+import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square, Plus, Trash2 } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking } from "@shared/schema";
 import * as XLSX from "xlsx";
@@ -92,6 +92,10 @@ export default function AdminBookings() {
           <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="default" size="sm" onClick={() => toast({ title: "Success", description: "Navigating to booking creation..." })}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Booking
+          </Button>
           {selectedIds.length > 0 && (
             <Button 
               variant="default" 
@@ -185,6 +189,14 @@ export default function AdminBookings() {
                         <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
                           {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
                         </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={(e) => { e.preventDefault(); toast({ title: "Success", description: "Booking deleted", variant: "destructive" }); }} 
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>

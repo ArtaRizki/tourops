@@ -96,6 +96,13 @@ export function AppSidebar() {
     if (role === "airline_supplier") return [{ title: "Airline Dashboard", url: "/supplier", icon: Plane }];
     if (role === "transport_manager") return [{ title: "Transport Ops", url: "/ops/transport", icon: Bus }];
     
+    if (role === "city_manager") return [{ title: "City Dashboard", url: "/ops/role", icon: Globe }];
+    if (role === "content_editor") return [{ title: "Editor Dashboard", url: "/ops/role", icon: FileText }];
+    if (role === "flight_agent") return [{ title: "Flight Dashboard", url: "/ops/role", icon: Plane }];
+    if (role === "tour_builder") return [{ title: "Builder Dashboard", url: "/ops/role", icon: Wand2 }];
+    if (role === "supplier") return [{ title: "Supplier Dashboard", url: "/ops/role", icon: Database }];
+    if (role === "travel_agent") return [{ title: "Agent Dashboard", url: "/ops/role", icon: Users }];
+    
     return [];
   };
 

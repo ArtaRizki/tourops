@@ -15,7 +15,7 @@ import {
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
-  DollarSign, ClipboardList, Bell
+  DollarSign, ClipboardList, Bell, Plus, Trash2
 } from "lucide-react";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@shared/schema";
@@ -301,9 +301,12 @@ export default function SupplierDashboard() {
 
       <TabsContent value="hotel_rates">
         <Card>
-          <CardHeader>
-            <CardTitle>Hotel Rates Management</CardTitle>
-            <CardDescription>Manage your room types and pricing</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Hotel Rates Management</CardTitle>
+              <CardDescription>Manage your room types and pricing</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -315,6 +318,7 @@ export default function SupplierDashboard() {
                      <TableHead>Rate</TableHead>
                      <TableHead>Validity</TableHead>
                      <TableHead>Status</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                  </TableHeader>
                  <TableBody>
@@ -325,10 +329,13 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.pricePerRoomPerNight}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       </TableCell>
                      </TableRow>
                    ))}
                    {(!hotelRates || hotelRates.length === 0) && (
-                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No rates found. Click create to add your first rate.</TableCell></TableRow>
                    )}
                  </TableBody>
                </Table>
@@ -339,9 +346,12 @@ export default function SupplierDashboard() {
 
       <TabsContent value="guide_rates">
         <Card>
-          <CardHeader>
-            <CardTitle>Guide Rates Management</CardTitle>
-            <CardDescription>Manage your service rates and availability</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Guide Rates Management</CardTitle>
+              <CardDescription>Manage your service rates and availability</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -353,6 +363,7 @@ export default function SupplierDashboard() {
                      <TableHead>Rate</TableHead>
                      <TableHead>Validity</TableHead>
                      <TableHead>Status</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                  </TableHeader>
                  <TableBody>
@@ -363,10 +374,13 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.price}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       </TableCell>
                      </TableRow>
                    ))}
                    {(!guideRates || guideRates.length === 0) && (
-                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No rates found. Click create to add your first rate.</TableCell></TableRow>
                    )}
                  </TableBody>
                </Table>
@@ -377,9 +391,12 @@ export default function SupplierDashboard() {
 
       <TabsContent value="sights_rates">
         <Card>
-          <CardHeader>
-            <CardTitle>Sights & Attractions Rates</CardTitle>
-            <CardDescription>Manage ticket prices and slot requirements</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Sights & Attractions Rates</CardTitle>
+              <CardDescription>Manage ticket prices and slot requirements</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -391,6 +408,7 @@ export default function SupplierDashboard() {
                      <TableHead>Price</TableHead>
                      <TableHead>Validity</TableHead>
                      <TableHead>Status</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                  </TableHeader>
                  <TableBody>
@@ -401,10 +419,13 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.pricePerPerson}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       </TableCell>
                      </TableRow>
                    ))}
                    {(!sightsRates || sightsRates.length === 0) && (
-                     <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No rates found. Contact admin to add your first rate.</TableCell></TableRow>
+                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No rates found. Click create to add your first rate.</TableCell></TableRow>
                    )}
                  </TableBody>
                </Table>

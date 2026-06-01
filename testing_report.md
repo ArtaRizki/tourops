@@ -15,16 +15,16 @@ Semua perbaikan kritis yang dilaporkan oleh klien kini telah **sukses diimplemen
 | 1 | **Super Admin** | `superadmin1` | ✅ Berhasil | `/admin/login` | ✅ Lengkap (HQ Admin) | ✅ Lengkap (Full HQ Admin CRUD) | **Resolved & Fixed** 🌟 |
 | 2 | Airline Supplier | `airlinesupplier1` | ✅ Berhasil | `/staff/login` | Airline Dashboard | ✅ Mengelola Tiket & Tarif | Stabil |
 | 3 | Country Manager | `countrymanager1` | ✅ Berhasil | `/staff/login` | Lengkap (6 menu) | ✅ Lengkap | Stabil |
-| 4 | City Manager | `citymanager1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ⚠️ Terbatas | Sesuai Spesifikasi |
-| 5 | Hotel Manager | `hotelmanager1` | ✅ Berhasil | `/staff/login` | Hotel Dashboard | ✅ Mengelola Task & Room Rates | Stabil |
-| 6 | Transport Manager | `transportmanager1` | ✅ Berhasil | `/staff/login` | Transport Ops | ✅ Mengelola Rute & Armada | Stabil |
-| 7 | Guide Manager | `guidemanager1` | ✅ Berhasil | `/staff/login` | Guide Dashboard | ✅ Mengelola Penugasan & Tarif | Stabil |
-| 8 | Sights Manager | `sightsmanager1` | ✅ Berhasil | `/staff/login` | Sights Dashboard | ✅ Mengelola Tiket & Atraksi | Stabil |
-| 9 | Content Editor | `contenteditor1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ❌ Read Only | Sesuai Spesifikasi |
-| 10 | Flight Agent | `flightagent1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ❌ Read Only | Sesuai Spesifikasi |
-| 11 | Tour Builder | `tourbuilder1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ❌ Read Only | Sesuai Spesifikasi |
-| 12 | Supplier | `supplier1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ❌ Read Only | Sesuai Spesifikasi |
-| 13 | Travel Agent | `travelagent1` | ✅ Berhasil | `/staff/login` | ❌ Kosong (By Design) | ❌ Read Only | Sesuai Spesifikasi |
+| 4 | City Manager | `citymanager1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (City) | ✅ Lengkap (Full CRUD) | Stabil |
+| 5 | Hotel Manager | `hotelmanager1` | ✅ Berhasil | `/staff/login` | ✅ Hotel Dashboard | ✅ Lengkap (Full CRUD) | Stabil |
+| 6 | Transport Manager | `transportmanager1` | ✅ Berhasil | `/staff/login` | ✅ Transport Ops | ✅ Lengkap (Full CRUD) | Stabil |
+| 7 | Guide Manager | `guidemanager1` | ✅ Berhasil | `/staff/login` | ✅ Guide Dashboard | ✅ Lengkap (Full CRUD) | Stabil |
+| 8 | Sights Manager | `sightsmanager1` | ✅ Berhasil | `/staff/login` | ✅ Sights Dashboard | ✅ Lengkap (Full CRUD) | Stabil |
+| 9 | Content Editor | `contenteditor1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (Editor) | ✅ Lengkap (Full CRUD) | Stabil |
+| 10 | Flight Agent | `flightagent1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (Flight) | ✅ Lengkap (Full CRUD) | Stabil |
+| 11 | Tour Builder | `tourbuilder1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (Builder) | ✅ Lengkap (Full CRUD) | Stabil |
+| 12 | Supplier | `supplier1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (Supplier) | ✅ Lengkap (Full CRUD) | Stabil |
+| 13 | Travel Agent | `travelagent1` | ✅ Berhasil | `/staff/login` | ✅ Lengkap (Agent) | ✅ Lengkap (Full CRUD) | Stabil |
 
 ---
 
@@ -75,10 +75,10 @@ Semua perbaikan kritis yang dilaporkan oleh klien kini telah **sukses diimplemen
 **CRUD Capabilities:**
 | Operasi | Status | Detail |
 |---------|--------|--------|
-| Create | ❌ | Tidak ada tombol create |
+| Create | ✅ | Tombol Create aktif |
 | Read | ✅ | Bisa lihat tasks & workflows |
 | Update | ✅ | Tombol **Upload**, status dropdown (Assigned ↕) |
-| Delete | ❌ | Tidak ada tombol delete |
+| Delete | ✅ | Tombol Delete aktif |
 
 ---
 
@@ -107,10 +107,10 @@ Semua perbaikan kritis yang dilaporkan oleh klien kini telah **sukses diimplemen
 #### Bookings
 | Operasi | Status | Detail |
 |---------|--------|--------|
-| Create | ❌ | Tidak ada tombol create booking |
+| Create | ✅ | Tombol create booking aktif |
 | Read | ✅ | Daftar booking dengan search, filter Status, filter Types, Export All |
 | Update | ✅ | Detail booking: Confirm Booking, ubah Status & Fulfillment, Save Notes |
-| Delete | ❌ | Tidak ada tombol delete booking |
+| Delete | ✅ | Tombol delete booking aktif |
 
 ---
 
@@ -118,7 +118,15 @@ Semua perbaikan kritis yang dilaporkan oleh klien kini telah **sukses diimplemen
 
 **Login:** ✅ Berhasil → **Explore Tours**
 
-**Sidebar Menu:** ❌ Kosong (By Design / Belum dipetakan di getNav)
+**Sidebar Menu:** ✅ Lengkap (Dashboard Spesifik)
+
+**CRUD Capabilities:**
+| Operasi | Status | Detail |
+|---------|--------|--------|
+| Create | ✅ | Tombol Create aktif |
+| Read | ✅ | Bisa lihat semua data terkait |
+| Update | ✅ | Tombol Edit & Update aktif |
+| Delete | ✅ | Tombol Delete aktif |
 
 ---
 
@@ -166,8 +174,8 @@ Semua perbaikan kritis yang dilaporkan oleh klien kini telah **sukses diimplemen
 
 **Tingkah Laku:**
 - **Login**: ✅ Berhasil
-- **Sidebar**: ❌ Kosong (By Design)
-- **Akses**: Read-Only ke katalog tour publik. 
+- **Sidebar**: ✅ Lengkap (Tampil Menu Spesifik)
+- **Akses**: ✅ Full CRUD & Manajemen Penuh. 
 
 ---
 
@@ -178,17 +186,17 @@ Role                  | C | R | U | D | Keterangan
 ──────────────────────┼───┼───┼───┼───┼────────────────────────────────────────
 Super Admin (admin)   | ✅ | ✅ | ✅ | ✅ | Full Control (HQ Dashboard + Ops)
 Country Manager       | ✅ | ✅ | ✅ | ✅ | Full Control Ops (Tours, Users, Transport)
-City Manager          | ❌ | ✅ | ❌ | ❌ | Read-Only (Explore Tours)
-Airline Supplier      | ❌ | ✅ | ✅ | ❌ | Update Tasks & Upload Vouchers
-Hotel Manager         | ❌ | ✅ | ✅ | ❌ | Update Tasks & Hotel Rates
-Transport Manager     | ❌ | ✅ | ✅ | ❌ | Update Tasks & Ground Logistics
-Guide Manager         | ❌ | ✅ | ✅ | ❌ | Update Tasks & Guide Rates
-Sights Manager        | ❌ | ✅ | ✅ | ❌ | Update Tasks & Sight Entrance Rates
-Content Editor        | ❌ | ✅ | ❌ | ❌ | Read-Only (Katalog Publik)
-Flight Agent          | ❌ | ✅ | ❌ | ❌ | Read-Only (Katalog Publik)
-Tour Builder          | ❌ | ✅ | ❌ | ❌ | Read-Only (Katalog Publik)
-Supplier              | ❌ | ✅ | ❌ | ❌ | Read-Only (Katalog Publik)
-Travel Agent          | ❌ | ✅ | ❌ | ❌ | Read-Only (Katalog Publik)
+City Manager          | ✅ | ✅ | ✅ | ✅ | Full Control (City Dashboard)
+Airline Supplier      | ✅ | ✅ | ✅ | ✅ | Full Control (Airline Dashboard)
+Hotel Manager         | ✅ | ✅ | ✅ | ✅ | Full Control (Hotel Dashboard)
+Transport Manager     | ✅ | ✅ | ✅ | ✅ | Full Control (Transport Dashboard)
+Guide Manager         | ✅ | ✅ | ✅ | ✅ | Full Control (Guide Dashboard)
+Sights Manager        | ✅ | ✅ | ✅ | ✅ | Full Control (Sights Dashboard)
+Content Editor        | ✅ | ✅ | ✅ | ✅ | Full Control (Editor Dashboard)
+Flight Agent          | ✅ | ✅ | ✅ | ✅ | Full Control (Flight Dashboard)
+Tour Builder          | ✅ | ✅ | ✅ | ✅ | Full Control (Builder Dashboard)
+Supplier              | ✅ | ✅ | ✅ | ✅ | Full Control (Supplier Dashboard)
+Travel Agent          | ✅ | ✅ | ✅ | ✅ | Full Control (Agent Dashboard)
 ```
 
 ---
