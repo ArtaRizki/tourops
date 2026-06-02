@@ -258,6 +258,45 @@ export async function registerRoutes(
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/destinations/popular", async (_req, res) => {
+    try {
+      const tours = await storage.getPublishedTours();
+      const destMap = new Map<string, { name: string, tours: number, img: string }>();
+
+      for (const tour of tours) {
+        if (!tour.countries || !Array.isArray(tour.countries)) continue;
+        
+        for (const country of tour.countries) {
+          if (!country) continue;
+          const countryName = country.trim();
+          if (destMap.has(countryName)) {
+            const dest = destMap.get(countryName)!;
+            dest.tours += 1;
+            // Optionally update image if the current one has no image but tour does
+            if (dest.img.includes('placeholder') && tour.imageUrl) {
+              dest.img = tour.imageUrl;
+            }
+          } else {
+            destMap.set(countryName, {
+              name: countryName,
+              tours: 1,
+              img: tour.imageUrl || 'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&q=80', // Fallback placeholder
+            });
+          }
+        }
+      }
+
+      // Sort by number of tours descending and limit to top 8
+      const popularDestinations = Array.from(destMap.values())
+        .sort((a, b) => b.tours - a.tours)
+        .slice(0, 8);
+
+      res.json(popularDestinations);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/tours/:id", async (req, res) => {
     try {
       const tour = await storage.getTour(req.params.id as string);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,10 @@ import {
 export default function LandingPage() {
   const { toast } = useToast();
   const { t } = useLanguage();
+
+  const { data: popularDestinations, isLoading: isLoadingDestinations } = useQuery<{name: string, tours: number, img: string}[]>({
+    queryKey: ["/api/destinations/popular"],
+  });
   // Check URL hash to determine initial tab
   const initialShowRegister = typeof window !== 'undefined' && window.location.hash === '#register';
   const [showRegister, setShowRegister] = useState(initialShowRegister);
@@ -179,29 +184,54 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { name: "Greece", img: "/images/tour-greece.png", tours: 5 },
-              { name: "Peru", img: "/images/tour-peru.png", tours: 3 },
-              { name: "Japan", img: "/images/tour-japan.png", tours: 4 },
-              { name: "Kenya Safari", img: "/images/tour-safari.png", tours: 2 },
-            ].map((dest) => (
-              <a
-                key={dest.name}
-                href={`/tours?search=${encodeURIComponent(dest.name)}`}
-                className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
-              >
-                <img
-                  src={dest.img}
-                  alt={dest.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="text-white font-semibold text-lg">{dest.name}</h3>
-                  <p className="text-white/70 text-sm">{dest.tours} {t("tours_available")}</p>
-                </div>
-              </a>
-            ))}
+            {isLoadingDestinations ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="rounded-md overflow-hidden aspect-[4/3] bg-muted animate-pulse" />
+              ))
+            ) : popularDestinations && popularDestinations.length > 0 ? (
+              popularDestinations.map((dest) => (
+                <a
+                  key={dest.name}
+                  href={`/tours?search=${encodeURIComponent(dest.name)}`}
+                  className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
+                >
+                  <img
+                    src={dest.img}
+                    alt={dest.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="text-white font-semibold text-lg">{dest.name}</h3>
+                    <p className="text-white/70 text-sm">{dest.tours} {t("tours_available")}</p>
+                  </div>
+                </a>
+              ))
+            ) : (
+              [
+                { name: "Greece", img: "/images/tour-greece.png", tours: 5 },
+                { name: "Peru", img: "/images/tour-peru.png", tours: 3 },
+                { name: "Japan", img: "/images/tour-japan.png", tours: 4 },
+                { name: "Kenya Safari", img: "/images/tour-safari.png", tours: 2 },
+              ].map((dest) => (
+                <a
+                  key={dest.name}
+                  href={`/tours?search=${encodeURIComponent(dest.name)}`}
+                  className="group relative rounded-md overflow-hidden aspect-[4/3] block cursor-pointer"
+                >
+                  <img
+                    src={dest.img}
+                    alt={dest.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="text-white font-semibold text-lg">{dest.name}</h3>
+                    <p className="text-white/70 text-sm">{dest.tours} {t("tours_available")}</p>
+                  </div>
+                </a>
+              ))
+            )}
           </div>
 
           <div className="mt-12 text-center">
