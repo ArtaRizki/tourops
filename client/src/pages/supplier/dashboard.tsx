@@ -60,6 +60,37 @@ export default function SupplierDashboard() {
   const { data: guideRates } = useQuery<any[]>({ queryKey: ["/api/rates/guide"] });
   const { data: sightsRates } = useQuery<any[]>({ queryKey: ["/api/rates/sights"] });
 
+  const saveRate = useMutation({
+    mutationFn: ({ type, id, data }: { type: string, id?: string, data: any }) => {
+      if (id) return apiRequest("PATCH", `/api/rates/${type}/${id}`, data);
+      return apiRequest("POST", `/api/rates/${type}`, data);
+    },
+    onSuccess: (_, { type }) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/rates/${type}`] });
+      toast({ title: "Rate saved successfully" });
+      setRateDialogOpen(false);
+    },
+  });
+
+  const deleteRate = useMutation({
+    mutationFn: ({ type, id }: { type: string, id: string }) => apiRequest("DELETE", `/api/rates/${type}/${id}`),
+    onSuccess: (_, { type }) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/rates/${type}`] });
+      toast({ title: "Rate deleted", variant: "destructive" });
+    },
+  });
+
+  const [rateDialogOpen, setRateDialogOpen] = useState(false);
+  const [rateType, setRateType] = useState<"hotel" | "guide" | "sights">("hotel");
+  const [editingRate, setEditingRate] = useState<any>(null);
+
+  const openRateDialog = (type: "hotel" | "guide" | "sights", rate?: any) => {
+    setRateType(type);
+    setEditingRate(rate || null);
+    setRateDialogOpen(true);
+  };
+
+
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [uploadWorkflowId, setUploadWorkflowId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -306,7 +337,7 @@ export default function SupplierDashboard() {
               <CardTitle>Hotel Rates Management</CardTitle>
               <CardDescription>Manage your room types and pricing</CardDescription>
             </div>
-            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
+            <Button size="sm" onClick={() => openRateDialog("hotel")}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -329,8 +360,11 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.pricePerRoomPerNight}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
-                       <TableCell className="text-right">
-                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       <TableCell className="text-right flex justify-end gap-2">
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("hotel", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                           if(confirm("Delete this rate?")) deleteRate.mutate({ type: "hotel", id: r.id });
+                         }}><Trash2 className="h-4 w-4" /></Button>
                        </TableCell>
                      </TableRow>
                    ))}
@@ -351,7 +385,7 @@ export default function SupplierDashboard() {
               <CardTitle>Guide Rates Management</CardTitle>
               <CardDescription>Manage your service rates and availability</CardDescription>
             </div>
-            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
+            <Button size="sm" onClick={() => openRateDialog("guide")}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -374,8 +408,11 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.price}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
-                       <TableCell className="text-right">
-                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       <TableCell className="text-right flex justify-end gap-2">
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                           if(confirm("Delete this rate?")) deleteRate.mutate({ type: "guide", id: r.id });
+                         }}><Trash2 className="h-4 w-4" /></Button>
                        </TableCell>
                      </TableRow>
                    ))}
@@ -396,7 +433,7 @@ export default function SupplierDashboard() {
               <CardTitle>Sights & Attractions Rates</CardTitle>
               <CardDescription>Manage ticket prices and slot requirements</CardDescription>
             </div>
-            <Button size="sm" onClick={() => toast({ title: "Opening rate creator..." })}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
+            <Button size="sm" onClick={() => openRateDialog("sights")}><Plus className="h-4 w-4 mr-2" /> Create Rate</Button>
           </CardHeader>
           <CardContent>
              <div className="border rounded-md">
@@ -419,8 +456,11 @@ export default function SupplierDashboard() {
                        <TableCell>{r.currency} {r.pricePerPerson}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
-                       <TableCell className="text-right">
-                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => toast({ title: "Rate deleted", variant: "destructive" })}><Trash2 className="h-4 w-4" /></Button>
+                       <TableCell className="text-right flex justify-end gap-2">
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("sights", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                           if(confirm("Delete this rate?")) deleteRate.mutate({ type: "sights", id: r.id });
+                         }}><Trash2 className="h-4 w-4" /></Button>
                        </TableCell>
                      </TableRow>
                    ))}
@@ -617,17 +657,74 @@ export default function SupplierDashboard() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadWorkflowId(null)}>Cancel</Button>
-            <Button 
-              onClick={() => uploadDocument.mutate({ 
-                fileName: uploadFileName, 
-                fileUrl: uploadFileUrl, 
-                docType: uploadDocType 
-              })}
-              disabled={uploadDocument.isPending || !uploadFileName || !uploadFileUrl}
-            >
-              {uploadDocument.isPending ? "Uploading..." : "Submit Document"}
-            </Button>
+            <Button onClick={() => uploadDocument.mutate({ fileName: uploadFileName, fileUrl: uploadFileUrl, docType: uploadDocType })} disabled={!uploadFileName || !uploadFileUrl || uploadDocument.isPending}>
+                {uploadDocument.isPending ? "Uploading..." : "Upload Document"}
+              </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rate Dialog Form */}
+      <Dialog open={rateDialogOpen} onOpenChange={setRateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingRate ? "Edit Rate" : "Create New Rate"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const data: any = {
+              validFrom: fd.get("validFrom"),
+              validTo: fd.get("validTo"),
+              status: "active",
+            };
+            if (rateType === "hotel") {
+              data.hotelName = fd.get("hotelName");
+              data.roomType = fd.get("roomType");
+              data.pricePerRoomPerNight = parseInt(fd.get("price") as string);
+            } else if (rateType === "guide") {
+              data.guideName = fd.get("guideName");
+              data.language = fd.get("language");
+              data.price = parseInt(fd.get("price") as string);
+            } else {
+              data.attractionName = fd.get("attractionName");
+              data.ticketType = fd.get("ticketType");
+              data.pricePerPerson = parseInt(fd.get("price") as string);
+            }
+            saveRate.mutate({ type: rateType, id: editingRate?.id, data });
+          }} className="space-y-4 pt-4">
+            {rateType === "hotel" && (
+              <>
+                <div className="space-y-2"><Label>Hotel Name</Label><Input name="hotelName" defaultValue={editingRate?.hotelName} required /></div>
+                <div className="space-y-2"><Label>Room Type</Label><Input name="roomType" defaultValue={editingRate?.roomType} required /></div>
+                <div className="space-y-2"><Label>Price Per Night</Label><Input type="number" name="price" defaultValue={editingRate?.pricePerRoomPerNight} required /></div>
+              </>
+            )}
+            {rateType === "guide" && (
+              <>
+                <div className="space-y-2"><Label>Guide Name</Label><Input name="guideName" defaultValue={editingRate?.guideName} required /></div>
+                <div className="space-y-2"><Label>Language</Label><Input name="language" defaultValue={editingRate?.language} required /></div>
+                <div className="space-y-2"><Label>Price</Label><Input type="number" name="price" defaultValue={editingRate?.price} required /></div>
+              </>
+            )}
+            {rateType === "sights" && (
+              <>
+                <div className="space-y-2"><Label>Attraction Name</Label><Input name="attractionName" defaultValue={editingRate?.attractionName} required /></div>
+                <div className="space-y-2"><Label>Ticket Type</Label><Input name="ticketType" defaultValue={editingRate?.ticketType} required /></div>
+                <div className="space-y-2"><Label>Price</Label><Input type="number" name="price" defaultValue={editingRate?.pricePerPerson} required /></div>
+              </>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Valid From</Label><Input type="date" name="validFrom" defaultValue={editingRate?.validFrom?.split("T")[0] || format(new Date(), "yyyy-MM-dd")} required /></div>
+              <div className="space-y-2"><Label>Valid To</Label><Input type="date" name="validTo" defaultValue={editingRate?.validTo?.split("T")[0]} required /></div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRateDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={saveRate.isPending}>
+                {saveRate.isPending ? "Saving..." : "Save Rate"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

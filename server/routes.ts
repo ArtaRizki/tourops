@@ -895,6 +895,99 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // ---- Master Records ----
+  app.get("/api/master-records", isAuthenticated, async (req, res) => {
+    try {
+      res.json(await storage.getMasterRecords(req.query.type as string));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/master-records", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.status(201).json(await storage.createMasterRecord(req.body));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/master-records/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.json(await storage.updateMasterRecord(req.params.id, req.body));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/master-records/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      await storage.deleteMasterRecord(req.params.id);
+      res.sendStatus(204);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Supplier Rates ----
+  // Hotel Rates
+  app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getHotelRates()); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
+    try { res.status(201).json(await storage.createHotelRate(req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.updateHotelRate(req.params.id, req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
+    try { await storage.deleteHotelRate(req.params.id); res.sendStatus(204); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Guide Rates
+  app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getGuideRates()); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
+    try { res.status(201).json(await storage.createGuideRate(req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.updateGuideRate(req.params.id, req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
+    try { await storage.deleteGuideRate(req.params.id); res.sendStatus(204); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Sights Rates
+  app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.getSightsRates()); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
+    try { res.status(201).json(await storage.createSightsRate(req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
+    try { res.json(await storage.updateSightsRate(req.params.id, req.body)); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
+    try { await storage.deleteSightsRate(req.params.id); res.sendStatus(204); }
+    catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Airline Management ----
   app.get("/api/flights/search", async (req, res) => {
     try {

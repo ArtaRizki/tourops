@@ -396,10 +396,18 @@ export interface IStorage {
   getHotelPriceSnapshots(hotelId: string): Promise<HotelPriceSnapshot[]>;
   createFlightPriceSnapshot(data: any): Promise<FlightPriceSnapshot>;
   getFlightPriceSnapshots(origin: string, destination: string): Promise<FlightPriceSnapshot[]>;
+  getAffiliate(id: string): Promise<Affiliate | undefined>;
+  createAffiliate(data: InsertAffiliate): Promise<Affiliate>;
+  updateAffiliate(id: string, data: Partial<Affiliate>): Promise<Affiliate>;
+
+  // Master Records (Generic Dashboard)
+  getMasterRecords(type?: string): Promise<MasterRecord[]>;
+  getMasterRecord(id: string): Promise<MasterRecord | undefined>;
+  createMasterRecord(data: InsertMasterRecord): Promise<MasterRecord>;
+  updateMasterRecord(id: string, data: Partial<MasterRecord>): Promise<MasterRecord>;
+  deleteMasterRecord(id: string): Promise<void>;
   
   // Affiliates
-  getAffiliates(): Promise<Affiliate[]>;
-  createAffiliate(data: InsertAffiliate): Promise<Affiliate>;
   createAffiliatePayout(data: InsertAffiliatePayout): Promise<AffiliatePayout>;
   createAffiliateReferral(data: InsertAffiliateReferral): Promise<AffiliateReferral>;
   
@@ -1746,6 +1754,33 @@ export class DatabaseStorage implements IStorage {
   async createAffiliateReferral(data: InsertAffiliateReferral): Promise<AffiliateReferral> {
     const [r] = await db.insert(affiliateReferrals).values(data).returning();
     return r;
+  }
+
+  // Master Records
+  async getMasterRecords(type?: string): Promise<MasterRecord[]> {
+    if (type) {
+      return db.select().from(masterRecords).where(eq(masterRecords.recordType, type)).orderBy(desc(masterRecords.createdAt));
+    }
+    return db.select().from(masterRecords).orderBy(desc(masterRecords.createdAt));
+  }
+
+  async getMasterRecord(id: string): Promise<MasterRecord | undefined> {
+    const [record] = await db.select().from(masterRecords).where(eq(masterRecords.id, id));
+    return record;
+  }
+
+  async createMasterRecord(data: InsertMasterRecord): Promise<MasterRecord> {
+    const [record] = await db.insert(masterRecords).values(data).returning();
+    return record;
+  }
+
+  async updateMasterRecord(id: string, data: Partial<MasterRecord>): Promise<MasterRecord> {
+    const [record] = await db.update(masterRecords).set(data).where(eq(masterRecords.id, id)).returning();
+    return record;
+  }
+
+  async deleteMasterRecord(id: string): Promise<void> {
+    await db.delete(masterRecords).where(eq(masterRecords.id, id));
   }
 }
 

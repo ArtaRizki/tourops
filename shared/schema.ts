@@ -1139,3 +1139,17 @@ export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
 export const insertRegionSchema = createInsertSchema(regions).omit({ id: true });
 export type InsertRegion = z.infer<typeof insertRegionSchema>;
 export type Region = typeof regions.$inferSelect;
+
+// --- New Table for Generic Dashboard Master Records ---
+
+export const masterRecords = pgTable("master_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recordType: text("record_type").notNull(), // city, article, flight, itinerary, supply, agent
+  title: text("title").notNull(),
+  status: text("status").default("draft"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMasterRecordSchema = createInsertSchema(masterRecords).omit({ id: true, createdAt: true });
+export type InsertMasterRecord = z.infer<typeof insertMasterRecordSchema>;
+export type MasterRecord = typeof masterRecords.$inferSelect;
