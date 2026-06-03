@@ -42,6 +42,13 @@ test.describe('End-to-End User Journeys', () => {
     await adminPage.fill('[data-testid="input-tour-price"]', '1500');
     await adminPage.click('[data-testid="button-save-tour"]');
     
+    // Wait for the dialog to close
+    await expect(adminPage.locator('text=Create New Tour')).toBeHidden({ timeout: 15000 });
+    
+    // Search for the tour to ensure it's filtered and visible
+    await adminPage.fill('[data-testid="input-search-tours"]', tourTitle);
+    await adminPage.waitForTimeout(500);
+    
     // Wait for the tour to be successfully created and listed
     await expect(adminPage.locator(`h3:has-text("${tourTitle}")`).first()).toBeVisible();
     
@@ -84,8 +91,10 @@ test.describe('End-to-End User Journeys', () => {
     await customerPage.waitForTimeout(500);
     await customerPage.fill('[data-testid="input-username"]', 'customer1');
     await customerPage.fill('[data-testid="input-password"]', 'password123');
-    await customerPage.click('[data-testid="button-login-submit"]');
-    await customerPage.waitForURL('**/tours');
+    await Promise.all([
+      customerPage.waitForNavigation({ url: '**/tours', waitUntil: 'domcontentloaded', timeout: 25000 }),
+      customerPage.click('[data-testid="button-login-submit"]'),
+    ]);
 
     // Find and book the tour
     await customerPage.goto('/tours');
@@ -207,10 +216,12 @@ test.describe('End-to-End User Journeys', () => {
     await page.waitForTimeout(500);
     await page.fill('[data-testid="input-username"]', 'customer1');
     await page.fill('[data-testid="input-password"]', 'password123');
-    await page.click('[data-testid="button-login-submit"]');
-    await page.waitForURL('**/tours');
+    await Promise.all([
+      page.waitForNavigation({ url: '**/tours', waitUntil: 'domcontentloaded', timeout: 25000 }),
+      page.click('[data-testid="button-login-submit"]'),
+    ]);
 
-    await page.goto('/leader-dashboard');
+    await page.click('a[href="/leader-dashboard"]');
     await expect(page.locator('[data-testid="text-leader-dashboard-title"]')).toBeVisible();
     
     // Find a tour dynamically to get its ID

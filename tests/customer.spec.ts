@@ -50,13 +50,18 @@ test.describe('Customer Role Tests (CRUD)', () => {
 
     // 5. Try Create Booking (only if departure slots available)
     const bookButtons = page.locator('button[data-testid^="button-book-"]');
+    try {
+      await bookButtons.first().waitFor({ state: 'visible', timeout: 5000 });
+    } catch (e) {
+      // Fallback if no departures are seeded/loaded
+    }
+    
     if (await bookButtons.count() > 0) {
       await bookButtons.first().click();
-      await expect(page.getByTestId('input-party-size')).toBeVisible();
+      await page.click('[data-testid="select-booking-type"]');
+      await page.locator('div[role="option"]:has-text("Create Leader Group")').click();
       await page.fill('[data-testid="input-group-name"]', 'E2E Family Vacation');
       await page.fill('[data-testid="input-party-size"]', '4');
-      await page.click('[data-testid="select-booking-type"]');
-      await page.locator('div[role="option"]').first().click();
       await page.click('[data-testid="button-confirm-booking"]');
       await page.waitForURL('**/my-bookings');
       await expect(page.getByTestId('text-my-bookings-title')).toBeVisible();

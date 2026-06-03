@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, sql, or, not } from "drizzle-orm";
+import { eq, and, desc, sql, or, not, isNotNull, inArray } from "drizzle-orm";
 import { users } from "@shared/models/auth";
 import {
   userProfiles, tours, tourDays, tourDepartures,
@@ -47,7 +47,7 @@ import {
   tourQuotes, tourQuoteItems, importJobLogs,
   scraperRuns, scraperErrors, dataQualityReviews,
   aiGenerationJobs, aiGeneratedItineraries, aiPromptLogs,
-  regions, affiliateReferrals,
+  regions, affiliateReferrals, masterRecords,
   type SightImage, type InsertSightImage,
   type SightHour, type InsertSightHour,
   type SightTicketPrice, type InsertSightTicketPrice,
@@ -78,7 +78,7 @@ import {
   type ImportJob, type DataSource,
   type HotelPriceSnapshot, type FlightPriceSnapshot,
   type Affiliate, type InsertAffiliate,
-  type AffiliatePayout, type InsertAffiliatePayout,
+  type AffiliatePayout, type InsertAffiliatePayout, type MasterRecord, type InsertMasterRecord,
 } from "@shared/schema";
 
 const DEFAULT_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {
@@ -369,6 +369,9 @@ export interface IStorage {
   initializeBookingWorkflows(bookingId: string): Promise<void>;
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
   getPublicGroupsByDeparture(departureId: string): Promise<Booking[]>;
+  getPublicGroups(): Promise<any[]>;
+  getLeaderDashboardAlerts(bookingIds: string[]): Promise<{ missingDocs: number; pendingPayments: number; unreadMessages: number }>;
+  getLeaderPaymentsReport(userId: string, bookings: Booking[]): Promise<any[]>;
   getAnalytics(): Promise<any>;
 
   // Markup Rules
@@ -1320,6 +1323,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(bookings.createdAt));
   }
 
+  async getPublicGroups(): Promise<any[]> {
+    const rows = await db.select({
+      booking: bookings,
+      tour: tours,
+      departure: tourDepartures
+    })
+    .from(bookings)
+    .innerJoin(tours, eq(bookings.tourId, tours.id))
+    .innerJoin(tourDepartures, eq(bookings.departureId, tourDepartures.id))
+    .where(and(
+      eq(bookings.bookingType, "leader_group"),
+      not(eq(bookings.status, "cancelled")),
+      isNotNull(bookings.joinCode),
+      eq(tourDepartures.publicJoinEnabled, true)
+    ))
+    .orderBy(desc(bookings.createdAt));
+
+    return rows.map(r => ({
+      id: r.booking.id,
+      groupName: r.booking.groupName || "Travel Group",
+      joinCode: r.booking.joinCode,
+      tourTitle: r.tour.title,
+      departureId: r.booking.departureId,
+      partySizeExpected: r.booking.partySizeExpected,
+      tourId: r.booking.tourId
+    }));
+  }
+
   async getAnalytics(): Promise<any> {
     const allPayments = await db.select().from(payments).where(eq(payments.status, "paid"));
     const totalRevenue = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -1476,6 +1507,116 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Affiliates
+  async getAffiliate(id: string): Promise<Affiliate | undefined> {
+    const [row] = await db.select().from(affiliates).where(eq(affiliates.id, id));
+    return row;
+  }
+  async updateAffiliate(id: string, data: Partial<Affiliate>): Promise<Affiliate> {
+    const [row] = await db.update(affiliates).set(data).where(eq(affiliates.id, id)).returning();
+    if (!row) throw new Error("Affiliate not found");
+    return row;
+  }
+
+  async getLeaderDashboardAlerts(bookingIds: string[]): Promise<{ missingDocs: number; pendingPayments: number; unreadMessages: number }> {
+    let missingDocs = 0;
+    let pendingPayments = 0;
+    let unreadMessages = 0;
+
+    if (bookingIds.length === 0) {
+      return { missingDocs, pendingPayments, unreadMessages };
+    }
+
+    const [allDocs, allTravelers, allPays, allMsgs] = await Promise.all([
+      db.select().from(documents).where(inArray(documents.bookingId, bookingIds)),
+      db.select().from(travelers).where(inArray(travelers.bookingId, bookingIds)),
+      db.select().from(payments).where(inArray(payments.bookingId, bookingIds)),
+      db.select().from(messages).where(inArray(messages.bookingId, bookingIds))
+    ]);
+
+    const docsMap = new Map<string, typeof allDocs>();
+    const travelersMap = new Map<string, typeof allTravelers>();
+    const paysMap = new Map<string, typeof allPays>();
+    const msgsMap = new Map<string, typeof allMsgs>();
+
+    for (const d of allDocs) {
+      if (!docsMap.has(d.bookingId)) docsMap.set(d.bookingId, []);
+      docsMap.get(d.bookingId)!.push(d);
+    }
+    for (const t of allTravelers) {
+      if (!travelersMap.has(t.bookingId)) travelersMap.set(t.bookingId, []);
+      travelersMap.get(t.bookingId)!.push(t);
+    }
+    for (const p of allPays) {
+      if (!paysMap.has(p.bookingId)) paysMap.set(p.bookingId, []);
+      paysMap.get(p.bookingId)!.push(p);
+    }
+    for (const m of allMsgs) {
+      if (!msgsMap.has(m.bookingId)) msgsMap.set(m.bookingId, []);
+      msgsMap.get(m.bookingId)!.push(m);
+    }
+
+    for (const id of bookingIds) {
+      const docs = docsMap.get(id) || [];
+      const travelersList = travelersMap.get(id) || [];
+      if (travelersList.length > 0 && docs.length === 0) missingDocs++;
+      const pays = paysMap.get(id) || [];
+      pendingPayments += pays.filter(p => p.status === "pending").length;
+      const msgs = msgsMap.get(id) || [];
+      unreadMessages += msgs.filter(m => m.visibility === "customer_visible").length;
+    }
+
+    return { missingDocs, pendingPayments, unreadMessages };
+  }
+
+  async getLeaderPaymentsReport(userId: string, allBookings: Booking[]): Promise<any[]> {
+    const bookingIds = allBookings.map(b => b.id);
+    if (bookingIds.length === 0) return [];
+
+    const [allPays, allTravelers, allProfiles] = await Promise.all([
+      db.select().from(payments).where(inArray(payments.bookingId, bookingIds)),
+      db.select().from(travelers).where(inArray(travelers.bookingId, bookingIds)),
+      db.select().from(userProfiles).where(inArray(userProfiles.userId, allBookings.map(b => b.customerId)))
+    ]);
+
+    const paysMap = new Map<string, typeof allPays>();
+    const travelersMap = new Map<string, typeof allTravelers>();
+    const profilesMap = new Map<string, UserProfile>();
+
+    for (const p of allPays) {
+      if (!paysMap.has(p.bookingId)) paysMap.set(p.bookingId, []);
+      paysMap.get(p.bookingId)!.push(p);
+    }
+    for (const t of allTravelers) {
+      if (!travelersMap.has(t.bookingId)) travelersMap.set(t.bookingId, []);
+      travelersMap.get(t.bookingId)!.push(t);
+    }
+    for (const prof of allProfiles) {
+      profilesMap.set(prof.userId, prof);
+    }
+
+    const result: any[] = [];
+    for (const b of allBookings) {
+      const pays = paysMap.get(b.id) || [];
+      const travelersList = travelersMap.get(b.id) || [];
+      const isLeaderBooking = b.customerId === userId;
+      const customerProfile = profilesMap.get(b.customerId);
+
+      for (const p of pays) {
+        result.push({
+          ...p,
+          bookingCode: b.bookingCode,
+          groupName: b.groupName,
+          bookingType: b.bookingType,
+          travelers: travelersList.map(t => `${t.firstName} ${t.lastName}`),
+          paidBy: isLeaderBooking ? "Leader" : (customerProfile?.id || "Participant"),
+          isLeaderPayment: isLeaderBooking,
+        });
+      }
+    }
+
+    return result;
+  }
+
   async getAffiliates(): Promise<Affiliate[]> {
     return db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
   }

@@ -441,6 +441,13 @@ export async function registerRoutes(
         fulfillmentStatus: "pending" as const,
       });
 
+      if (req.body.bookingType === "leader_group") {
+        const profile = await storage.getProfileByUserId(userId);
+        if (profile) {
+          await storage.updateProfile(profile.id, { isTourLeader: true });
+        }
+      }
+
       // Notify Admins
       try {
         const allProfiles = await storage.getAllProfiles();
@@ -814,6 +821,13 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.get("/api/public-groups", async (req, res) => {
+    try {
+      const publicGroups = await storage.getPublicGroups();
+      res.json(publicGroups);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Audit Logs ----
   app.get("/api/audit-logs/:entityType/:entityId", isAuthenticated, async (req, res) => {
     try {
@@ -978,14 +992,14 @@ export async function registerRoutes(
   app.patch("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      res.json(await storage.updateMasterRecord(req.params.id, req.body));
+      res.json(await storage.updateMasterRecord(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      await storage.deleteMasterRecord(req.params.id);
+      await storage.deleteMasterRecord(req.params.id as string);
       res.sendStatus(204);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1003,12 +1017,12 @@ export async function registerRoutes(
   });
 
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateHotelRate(req.params.id, req.body)); }
+    try { res.json(await storage.updateHotelRate(req.params.id as string, req.body)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteHotelRate(req.params.id); res.sendStatus(204); }
+    try { await storage.deleteHotelRate(req.params.id as string); res.sendStatus(204); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1024,12 +1038,12 @@ export async function registerRoutes(
   });
 
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateGuideRate(req.params.id, req.body)); }
+    try { res.json(await storage.updateGuideRate(req.params.id as string, req.body)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteGuideRate(req.params.id); res.sendStatus(204); }
+    try { await storage.deleteGuideRate(req.params.id as string); res.sendStatus(204); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1045,12 +1059,12 @@ export async function registerRoutes(
   });
 
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateSightsRate(req.params.id, req.body)); }
+    try { res.json(await storage.updateSightsRate(req.params.id as string, req.body)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteSightsRate(req.params.id); res.sendStatus(204); }
+    try { await storage.deleteSightsRate(req.params.id as string); res.sendStatus(204); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1099,21 +1113,11 @@ export async function registerRoutes(
           allBookings.push(lb);
         }
       }
-      let missingDocs = 0;
-      let pendingPayments = 0;
-      let unreadMessages = 0;
-      for (const b of allBookings) {
-        const docs = await storage.getDocuments(b.id);
-        const travelersList = await storage.getTravelers(b.id);
-        if (travelersList.length > 0 && docs.length === 0) missingDocs++;
-        const pays = await storage.getPayments(b.id);
-        pendingPayments += pays.filter(p => p.status === "pending").length;
-        const msgs = await storage.getMessages(b.id);
-        unreadMessages += msgs.filter(m => m.visibility === "customer_visible").length;
-      }
+      const bookingIds = allBookings.map(b => b.id);
+      const alerts = await storage.getLeaderDashboardAlerts(bookingIds);
       res.json({
         bookings: allBookings,
-        alerts: { missingDocs, pendingPayments, unreadMessages },
+        alerts,
       });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1129,25 +1133,8 @@ export async function registerRoutes(
       for (const lb of leaderBookings) {
         if (!allBookings.find(b => b.id === lb.id)) allBookings.push(lb);
       }
-      const result: any[] = [];
-      for (const b of allBookings) {
-        const pays = await storage.getPayments(b.id);
-        const travelersList = await storage.getTravelers(b.id);
-        const isLeaderBooking = b.customerId === userId;
-        const customerProfile = await storage.getOrCreateProfile(b.customerId);
-        for (const p of pays) {
-          result.push({
-            ...p,
-            bookingCode: b.bookingCode,
-            groupName: b.groupName,
-            bookingType: b.bookingType,
-            travelers: travelersList.map(t => `${t.firstName} ${t.lastName}`),
-            paidBy: isLeaderBooking ? "Leader" : (customerProfile?.id || "Participant"),
-            isLeaderPayment: isLeaderBooking,
-          });
-        }
-      }
-      res.json(result);
+      const report = await storage.getLeaderPaymentsReport(userId, allBookings);
+      res.json(report);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

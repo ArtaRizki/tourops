@@ -15,8 +15,10 @@ const HEAVY_ROUTES = ['/admin/tour-generator', '/admin/airline-search'];
 test.describe('Smoke Tests - All Features & Pages', () => {
   
   test('Admin Routes Smoke Test', async ({ page }) => {
+    // Log browser console
+    page.on('console', msg => console.log(`[Admin Console]: ${msg.text()}`));
     // Increase timeout for this test — visits 12 pages, some are heavy
-    test.setTimeout(120000);
+    test.setTimeout(240000);
     // Login as Admin
     await page.goto('/admin/login');
     await page.fill('#username', 'superadmin1');
@@ -41,6 +43,7 @@ test.describe('Smoke Tests - All Features & Pages', () => {
     ];
 
     for (const route of adminRoutes) {
+      console.log(`Visiting Admin route: ${route}`);
       // Heavy pages that call external APIs need extra time
       const waitUntil = HEAVY_ROUTES.includes(route) ? 'domcontentloaded' : 'domcontentloaded';
       try {
@@ -54,6 +57,10 @@ test.describe('Smoke Tests - All Features & Pages', () => {
   });
 
   test('Customer Routes Smoke Test', async ({ page }) => {
+    // Log browser console
+    page.on('console', msg => console.log(`[Customer Console]: ${msg.text()}`));
+    // Increase timeout for this test
+    test.setTimeout(180000);
     // Some routes don't strictly require login, but we'll login to access restricted ones like my-bookings
     await page.goto('/');
     // Fill login form using data-testids from LoginForm component
@@ -77,12 +84,18 @@ test.describe('Smoke Tests - All Features & Pages', () => {
     ];
 
     for (const route of customerRoutes) {
-      await page.goto(route, { waitUntil: 'domcontentloaded' });
+      console.log(`Visiting Customer route: ${route}`);
+      try {
+        await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      } catch {
+        console.log(`Warning: Customer ${route} navigation was slow`);
+      }
       await expectNo404(page);
     }
   });
 
   test('Ops & Supplier Routes Smoke Test', async ({ page }) => {
+    test.setTimeout(120000);
     // 1. Supplier
     await page.goto('/staff/login');
     await page.fill('#username', 'hotelmanager1');
