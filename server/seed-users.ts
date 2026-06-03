@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 
 const roles = [
   "super_admin",
+  "customer",
   "airline_supplier",
   "country_manager",
   "city_manager",
