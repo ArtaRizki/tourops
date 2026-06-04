@@ -2481,7 +2481,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, ["admin", "super_admin", "country_manager"])) return;
       const analytics = await storage.getAnalytics();
       res.json(analytics);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
