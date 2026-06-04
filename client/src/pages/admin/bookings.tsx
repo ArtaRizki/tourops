@@ -15,6 +15,9 @@ import type { Booking } from "@shared/schema";
 import * as XLSX from "xlsx";
 import { Download, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function AdminBookings() {
   const [search, setSearch] = useState("");
@@ -23,7 +26,84 @@ export default function AdminBookings() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { toast } = useToast();
 
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedTourId, setSelectedTourId] = useState("");
+  const [selectedDepartureId, setSelectedDepartureId] = useState("");
+  const [bookingType, setBookingType] = useState("join_public_group");
+  const [groupName, setGroupName] = useState("");
+  const [partySize, setPartySize] = useState(1);
+  const [notes, setNotes] = useState("");
+
   const { data: bookings, isLoading } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
+
+  const { data: profiles } = useQuery<any[]>({
+    queryKey: ["/api/user-profiles"],
+    enabled: isCreateOpen,
+  });
+
+  const { data: tours } = useQuery<any[]>({
+    queryKey: ["/api/tours"],
+    enabled: isCreateOpen,
+  });
+
+  const { data: departures } = useQuery<any[]>({
+    queryKey: ["/api/tours", selectedTourId, "departures"],
+    enabled: isCreateOpen && !!selectedTourId,
+  });
+
+  const customers = profiles?.filter(p => p.role === "customer") || [];
+
+  const createBookingMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/bookings", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      setIsCreateOpen(false);
+      toast({ title: "Success", description: "Booking created successfully!" });
+      // Reset form fields
+      setSelectedCustomerId("");
+      setSelectedTourId("");
+      setSelectedDepartureId("");
+      setBookingType("join_public_group");
+      setGroupName("");
+      setPartySize(1);
+      setNotes("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Error creating booking", description: err.message || "Something went wrong", variant: "destructive" });
+    }
+  });
+
+  const handleCreateBooking = () => {
+    if (!selectedCustomerId) {
+      toast({ title: "Validation Error", description: "Please select a customer.", variant: "destructive" });
+      return;
+    }
+    if (!selectedTourId) {
+      toast({ title: "Validation Error", description: "Please select a tour.", variant: "destructive" });
+      return;
+    }
+    if (!selectedDepartureId) {
+      toast({ title: "Validation Error", description: "Please select a departure date.", variant: "destructive" });
+      return;
+    }
+
+    const tour = tours?.find(t => t.id === selectedTourId);
+    const dep = departures?.find(d => d.id === selectedDepartureId);
+    const pricePerPerson = dep?.pricePerPerson || parseInt(tour?.basePrice || "0");
+    const totalPrice = pricePerPerson * partySize;
+
+    createBookingMutation.mutate({
+      customerId: selectedCustomerId,
+      tourId: selectedTourId,
+      departureId: selectedDepartureId,
+      bookingType,
+      groupName: bookingType === "leader_group" ? groupName : undefined,
+      partySizeExpected: partySize,
+      notes,
+      totalPrice,
+    });
+  };
 
   const filtered = bookings?.filter((b) => {
     const matchSearch = !search || b.bookingCode.toLowerCase().includes(search.toLowerCase()) || b.groupName?.toLowerCase().includes(search.toLowerCase());
@@ -92,10 +172,140 @@ export default function AdminBookings() {
           <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="default" size="sm" onClick={() => toast({ title: "Success", description: "Navigating to booking creation..." })}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Booking
-          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button variant="default" size="sm" data-testid="button-create-booking">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Booking
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Create New Booking</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {/* Customer Selection */}
+                <div className="space-y-2">
+                  <Label>Customer</Label>
+                  <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                    <SelectTrigger data-testid="select-create-customer">
+                      <SelectValue placeholder="Select a Customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((c) => (
+                        <SelectItem key={c.userId} value={c.userId}>
+                          {c.user?.firstName ? `${c.user.firstName} ${c.user.lastName || ""}` : c.user?.username} (@{c.user?.username})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tour Selection */}
+                <div className="space-y-2">
+                  <Label>Tour</Label>
+                  <Select value={selectedTourId} onValueChange={(val) => { setSelectedTourId(val); setSelectedDepartureId(""); }}>
+                    <SelectTrigger data-testid="select-create-tour">
+                      <SelectValue placeholder="Select a Tour" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tours?.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Departure Selection */}
+                <div className="space-y-2">
+                  <Label>Departure Date</Label>
+                  <Select 
+                    value={selectedDepartureId} 
+                    onValueChange={setSelectedDepartureId}
+                    disabled={!selectedTourId}
+                  >
+                    <SelectTrigger data-testid="select-create-departure">
+                      <SelectValue placeholder={selectedTourId ? "Select a Departure" : "Select a tour first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departures?.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.startDate} to {d.endDate} ({d.pricePerPerson ? `$${d.pricePerPerson}` : "Base price"} / person)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Booking Type */}
+                <div className="space-y-2">
+                  <Label>Booking Type</Label>
+                  <Select value={bookingType} onValueChange={setBookingType}>
+                    <SelectTrigger data-testid="select-create-booking-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="join_public_group">Join Public Group</SelectItem>
+                      <SelectItem value="leader_group">Create Leader Group</SelectItem>
+                      <SelectItem value="private_family">Private Family</SelectItem>
+                      <SelectItem value="custom_leader">Custom Leader</SelectItem>
+                      <SelectItem value="custom_family">Custom Family</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Group Name (Conditional) */}
+                {bookingType === "leader_group" && (
+                  <div className="space-y-2">
+                    <Label>Group Name</Label>
+                    <Input 
+                      value={groupName} 
+                      onChange={(e) => setGroupName(e.target.value)} 
+                      placeholder="My Travel Group" 
+                      data-testid="input-create-group-name"
+                    />
+                  </div>
+                )}
+
+                {/* Party Size */}
+                <div className="space-y-2">
+                  <Label>Party Size</Label>
+                  <Input 
+                    type="number" 
+                    min={1} 
+                    value={partySize} 
+                    onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} 
+                    data-testid="input-create-party-size"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label>Notes (optional)</Label>
+                  <Textarea 
+                    value={notes} 
+                    onChange={(e) => setNotes(e.target.value)} 
+                    placeholder="Any special requests or details..." 
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsCreateOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCreateBooking}
+                  disabled={createBookingMutation.isPending}
+                  data-testid="button-submit-create-booking"
+                >
+                  {createBookingMutation.isPending ? "Creating..." : "Create Booking"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           {selectedIds.length > 0 && (
             <Button 
               variant="default" 

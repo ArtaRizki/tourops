@@ -421,9 +421,14 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const profile = await storage.getOrCreateProfile(userId);
+      const isStaff = ALL_STAFF_ROLES.includes(profile.role);
+      const customerId = (isStaff && req.body.customerId) ? req.body.customerId : userId;
+
       const bookingCode = `BK-${generateCode(8)}`;
       const joinCode = req.body.bookingType === "leader_group" ? genCode(6) : undefined;
-      const leaderUserId = (req.body.bookingType === "leader_group" || req.body.bookingType === "private_family") ? userId : undefined;
+      const leaderUserId = (req.body.bookingType === "leader_group" || req.body.bookingType === "private_family") ? customerId : undefined;
       let affiliateId = undefined;
       if (req.body.referralCode) {
         const aff = await storage.getAffiliateByCode(req.body.referralCode);
@@ -432,19 +437,19 @@ export async function registerRoutes(
 
       const booking = await storage.createBooking({
         ...req.body, 
-        customerId: userId, 
+        customerId, 
         bookingCode, 
         joinCode, 
         leaderUserId, 
         affiliateId,
-        status: "submitted" as const, 
-        fulfillmentStatus: "pending" as const,
+        status: req.body.status || ("submitted" as const), 
+        fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
       });
 
       if (req.body.bookingType === "leader_group") {
-        const profile = await storage.getProfileByUserId(userId);
-        if (profile) {
-          await storage.updateProfile(profile.id, { isTourLeader: true });
+        const customerProfileToUpdate = await storage.getProfileByUserId(customerId);
+        if (customerProfileToUpdate) {
+          await storage.updateProfile(customerProfileToUpdate.id, { isTourLeader: true });
         }
       }
 
@@ -452,7 +457,7 @@ export async function registerRoutes(
       try {
         const allProfiles = await storage.getAllProfiles();
         const admins = allProfiles.filter(p => (p.role === "admin" || p.role === "super_admin") && p.user?.email);
-        const customerProfile = await storage.getProfileByUserIdWithEmail(userId);
+        const customerProfile = await storage.getProfileByUserIdWithEmail(customerId);
         const customerName = customerProfile?.user?.firstName ? `${customerProfile.user.firstName} ${customerProfile.user.lastName || ""}` : (customerProfile?.user?.username || "Pelanggan");
         
         for (const admin of admins) {
