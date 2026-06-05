@@ -23,6 +23,9 @@ export default function AdminUsers() {
   const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", email: "", role: "customer", phone: "", companyName: "", countryCode: "" });
   const [newPassword, setNewPassword] = useState("");
 
+  const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isAdmin = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin";
+
   const { data: profiles, isLoading } = useQuery<(UserProfile & { user?: User })[]>({ queryKey: ["/api/user-profiles"] });
 
   const updateRole = useMutation({
@@ -80,11 +83,12 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-bold font-serif">Users & Roles</h1>
           <p className="text-muted-foreground text-sm">Manage user accounts and role assignments</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-user"><Plus className="h-4 w-4 mr-2" />Create User</Button>
-          </DialogTrigger>
-          <DialogContent>
+        {isAdmin && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-user"><Plus className="h-4 w-4 mr-2" />Create User</Button>
+            </DialogTrigger>
+            <DialogContent>
             <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); createUser.mutate(); }} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -136,6 +140,7 @@ export default function AdminUsers() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -173,34 +178,37 @@ export default function AdminUsers() {
                   <Select
                     value={profile.role}
                     onValueChange={(v) => updateRole.mutate({ profileId: profile.id, role: v })}
+                    disabled={!isAdmin}
                   >
                     <SelectTrigger className="w-[180px]" data-testid={`select-role-${profile.id}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(USER_ROLES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Dialog open={resetOpen === profile.userId} onOpenChange={(open) => { setResetOpen(open ? profile.userId : null); setNewPassword(""); }}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon" data-testid={`button-reset-password-${profile.id}`}>
-                        <KeyRound className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
-                      <form onSubmit={(e) => { e.preventDefault(); resetPassword.mutate(profile.userId); }} className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          Reset password for {profile.user?.firstName || profile.user?.username || profile.userId}
-                        </p>
-                        <div className="space-y-2">
-                          <Label htmlFor="rp-password">New Password</Label>
-                          <Input id="rp-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={4} data-testid="input-reset-password" />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={resetPassword.isPending} data-testid="button-submit-reset-password">
-                          {resetPassword.isPending ? "Resetting..." : "Reset Password"}
+                  {isAdmin && (
+                    <Dialog open={resetOpen === profile.userId} onOpenChange={(open) => { setResetOpen(open ? profile.userId : null); setNewPassword(""); }}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" data-testid={`button-reset-password-${profile.id}`}>
+                          <KeyRound className="h-4 w-4" />
                         </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
+                        <form onSubmit={(e) => { e.preventDefault(); resetPassword.mutate(profile.userId); }} className="space-y-4">
+                          <p className="text-sm text-muted-foreground">
+                            Reset password for {profile.user?.firstName || profile.user?.username || profile.userId}
+                          </p>
+                          <div className="space-y-2">
+                            <Label htmlFor="rp-password">New Password</Label>
+                            <Input id="rp-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={4} data-testid="input-reset-password" />
+                          </div>
+                          <Button type="submit" className="w-full" disabled={resetPassword.isPending} data-testid="button-submit-reset-password">
+                            {resetPassword.isPending ? "Resetting..." : "Reset Password"}
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               </CardContent>
             </Card>

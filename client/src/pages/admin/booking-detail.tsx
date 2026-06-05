@@ -92,16 +92,25 @@ export default function AdminBookingDetail() {
   const { data: assignments } = useQuery<BookingAssignment[]>({ queryKey: ["/api/bookings", bookingId, "assignments"] });
   const { data: workflows } = useQuery<BookingWorkflow[]>({ queryKey: ["/api/bookings", bookingId, "workflows"] });
   const { data: documents } = useQuery<Document[]>({ queryKey: ["/api/bookings", bookingId, "documents"] });
-  const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/bookings", bookingId, "messages"] });
-  const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/bookings", bookingId, "payments"] });
+  const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isAdmin = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin";
+
+  const { data: messages } = useQuery<Message[]>({ 
+    queryKey: ["/api/bookings", bookingId, "messages"],
+    enabled: !!bookingId && isAdmin
+  });
+  const { data: payments } = useQuery<Payment[]>({ 
+    queryKey: ["/api/bookings", bookingId, "payments"],
+    enabled: !!bookingId && isAdmin
+  });
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
   const { data: auditLogs } = useQuery<any[]>({ 
     queryKey: ["/api/audit-logs", "booking", bookingId],
-    enabled: !!bookingId 
+    enabled: !!bookingId && isAdmin 
   });
   const { data: invoices } = useQuery<any[]>({ 
     queryKey: ["/api/bookings", bookingId, "invoices"],
-    enabled: !!bookingId 
+    enabled: !!bookingId && isAdmin 
   });
 
   const updateBooking = useMutation({
@@ -290,7 +299,7 @@ export default function AdminBookingDetail() {
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
         <div className="flex gap-2">
-          {(booking.status === "submitted" || !booking.status) && (
+          {isAdmin && (booking.status === "submitted" || !booking.status) && (
             <div className="flex flex-col items-end gap-1">
               <Button 
                 variant="default" 
@@ -342,7 +351,7 @@ export default function AdminBookingDetail() {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
+        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })} disabled={!isAdmin}>
           <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -364,6 +373,7 @@ export default function AdminBookingDetail() {
             }
             updateBooking.mutate({ fulfillmentStatus: v });
           }}
+          disabled={!isAdmin}
         >
           <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -410,10 +420,10 @@ export default function AdminBookingDetail() {
           <TabsTrigger value="assignments" data-testid="tab-assignments"><ClipboardList className="h-3.5 w-3.5 mr-1" />Assignments</TabsTrigger>
           <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />Fulfillment</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />Documents</TabsTrigger>
-          <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />Messages</TabsTrigger>
-          <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />Payments</TabsTrigger>
-          <TabsTrigger value="invoices" data-testid="tab-invoices"><FileText className="h-3.5 w-3.5 mr-1" />Invoices</TabsTrigger>
-          <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
+          {isAdmin && <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />Messages</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />Payments</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="invoices" data-testid="tab-invoices"><FileText className="h-3.5 w-3.5 mr-1" />Invoices</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>}
         </TabsList>
 
         {/* TAB A: Summary */}
@@ -469,18 +479,21 @@ export default function AdminBookingDetail() {
                 <Textarea
                   value={notesValue}
                   onChange={(e) => setInternalNotes(e.target.value)}
-                  placeholder="Add internal notes..."
+                  placeholder={isAdmin ? "Add internal notes..." : "No notes"}
                   className="min-h-[120px]"
+                  disabled={!isAdmin}
                   data-testid="input-internal-notes"
                 />
-                <Button
-                  onClick={() => {
-                    updateBooking.mutate({ internalNotes: notesValue });
-                    setInternalNotes(null);
-                  }}
-                  disabled={updateBooking.isPending}
-                  data-testid="button-save-notes"
-                >Save Notes</Button>
+                {isAdmin && (
+                  <Button
+                    onClick={() => {
+                      updateBooking.mutate({ internalNotes: notesValue });
+                      setInternalNotes(null);
+                    }}
+                    disabled={updateBooking.isPending}
+                    data-testid="button-save-notes"
+                  >Save Notes</Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -512,12 +525,13 @@ export default function AdminBookingDetail() {
             <h3 className="text-sm font-medium text-muted-foreground">
               {travelers?.length || 0} traveler(s)
             </h3>
-            <Dialog open={showAddTraveler} onOpenChange={(open) => { setShowAddTraveler(open); if (!open) resetTravelerForm(); }}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-traveler"><Plus className="h-4 w-4 mr-2" />Add Traveler</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Add Traveler</DialogTitle></DialogHeader>
+            {isAdmin && (
+              <Dialog open={showAddTraveler} onOpenChange={(open) => { setShowAddTraveler(open); if (!open) resetTravelerForm(); }}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-traveler"><Plus className="h-4 w-4 mr-2" />Add Traveler</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add Traveler</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -573,6 +587,7 @@ export default function AdminBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {travelers && travelers.length > 0 ? (
@@ -644,20 +659,22 @@ export default function AdminBookingDetail() {
                           </div>
                           {t.specialNeeds && <p className="text-xs text-muted-foreground mt-1" data-testid={`text-traveler-special-${t.id}`}>Needs: {t.specialNeeds}</p>}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditTraveler(t)}
-                            data-testid={`button-edit-traveler-${t.id}`}
-                          ><Pencil className="h-4 w-4" /></Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteTraveler.mutate(t.id)}
-                            data-testid={`button-delete-traveler-${t.id}`}
-                          ><Trash2 className="h-4 w-4" /></Button>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditTraveler(t)}
+                              data-testid={`button-edit-traveler-${t.id}`}
+                            ><Pencil className="h-4 w-4" /></Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteTraveler.mutate(t.id)}
+                              data-testid={`button-delete-traveler-${t.id}`}
+                            ><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -676,8 +693,9 @@ export default function AdminBookingDetail() {
 
         {/* TAB C: Assignments */}
         <TabsContent value="assignments" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Assign Service</CardTitle></CardHeader>
+          {isAdmin && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Assign Service</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-wrap gap-3">
                 <Select value={assignService} onValueChange={setAssignService}>
@@ -720,6 +738,7 @@ export default function AdminBookingDetail() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {assignments && assignments.length > 0 ? (
             <div className="space-y-2">
@@ -744,12 +763,14 @@ export default function AdminBookingDetail() {
                           {getUserName(a.assignedUserId)}
                         </span>
                         <Badge data-testid={`badge-assignment-status-${a.id}`}>{a.status || "assigned"}</Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteAssignment.mutate(a.id)}
-                          data-testid={`button-delete-assignment-${a.id}`}
-                        ><Trash2 className="h-4 w-4" /></Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteAssignment.mutate(a.id)}
+                            data-testid={`button-delete-assignment-${a.id}`}
+                          ><Trash2 className="h-4 w-4" /></Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -950,7 +971,7 @@ export default function AdminBookingDetail() {
                           </Button>
                         </>
                       )}
-                      {doc.status === "uploaded" && (
+                      {isAdmin && doc.status === "uploaded" && (
                         <>
                           <Button
                             variant="outline"
@@ -986,368 +1007,376 @@ export default function AdminBookingDetail() {
         </TabsContent>
 
         {/* TAB F: Messages */}
-        <TabsContent value="messages" className="mt-4 space-y-4">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <Textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                data-testid="input-message"
-              />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <Select value={msgVisibility} onValueChange={setMsgVisibility}>
-                  <SelectTrigger className="w-[180px]" data-testid="select-message-visibility"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="customer_visible">Customer Visible</SelectItem>
-                    <SelectItem value="internal_only">Internal Only</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => {
-                    if (newMessage.trim()) {
-                      sendMessage.mutate({ messageText: newMessage, visibility: msgVisibility });
-                      setNewMessage("");
-                    }
-                  }}
-                  disabled={!newMessage.trim() || sendMessage.isPending}
-                  data-testid="button-send-message"
-                ><Send className="h-4 w-4 mr-2" />Send</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {messages && messages.length > 0 ? (
-            <div className="space-y-2">
-              {messages.map((msg) => (
-                <Card key={msg.id} data-testid={`card-message-${msg.id}`}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-sm" data-testid={`text-message-sender-${msg.id}`}>{msg.senderName || "System"}</span>
-                        <Badge variant={msg.visibility === "internal_only" ? "secondary" : "outline"} className="text-xs">
-                          {msg.visibility === "internal_only" ? "Internal" : "Customer"}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground" data-testid={`text-message-time-${msg.id}`}>
-                        {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                      </span>
-                    </div>
-                    <p className="text-sm" data-testid={`text-message-body-${msg.id}`}>{msg.messageText}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
+        {isAdmin && (
+          <TabsContent value="messages" className="mt-4 space-y-4">
             <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <MessageSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No messages yet</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* TAB G: Payments */}
-        <TabsContent value="payments" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {payments?.length || 0} payment(s)
-            </h3>
-            <Dialog open={showAddPayment} onOpenChange={setShowAddPayment}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-payment"><Plus className="h-4 w-4 mr-2" />Add Payment</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Add Payment</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Amount</Label>
-                      <Input
-                        type="number"
-                        value={paymentForm.amount}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                        placeholder="0.00"
-                        data-testid="input-payment-amount"
-                      />
-                    </div>
-                    <div>
-                      <Label>Currency</Label>
-                      <Input
-                        value={paymentForm.currency}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value })}
-                        placeholder="USD"
-                        data-testid="input-payment-currency"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Method</Label>
-                    <Select value={paymentForm.method} onValueChange={(v) => setPaymentForm({ ...paymentForm, method: v })}>
-                      <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PAYMENT_METHODS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Link to Invoice (Optional)</Label>
-                    <Select value={paymentForm.invoiceId} onValueChange={(v) => setPaymentForm({ ...paymentForm, invoiceId: v })}>
-                      <SelectTrigger data-testid="select-payment-invoice"><SelectValue placeholder="Select an invoice" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {invoices?.map((inv) => (
-                          <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.currency} {(inv.amount / 100).toFixed(2)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={paymentForm.notes}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                      placeholder="Payment notes..."
-                      data-testid="input-payment-notes"
-                    />
-                  </div>
+              <CardContent className="p-4 space-y-3">
+                <Textarea
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  data-testid="input-message"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Select value={msgVisibility} onValueChange={setMsgVisibility}>
+                    <SelectTrigger className="w-[180px]" data-testid="select-message-visibility"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customer_visible">Customer Visible</SelectItem>
+                      <SelectItem value="internal_only">Internal Only</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button
-                    className="w-full"
                     onClick={() => {
-                      if (paymentForm.amount) {
-                        createPayment.mutate({
-                          bookingId,
-                          amount: paymentForm.amount,
-                          currency: paymentForm.currency,
-                          method: paymentForm.method,
-                          notes: paymentForm.notes || undefined,
-                          invoiceId: paymentForm.invoiceId === "none" ? undefined : paymentForm.invoiceId || undefined,
-                        });
+                      if (newMessage.trim()) {
+                        sendMessage.mutate({ messageText: newMessage, visibility: msgVisibility });
+                        setNewMessage("");
                       }
                     }}
-                    disabled={!paymentForm.amount || createPayment.isPending}
-                    data-testid="button-submit-payment"
-                  >Add Payment</Button>
+                    disabled={!newMessage.trim() || sendMessage.isPending}
+                    data-testid="button-send-message"
+                  ><Send className="h-4 w-4 mr-2" />Send</Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </CardContent>
+            </Card>
 
-          {payments && payments.length > 0 ? (
-            <div className="space-y-2">
-              {payments.map((p) => {
-                const linkedInvoice = invoices?.find(inv => inv.id === p.invoiceId);
-                return (
-                  <Card key={p.id} data-testid={`card-payment-${p.id}`}>
+            {messages && messages.length > 0 ? (
+              <div className="space-y-2">
+                {messages.map((msg) => (
+                  <Card key={msg.id} data-testid={`card-message-${msg.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-sm" data-testid={`text-message-sender-${msg.id}`}>{msg.senderName || "System"}</span>
+                          <Badge variant={msg.visibility === "internal_only" ? "secondary" : "outline"} className="text-xs">
+                            {msg.visibility === "internal_only" ? "Internal" : "Customer"}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground" data-testid={`text-message-time-${msg.id}`}>
+                          {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                        </span>
+                      </div>
+                      <p className="text-sm" data-testid={`text-message-body-${msg.id}`}>{msg.messageText}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <MessageSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">No messages yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
+
+        {/* TAB G: Payments */}
+        {isAdmin && (
+          <TabsContent value="payments" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {payments?.length || 0} payment(s)
+              </h3>
+              <Dialog open={showAddPayment} onOpenChange={setShowAddPayment}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-payment"><Plus className="h-4 w-4 mr-2" />Add Payment</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add Payment</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Amount</Label>
+                        <Input
+                          type="number"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                          placeholder="0.00"
+                          data-testid="input-payment-amount"
+                        />
+                      </div>
+                      <div>
+                        <Label>Currency</Label>
+                        <Input
+                          value={paymentForm.currency}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value })}
+                          placeholder="USD"
+                          data-testid="input-payment-currency"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Method</Label>
+                      <Select value={paymentForm.method} onValueChange={(v) => setPaymentForm({ ...paymentForm, method: v })}>
+                        <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PAYMENT_METHODS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Link to Invoice (Optional)</Label>
+                      <Select value={paymentForm.invoiceId} onValueChange={(v) => setPaymentForm({ ...paymentForm, invoiceId: v })}>
+                        <SelectTrigger data-testid="select-payment-invoice"><SelectValue placeholder="Select an invoice" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {invoices?.map((inv) => (
+                            <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.currency} {(inv.amount / 100).toFixed(2)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={paymentForm.notes}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                        placeholder="Payment notes..."
+                        data-testid="input-payment-notes"
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        if (paymentForm.amount) {
+                          createPayment.mutate({
+                            bookingId,
+                            amount: paymentForm.amount,
+                            currency: paymentForm.currency,
+                            method: paymentForm.method,
+                            notes: paymentForm.notes || undefined,
+                            invoiceId: paymentForm.invoiceId === "none" ? undefined : paymentForm.invoiceId || undefined,
+                          });
+                        }
+                      }}
+                      disabled={!paymentForm.amount || createPayment.isPending}
+                      data-testid="button-submit-payment"
+                    >Add Payment</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {payments && payments.length > 0 ? (
+              <div className="space-y-2">
+                {payments.map((p) => {
+                  const linkedInvoice = invoices?.find(inv => inv.id === p.invoiceId);
+                  return (
+                    <Card key={p.id} data-testid={`card-payment-${p.id}`}>
+                      <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-sm" data-testid={`text-payment-amount-${p.id}`}>
+                              {p.currency} {(p.amount / 100).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${p.id}`}>
+                              {PAYMENT_METHODS[p.method || "bank_transfer"] || p.method}
+                              {linkedInvoice && <span className="ml-2 font-semibold text-primary">| Linked to {linkedInvoice.invoiceNumber}</span>}
+                            </p>
+                            {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant={p.status === "paid" ? "default" : p.status === "failed" ? "destructive" : "secondary"}
+                            data-testid={`badge-payment-status-${p.id}`}
+                          >
+                            {PAYMENT_STATUSES[p.status || "pending"] || p.status}
+                          </Badge>
+                          {p.receiptUrl && (
+                            <Button size="sm" variant="ghost" onClick={() => window.open(p.receiptUrl!, "_blank")} title="View Receipt">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {p.status === "pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updatePayment.mutate({ id: p.id, status: "paid" })}
+                              data-testid={`button-mark-paid-${p.id}`}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />Mark Paid
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">No payments recorded yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
+
+        {/* TAB H: Invoices */}
+        {isAdmin && (
+          <TabsContent value="invoices" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {invoices?.length || 0} invoice(s)
+              </h3>
+              <Dialog open={showAddInvoice} onOpenChange={setShowAddInvoice}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-invoice"><Plus className="h-4 w-4 mr-2" />Create Invoice</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Create Invoice</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Invoice Number</Label>
+                      <Input
+                        value={invoiceForm.invoiceNumber}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
+                        placeholder="INV-2024-001"
+                        data-testid="input-invoice-number"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Amount</Label>
+                        <Input
+                          type="number"
+                          value={invoiceForm.amount}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
+                          placeholder="0.00"
+                          data-testid="input-invoice-amount"
+                        />
+                      </div>
+                      <div>
+                        <Label>Currency</Label>
+                        <Input
+                          value={invoiceForm.currency}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, currency: e.target.value })}
+                          placeholder="USD"
+                          data-testid="input-invoice-currency"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Due Date</Label>
+                      <Input
+                        type="date"
+                        value={invoiceForm.dueDate}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                        data-testid="input-invoice-due-date"
+                      />
+                    </div>
+                    <div>
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={invoiceForm.notes}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
+                        placeholder="Invoice notes..."
+                        data-testid="input-invoice-notes"
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        if (invoiceForm.invoiceNumber && invoiceForm.amount) {
+                          createInvoice.mutate(invoiceForm);
+                        }
+                      }}
+                      disabled={!invoiceForm.invoiceNumber || !invoiceForm.amount || createInvoice.isPending}
+                      data-testid="button-submit-invoice"
+                    >Create Invoice</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {invoices && invoices.length > 0 ? (
+              <div className="space-y-2">
+                {invoices.map((inv) => (
+                  <Card key={inv.id} data-testid={`card-invoice-${inv.id}`}>
                     <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <FileText className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium text-sm" data-testid={`text-payment-amount-${p.id}`}>
-                            {p.currency} {(p.amount / 100).toFixed(2)}
+                          <p className="font-medium text-sm" data-testid={`text-invoice-number-${inv.id}`}>
+                            {inv.invoiceNumber}
                           </p>
-                          <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${p.id}`}>
-                            {PAYMENT_METHODS[p.method || "bank_transfer"] || p.method}
-                            {linkedInvoice && <span className="ml-2 font-semibold text-primary">| Linked to {linkedInvoice.invoiceNumber}</span>}
+                          <p className="text-xs text-muted-foreground">
+                            {inv.currency} {(inv.amount / 100).toFixed(2)} | Due: {inv.dueDate || "N/A"}
                           </p>
-                          {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant={p.status === "paid" ? "default" : p.status === "failed" ? "destructive" : "secondary"}
-                          data-testid={`badge-payment-status-${p.id}`}
-                        >
-                          {PAYMENT_STATUSES[p.status || "pending"] || p.status}
+                      <div className="flex items-center gap-2">
+                        <Badge variant={inv.status === "paid" ? "default" : inv.status === "sent" ? "secondary" : "outline"}>
+                          {inv.status?.toUpperCase() || "DRAFT"}
                         </Badge>
-                        {p.receiptUrl && (
-                          <Button size="sm" variant="ghost" onClick={() => window.open(p.receiptUrl!, "_blank")} title="View Receipt">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {p.status === "pending" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updatePayment.mutate({ id: p.id, status: "paid" })}
-                            data-testid={`button-mark-paid-${p.id}`}
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />Mark Paid
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="sm" onClick={() => window.print()} title="Print Invoice">
+                           <Printer className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
-          ) : (
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">No invoices created yet</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="history" className="mt-4">
             <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No payments recorded yet</p>
+              <CardHeader>
+                <CardTitle className="text-base">Audit Trail</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {auditLogs && auditLogs.length > 0 ? (
+                  <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="relative">
+                        <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-sm font-semibold">{log.action?.replace(/_/g, " ").toUpperCase()}</p>
+                            <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Changed by: <span className="font-medium text-foreground">{log.changedByName || "System"}</span>
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-4 p-2 bg-muted/30 rounded border text-[11px]">
+                            <div>
+                              <p className="text-muted-foreground uppercase font-bold text-[9px]">Previous</p>
+                              <p>{log.previousValue || "-"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground uppercase font-bold text-[9px]">New Value</p>
+                              <p className="text-primary font-medium">{log.newValue || "-"}</p>
+                            </div>
+                          </div>
+                          {log.note && <p className="text-xs italic text-muted-foreground mt-1">"{log.note}"</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-12 text-center">
+                    <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                    <p className="text-sm text-muted-foreground">No audit logs found for this booking</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        {/* TAB H: Invoices */}
-        <TabsContent value="invoices" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {invoices?.length || 0} invoice(s)
-            </h3>
-            <Dialog open={showAddInvoice} onOpenChange={setShowAddInvoice}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-invoice"><Plus className="h-4 w-4 mr-2" />Create Invoice</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Create Invoice</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div>
-                    <Label>Invoice Number</Label>
-                    <Input
-                      value={invoiceForm.invoiceNumber}
-                      onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
-                      placeholder="INV-2024-001"
-                      data-testid="input-invoice-number"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Amount</Label>
-                      <Input
-                        type="number"
-                        value={invoiceForm.amount}
-                        onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
-                        placeholder="0.00"
-                        data-testid="input-invoice-amount"
-                      />
-                    </div>
-                    <div>
-                      <Label>Currency</Label>
-                      <Input
-                        value={invoiceForm.currency}
-                        onChange={(e) => setInvoiceForm({ ...invoiceForm, currency: e.target.value })}
-                        placeholder="USD"
-                        data-testid="input-invoice-currency"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Due Date</Label>
-                    <Input
-                      type="date"
-                      value={invoiceForm.dueDate}
-                      onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
-                      data-testid="input-invoice-due-date"
-                    />
-                  </div>
-                  <div>
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={invoiceForm.notes}
-                      onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
-                      placeholder="Invoice notes..."
-                      data-testid="input-invoice-notes"
-                    />
-                  </div>
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      if (invoiceForm.invoiceNumber && invoiceForm.amount) {
-                        createInvoice.mutate(invoiceForm);
-                      }
-                    }}
-                    disabled={!invoiceForm.invoiceNumber || !invoiceForm.amount || createInvoice.isPending}
-                    data-testid="button-submit-invoice"
-                  >Create Invoice</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {invoices && invoices.length > 0 ? (
-            <div className="space-y-2">
-              {invoices.map((inv) => (
-                <Card key={inv.id} data-testid={`card-invoice-${inv.id}`}>
-                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-sm" data-testid={`text-invoice-number-${inv.id}`}>
-                          {inv.invoiceNumber}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {inv.currency} {(inv.amount / 100).toFixed(2)} | Due: {inv.dueDate || "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={inv.status === "paid" ? "default" : inv.status === "sent" ? "secondary" : "outline"}>
-                        {inv.status?.toUpperCase() || "DRAFT"}
-                      </Badge>
-                      <Button variant="ghost" size="sm" onClick={() => window.print()} title="Print Invoice">
-                         <Printer className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No invoices created yet</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        <TabsContent value="history" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Audit Trail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {auditLogs && auditLogs.length > 0 ? (
-                <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
-                  {auditLogs.map((log) => (
-                    <div key={log.id} className="relative">
-                      <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between gap-4">
-                          <p className="text-sm font-semibold">{log.action?.replace(/_/g, " ").toUpperCase()}</p>
-                          <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Changed by: <span className="font-medium text-foreground">{log.changedByName || "System"}</span>
-                        </p>
-                        <div className="mt-2 grid grid-cols-2 gap-4 p-2 bg-muted/30 rounded border text-[11px]">
-                          <div>
-                            <p className="text-muted-foreground uppercase font-bold text-[9px]">Previous</p>
-                            <p>{log.previousValue || "-"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground uppercase font-bold text-[9px]">New Value</p>
-                            <p className="text-primary font-medium">{log.newValue || "-"}</p>
-                          </div>
-                        </div>
-                        {log.note && <p className="text-xs italic text-muted-foreground mt-1">"{log.note}"</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center py-12 text-center">
-                  <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm text-muted-foreground">No audit logs found for this booking</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

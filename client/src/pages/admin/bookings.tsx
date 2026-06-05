@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square, Plus, Trash2 } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
-import type { Booking } from "@shared/schema";
+import type { Booking, UserProfile } from "@shared/schema";
 import * as XLSX from "xlsx";
 import { Download, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +34,9 @@ export default function AdminBookings() {
   const [groupName, setGroupName] = useState("");
   const [partySize, setPartySize] = useState(1);
   const [notes, setNotes] = useState("");
+
+  const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isAdmin = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin";
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
 
@@ -399,14 +402,16 @@ export default function AdminBookings() {
                         <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
                           {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={(e) => { e.preventDefault(); toast({ title: "Success", description: "Booking deleted", variant: "destructive" }); }} 
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => { e.preventDefault(); toast({ title: "Success", description: "Booking deleted", variant: "destructive" }); }} 
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
