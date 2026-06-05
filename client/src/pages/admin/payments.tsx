@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Search, CreditCard, CheckCircle, ArrowRight, DollarSign } from "lucide-react";
-import type { Payment, Booking } from "@shared/schema";
+import type { Payment, Booking, UserProfile } from "@shared/schema";
 import { useState } from "react";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 const PAYMENT_METHODS: Record<string, string> = {
   bank_transfer: "Bank Transfer", card: "Card", cash: "Cash", other: "Other",
@@ -27,6 +29,9 @@ export default function AdminPayments() {
 
   const { data: payments, isLoading } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: bookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "payments");
 
   const updatePayment = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/payments/${id}`, data),
@@ -50,6 +55,7 @@ export default function AdminPayments() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="payments" featureLabel="Kelola Pembayaran" />}
       <div>
         <h1 className="text-2xl font-bold font-serif" data-testid="text-payments-title">Payments</h1>
         <p className="text-muted-foreground text-sm">Track and manage booking payments</p>
@@ -104,7 +110,7 @@ export default function AdminPayments() {
                     <Badge variant={payment.status === "paid" ? "default" : payment.status === "failed" ? "destructive" : payment.status === "refunded" ? "secondary" : "outline"}>
                       {PAYMENT_STATUSES[payment.status || "pending"]}
                     </Badge>
-                    {payment.status === "pending" && (
+                    {isWritable && payment.status === "pending" && (
                       <Button size="sm" variant="outline" onClick={() => updatePayment.mutate({ id: payment.id, status: "paid" })} data-testid={`button-mark-paid-${payment.id}`}>
                         <CheckCircle className="h-3.5 w-3.5 mr-1" />Mark Paid
                       </Button>

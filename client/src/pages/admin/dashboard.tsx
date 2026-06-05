@@ -15,7 +15,9 @@ import {
 import { useI18n } from "@/hooks/use-i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { BOOKING_STATUSES, FULFILLMENT_STATUSES, BOOKING_TYPES } from "@/lib/constants";
-import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment, Sight } from "@shared/schema";
+import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment, Sight, UserProfile } from "@shared/schema";
+import { canWrite } from "@/lib/permissions";
+import { useToast } from "@/hooks/use-toast";
 
 function StatCard({ title, value, icon: Icon, description, color }: {
   title: string; value: string | number; icon: any; description?: string; color?: string;
@@ -48,6 +50,9 @@ export default function AdminDashboard() {
   const { data: payments } = useQuery<Payment[]>({ queryKey: ["/api/payments"] });
   const { data: sights } = useQuery<Sight[]>({ queryKey: ["/api/master/sights"] });
   const { data: stats, isLoading: loadingStats } = useQuery<any>({ queryKey: ["/api/admin/stats"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+
+  const isAiConsultantWritable = canWrite(profile?.role, "aiConsultant");
 
   const totalBookings = bookings?.length || 0;
   const confirmedBookings = bookings?.filter((b) => b.status === "confirmed").length || 0;
@@ -111,7 +116,7 @@ export default function AdminDashboard() {
               onClick={() => setLang('id')}
             >ID</Button>
           </div>
-          <AIAdvisorDialog />
+          {isAiConsultantWritable && <AIAdvisorDialog />}
           <Link href="/admin/affiliates">
             <Button variant="outline" className="gap-2 shadow-sm">
               <Users className="h-4 w-4" /> {t('affiliates')}
@@ -306,6 +311,7 @@ function LiveActivityFeed() {
 
 function AIAdvisorDialog() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
@@ -316,8 +322,13 @@ function AIAdvisorDialog() {
       const res = await apiRequest("POST", "/api/admin/ai-consultant", {});
       const data = await res.json();
       setAnalysis(data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast({
+        title: "Analysis Failed",
+        description: e.message || "Could not run the intelligence engine.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

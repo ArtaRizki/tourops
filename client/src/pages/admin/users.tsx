@@ -14,6 +14,8 @@ import { Users, Search, Shield, Plus, KeyRound } from "lucide-react";
 import { USER_ROLES } from "@/lib/constants";
 import type { UserProfile } from "@shared/schema";
 import type { User } from "@shared/models/auth";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 export default function AdminUsers() {
   const { toast } = useToast();
@@ -24,6 +26,9 @@ export default function AdminUsers() {
   const [newPassword, setNewPassword] = useState("");
 
   const { data: profiles, isLoading } = useQuery<(UserProfile & { user?: User })[]>({ queryKey: ["/api/user-profiles"] });
+  const { data: myProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = myProfile?.role;
+  const isWritable = canWrite(role, "users");
 
   const updateRole = useMutation({
     mutationFn: ({ profileId, role }: { profileId: string; role: string }) =>
@@ -75,11 +80,13 @@ export default function AdminUsers() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="users" featureLabel="Kelola User" />}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-serif">Users & Roles</h1>
           <p className="text-muted-foreground text-sm">Manage user accounts and role assignments</p>
         </div>
+        {isWritable && (
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-user"><Plus className="h-4 w-4 mr-2" />Create User</Button>
@@ -136,6 +143,7 @@ export default function AdminUsers() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -170,15 +178,20 @@ export default function AdminUsers() {
                 </div>
                 <div className="flex items-center gap-2">
                   {profile.isTourLeader && <Badge variant="outline">Tour Leader</Badge>}
-                  <Select
-                    value={profile.role}
-                    onValueChange={(v) => updateRole.mutate({ profileId: profile.id, role: v })}
-                  >
-                    <SelectTrigger className="w-[180px]" data-testid={`select-role-${profile.id}`}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(USER_ROLES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {isWritable ? (
+                    <Select
+                      value={profile.role}
+                      onValueChange={(v) => updateRole.mutate({ profileId: profile.id, role: v })}
+                    >
+                      <SelectTrigger className="w-[180px]" data-testid={`select-role-${profile.id}`}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(USER_ROLES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="secondary">{USER_ROLES[profile.role as keyof typeof USER_ROLES] || profile.role}</Badge>
+                  )}
+                  {isWritable && (
                   <Dialog open={resetOpen === profile.userId} onOpenChange={(open) => { setResetOpen(open ? profile.userId : null); setNewPassword(""); }}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="icon" data-testid={`button-reset-password-${profile.id}`}>
@@ -201,6 +214,7 @@ export default function AdminUsers() {
                       </form>
                     </DialogContent>
                   </Dialog>
+                  )}
                 </div>
               </CardContent>
             </Card>

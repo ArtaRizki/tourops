@@ -12,7 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Calendar, Users, MapPin, Plane } from "lucide-react";
-import type { TourDeparture, Tour, Airport } from "@shared/schema";
+import type { TourDeparture, Tour, Airport, UserProfile } from "@shared/schema";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 export default function AdminDepartures() {
   const { toast } = useToast();
@@ -21,6 +23,9 @@ export default function AdminDepartures() {
   const { data: departures, isLoading } = useQuery<TourDeparture[]>({ queryKey: ["/api/departures"] });
   const { data: tours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
   const { data: airports } = useQuery<Airport[]>({ queryKey: ["/api/master-data/airports"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "departures");
 
   const [tourId, setTourId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -52,11 +57,13 @@ export default function AdminDepartures() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="departures" featureLabel="Kelola Keberangkatan" />}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-serif">Departures</h1>
           <p className="text-muted-foreground text-sm">Manage tour departure dates</p>
         </div>
+        {isWritable && (
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-departure"><Plus className="h-4 w-4 mr-2" />Create Departure</Button>
@@ -123,6 +130,7 @@ export default function AdminDepartures() {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {!departures || departures.length === 0 ? (

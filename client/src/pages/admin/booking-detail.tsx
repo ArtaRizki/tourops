@@ -24,6 +24,8 @@ import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, W
 import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile } from "@shared/schema";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 const serviceIcons: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,
@@ -103,6 +105,12 @@ export default function AdminBookingDetail() {
     queryKey: ["/api/bookings", bookingId, "invoices"],
     enabled: !!bookingId 
   });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "bookings");
+  const canWriteDocs = canWrite(role, "documents");
+  const canWriteMessages = canWrite(role, "messages");
+  const canWritePayments = canWrite(role, "payments");
 
   const updateBooking = useMutation({
     mutationFn: (data: Record<string, any>) => apiRequest("PATCH", `/api/bookings/${bookingId}`, data),
@@ -276,6 +284,7 @@ export default function AdminBookingDetail() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="bookings" featureLabel="Kelola Detail Booking" />}
       <div className="flex flex-wrap items-center gap-4 no-print">
         <Link href="/admin/bookings">
           <Button variant="ghost" size="icon" data-testid="button-back">
@@ -290,7 +299,7 @@ export default function AdminBookingDetail() {
           {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
         </div>
         <div className="flex gap-2">
-          {(booking.status === "submitted" || !booking.status) && (
+          {isWritable && (booking.status === "submitted" || !booking.status) && (
             <div className="flex flex-col items-end gap-1">
               <Button 
                 variant="default" 
@@ -342,13 +351,14 @@ export default function AdminBookingDetail() {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
+        <Select disabled={!isWritable} value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })}>
           <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select 
+          disabled={!isWritable}
           value={booking.fulfillmentStatus || "pending"} 
           onValueChange={(v) => {
             if (v === "completed") {
@@ -472,7 +482,9 @@ export default function AdminBookingDetail() {
                   placeholder="Add internal notes..."
                   className="min-h-[120px]"
                   data-testid="input-internal-notes"
+                  disabled={!isWritable}
                 />
+                {isWritable && (
                 <Button
                   onClick={() => {
                     updateBooking.mutate({ internalNotes: notesValue });
@@ -481,6 +493,7 @@ export default function AdminBookingDetail() {
                   disabled={updateBooking.isPending}
                   data-testid="button-save-notes"
                 >Save Notes</Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -512,6 +525,7 @@ export default function AdminBookingDetail() {
             <h3 className="text-sm font-medium text-muted-foreground">
               {travelers?.length || 0} traveler(s)
             </h3>
+            {isWritable && (
             <Dialog open={showAddTraveler} onOpenChange={(open) => { setShowAddTraveler(open); if (!open) resetTravelerForm(); }}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-traveler"><Plus className="h-4 w-4 mr-2" />Add Traveler</Button>
@@ -573,6 +587,7 @@ export default function AdminBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {travelers && travelers.length > 0 ? (
@@ -644,6 +659,7 @@ export default function AdminBookingDetail() {
                           </div>
                           {t.specialNeeds && <p className="text-xs text-muted-foreground mt-1" data-testid={`text-traveler-special-${t.id}`}>Needs: {t.specialNeeds}</p>}
                         </div>
+                        {isWritable && (
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -658,6 +674,7 @@ export default function AdminBookingDetail() {
                             data-testid={`button-delete-traveler-${t.id}`}
                           ><Trash2 className="h-4 w-4" /></Button>
                         </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -714,7 +731,7 @@ export default function AdminBookingDetail() {
                       setAssignCountry("");
                     }
                   }}
-                  disabled={!assignService || !assignUser || createAssignment.isPending}
+                  disabled={!isWritable || !assignService || !assignUser || createAssignment.isPending}
                   data-testid="button-create-assignment"
                 >Assign</Button>
               </div>
@@ -744,12 +761,14 @@ export default function AdminBookingDetail() {
                           {getUserName(a.assignedUserId)}
                         </span>
                         <Badge data-testid={`badge-assignment-status-${a.id}`}>{a.status || "assigned"}</Badge>
+                        {isWritable && (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => deleteAssignment.mutate(a.id)}
                           data-testid={`button-delete-assignment-${a.id}`}
                         ><Trash2 className="h-4 w-4" /></Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -842,6 +861,7 @@ export default function AdminBookingDetail() {
             <h3 className="text-sm font-medium text-muted-foreground">
               {documents?.length || 0} document(s)
             </h3>
+            {canWriteDocs && (
             <Dialog open={showAddDoc} onOpenChange={setShowAddDoc}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-document"><Plus className="h-4 w-4 mr-2" />Add Document</Button>
@@ -917,6 +937,7 @@ export default function AdminBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {documents && documents.length > 0 ? (
@@ -950,7 +971,7 @@ export default function AdminBookingDetail() {
                           </Button>
                         </>
                       )}
-                      {doc.status === "uploaded" && (
+                      {canWriteDocs && doc.status === "uploaded" && (
                         <>
                           <Button
                             variant="outline"
@@ -996,7 +1017,7 @@ export default function AdminBookingDetail() {
                 data-testid="input-message"
               />
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Select value={msgVisibility} onValueChange={setMsgVisibility}>
+                <Select value={msgVisibility} onValueChange={setMsgVisibility} disabled={!canWriteMessages}>
                   <SelectTrigger className="w-[180px]" data-testid="select-message-visibility"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="customer_visible">Customer Visible</SelectItem>
@@ -1010,7 +1031,7 @@ export default function AdminBookingDetail() {
                       setNewMessage("");
                     }
                   }}
-                  disabled={!newMessage.trim() || sendMessage.isPending}
+                  disabled={!canWriteMessages || !newMessage.trim() || sendMessage.isPending}
                   data-testid="button-send-message"
                 ><Send className="h-4 w-4 mr-2" />Send</Button>
               </div>
@@ -1054,6 +1075,7 @@ export default function AdminBookingDetail() {
             <h3 className="text-sm font-medium text-muted-foreground">
               {payments?.length || 0} payment(s)
             </h3>
+            {canWritePayments && (
             <Dialog open={showAddPayment} onOpenChange={setShowAddPayment}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-payment"><Plus className="h-4 w-4 mr-2" />Add Payment</Button>
@@ -1132,6 +1154,7 @@ export default function AdminBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {payments && payments.length > 0 ? (
@@ -1166,7 +1189,7 @@ export default function AdminBookingDetail() {
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         )}
-                        {p.status === "pending" && (
+                        {canWritePayments && p.status === "pending" && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1198,6 +1221,7 @@ export default function AdminBookingDetail() {
             <h3 className="text-sm font-medium text-muted-foreground">
               {invoices?.length || 0} invoice(s)
             </h3>
+            {canWritePayments && (
             <Dialog open={showAddInvoice} onOpenChange={setShowAddInvoice}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-invoice"><Plus className="h-4 w-4 mr-2" />Create Invoice</Button>
@@ -1266,6 +1290,7 @@ export default function AdminBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {invoices && invoices.length > 0 ? (

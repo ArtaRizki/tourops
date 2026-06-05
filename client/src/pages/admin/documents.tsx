@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Search, FileText, CheckCircle, XCircle, Clock, ArrowRight, ExternalLink, Download } from "lucide-react";
-import type { Document, Booking } from "@shared/schema";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
+import type { UserProfile } from "@shared/schema";
 
 const DOC_TYPES: Record<string, string> = {
   passport: "Passport", id_doc: "ID Document", visa: "Visa",
@@ -29,6 +31,10 @@ export default function AdminDocuments() {
 
   const { data: documents, isLoading } = useQuery<Document[]>({ queryKey: ["/api/documents"] });
   const { data: bookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  
+  const role = profile?.role;
+  const isWritable = canWrite(role, "documents");
 
   const updateDoc = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/documents/${id}`, data),
@@ -52,6 +58,7 @@ export default function AdminDocuments() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="documents" featureLabel="Verifikasi Dokumen" />}
       <div>
         <h1 className="text-2xl font-bold font-serif" data-testid="text-documents-title">Documents</h1>
         <p className="text-muted-foreground text-sm">Review and manage all booking documents</p>
@@ -129,7 +136,7 @@ export default function AdminDocuments() {
                         </Button>
                       </>
                     )}
-                    {doc.status === "uploaded" && (
+                    {isWritable && doc.status === "uploaded" && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => updateDoc.mutate({ id: doc.id, status: "approved" })} data-testid={`button-approve-doc-${doc.id}`}>
                           <CheckCircle className="h-3.5 w-3.5 mr-1" />Approve

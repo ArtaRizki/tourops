@@ -10,7 +10,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Save, Percent, Settings2, Globe } from "lucide-react";
 import { useState } from "react";
-import { MarkupRule, Country } from "@shared/schema";
+import { MarkupRule, Country, UserProfile } from "@shared/schema";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 export default function PricingSettings() {
   const { toast } = useToast();
@@ -24,6 +26,9 @@ export default function PricingSettings() {
   const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
   const { data: rules } = useQuery<MarkupRule[]>({ queryKey: ["/api/admin/pricing/markup-rules"] });
   const { data: settings } = useQuery<any[]>({ queryKey: ["/api/admin/pricing/settings"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "pricing");
 
   const createRuleMutation = useMutation({
     mutationFn: (rule: Partial<MarkupRule>) => apiRequest("POST", "/api/admin/pricing/markup-rules", rule),
@@ -52,6 +57,7 @@ export default function PricingSettings() {
   return (
     <AdminLayout>
       <div className="space-y-8">
+        {!isWritable && <PermissionBanner role={role} feature="pricing" featureLabel="Pengaturan Harga & Markup" />}
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pricing & Markup Settings</h1>
           <p className="text-muted-foreground">Manage profit margins and global service fees.</p>
@@ -75,6 +81,7 @@ export default function PricingSettings() {
                     type="number" 
                     defaultValue={settings?.find(s => s.key === 'default_service_fee')?.value || "0"}
                     onBlur={(e) => updateSettingMutation.mutate({ key: 'default_service_fee', value: e.target.value })}
+                    disabled={!isWritable}
                   />
                 </div>
               </div>
@@ -84,6 +91,7 @@ export default function PricingSettings() {
                   type="number" 
                   defaultValue={settings?.find(s => s.key === 'tax_rate')?.value || "0"}
                   onBlur={(e) => updateSettingMutation.mutate({ key: 'tax_rate', value: e.target.value })}
+                  disabled={!isWritable}
                 />
               </div>
             </CardContent>
@@ -101,6 +109,7 @@ export default function PricingSettings() {
               </div>
             </CardHeader>
             <CardContent>
+              {isWritable && (
               <div className="mb-6 grid grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/30">
                 <Select onValueChange={(v) => setNewRule({ ...newRule, countryId: v === "global" ? undefined : v })}>
                   <SelectTrigger>
@@ -141,6 +150,7 @@ export default function PricingSettings() {
                   <Plus className="w-4 h-4 mr-2" /> Add Rule
                 </Button>
               </div>
+              )}
 
               <Table>
                 <TableHeader>
@@ -166,12 +176,14 @@ export default function PricingSettings() {
                       <TableCell className="capitalize">{rule.serviceType}</TableCell>
                       <TableCell>{rule.markupPercentage}%</TableCell>
                       <TableCell>
-                        <Switch checked={rule.isActive ?? false} />
+                        <Switch checked={rule.isActive ?? false} disabled={!isWritable} />
                       </TableCell>
                       <TableCell className="text-right">
+                        {isWritable && (
                         <Button variant="ghost" size="icon" onClick={() => deleteRuleMutation.mutate(rule.id)}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

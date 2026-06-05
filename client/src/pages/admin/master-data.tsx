@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { canWrite } from "@/lib/permissions";
+import type { UserProfile } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -256,6 +258,9 @@ function DeleteConfirmDialog({
 
 function CountriesTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<Country | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -341,8 +346,8 @@ function CountriesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-country"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-countries"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-country"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-countries"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
         <Button variant="secondary" onClick={() => scrapeCountriesMutation.mutate()} disabled={scrapeCountriesMutation.isPending} data-testid="button-scrape-countries">
           <Wand2 className="h-4 w-4 mr-2" />
           {scrapeCountriesMutation.isPending ? "Scraping..." : "Scrape All Countries"}
@@ -359,7 +364,7 @@ function CountriesTab() {
             <TableHead>Continent</TableHead>
             <TableHead>Population</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -382,12 +387,14 @@ function CountriesTab() {
                 {item.population ? item.population.toLocaleString() : "-"}
               </TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-country-${item.id}`}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-country-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -447,6 +454,9 @@ function CountriesTab() {
 
 function CitiesTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<City | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -526,8 +536,8 @@ function CitiesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-city"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-cities"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-city"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-cities"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
           <Select onValueChange={(v) => scrapeCitiesMutation.mutate(v)}>
             <SelectTrigger className="w-[200px] h-9">
@@ -549,7 +559,7 @@ function CitiesTab() {
             <TableHead>Coordinates</TableHead>
             <TableHead>Rank</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -567,12 +577,14 @@ function CitiesTab() {
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{item.cityRank || 0}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-city-${item.id}`}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-city-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -633,6 +645,9 @@ function CitiesTab() {
 
 function AirportsTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<Airport | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -685,8 +700,8 @@ function AirportsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-airport"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airports"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-airport"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airports"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
       </div>
 
       <Table>
@@ -696,7 +711,7 @@ function AirportsTab() {
             <TableHead>Name</TableHead>
             <TableHead>City</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -706,12 +721,14 @@ function AirportsTab() {
               <TableCell data-testid={`text-airport-name-${item.id}`}>{item.name}</TableCell>
               <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-airport-${item.id}`}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-airport-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -757,6 +774,9 @@ function AirportsTab() {
 
 function SightsTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<Sight | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -837,8 +857,8 @@ function SightsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-sight"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-sights"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-sight"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-sights"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
           <Select onValueChange={(v) => scrapeSightsMutation.mutate(v)}>
             <SelectTrigger className="w-[200px] h-9">
@@ -863,7 +883,7 @@ function SightsTab() {
             <TableHead>Group Cost</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -878,6 +898,7 @@ function SightsTab() {
               <TableCell className="text-muted-foreground" data-testid={`text-sight-group-cost-${item.id}`}>{item.groupTicketCost || "-"}</TableCell>
               <TableCell className="text-muted-foreground">{item.estimatedDuration || "-"}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-sight-${item.id}`}><Pencil className="h-4 w-4" /></Button>
@@ -893,6 +914,7 @@ function SightsTab() {
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-sight-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -957,6 +979,9 @@ function SightsTab() {
 
 function TransportCompaniesTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<TransportCompany | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -1023,8 +1048,8 @@ function TransportCompaniesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-transport"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-transport"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-transport"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-transport"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
       </div>
 
       <Table>
@@ -1035,7 +1060,7 @@ function TransportCompaniesTab() {
             <TableHead>Vehicle Types</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1051,12 +1076,14 @@ function TransportCompaniesTab() {
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{item.contactName || "-"}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-transport-${item.id}`}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-transport-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -1106,6 +1133,9 @@ function TransportCompaniesTab() {
 
 function AirlineAgenciesTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<AirlineAgency | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -1169,8 +1199,8 @@ function AirlineAgenciesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate} data-testid="button-add-airline-agency"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-        <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airline-agencies"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        {isWritable && (<Button onClick={openCreate} data-testid="button-add-airline-agency"><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
+        {isWritable && (<Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airline-agencies"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>)}
       </div>
 
       <Table>
@@ -1181,7 +1211,7 @@ function AirlineAgenciesTab() {
             <TableHead>Contact</TableHead>
             <TableHead>Specializations</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1202,12 +1232,14 @@ function AirlineAgenciesTab() {
                 </div>
               </TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-airline-agency-${item.id}`}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-airline-agency-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
@@ -1248,6 +1280,9 @@ function AirlineAgenciesTab() {
 
 function HotelsTab() {
   const { toast } = useToast();
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isWritable = canWrite(profile?.role, "master_data");
+
   const [editItem, setEditItem] = useState<Hotel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1298,7 +1333,7 @@ function HotelsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add New</Button>
+        {isWritable && (<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add New</Button>)}
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
           <Select onValueChange={(v) => scrapeHotelsMutation.mutate(v)}>
             <SelectTrigger className="w-[200px] h-9">
@@ -1320,7 +1355,7 @@ function HotelsTab() {
             <TableHead>Base Price</TableHead>
             <TableHead>Address</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            {isWritable && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1332,11 +1367,13 @@ function HotelsTab() {
               <TableCell className="font-mono text-xs">{item.basePrice} {item.currency}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{item.address || "-"}</TableCell>
               <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              {isWritable && (
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                 </div>
               </TableCell>
+              )}
             </TableRow>
           ))}
           {(!items || items.length === 0) && (

@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Plus, DollarSign, ExternalLink, Mail, Code } from "lucide-react";
-import type { Affiliate, AffiliatePayout } from "@shared/schema";
+import type { Affiliate, AffiliatePayout, UserProfile } from "@shared/schema";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 export default function AffiliatesPage() {
   const { toast } = useToast();
@@ -19,6 +21,9 @@ export default function AffiliatesPage() {
   const { data: affiliates, isLoading } = useQuery<Affiliate[]>({ 
     queryKey: ["/api/admin/affiliates"] 
   });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "affiliates");
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/admin/affiliates", data),
@@ -33,11 +38,13 @@ export default function AffiliatesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="affiliates" featureLabel="Kelola Afiliasi" />}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold font-serif">Affiliate Partners</h1>
           <p className="text-muted-foreground text-sm">Manage your referral network and commissions</p>
         </div>
+        {isWritable && (
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="h-4 w-4" /> Add Partner</Button>
@@ -47,6 +54,7 @@ export default function AffiliatesPage() {
             <AffiliateForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} />
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

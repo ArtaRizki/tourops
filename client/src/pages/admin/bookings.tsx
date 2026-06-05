@@ -11,10 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
-import type { Booking } from "@shared/schema";
+import type { Booking, UserProfile } from "@shared/schema";
 import * as XLSX from "xlsx";
 import { Download, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { canWrite } from "@/lib/permissions";
+import { PermissionBanner } from "@/components/permission-banner";
 
 export default function AdminBookings() {
   const [search, setSearch] = useState("");
@@ -22,6 +24,10 @@ export default function AdminBookings() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const role = profile?.role;
+  const isWritable = canWrite(role, "bookings");
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
 
@@ -86,13 +92,14 @@ export default function AdminBookings() {
 
   return (
     <div className="p-6 space-y-6">
+      {!isWritable && <PermissionBanner role={role} feature="bookings" featureLabel="Kelola Booking" />}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-serif">Bookings</h1>
           <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
         </div>
         <div className="flex gap-2">
-          {selectedIds.length > 0 && (
+          {isWritable && selectedIds.length > 0 && (
             <Button 
               variant="default" 
               size="sm" 

@@ -55,6 +55,8 @@ function getRoleLabel(role: string | undefined) {
   return labels[role || "customer"] || "Customer";
 }
 
+import { canRead } from "@/lib/permissions";
+
 export function AppSidebar() {
   const { user, logout, isLoggingOut } = useAuth();
   const { data: profile } = useQuery<UserProfile>({
@@ -66,19 +68,32 @@ export function AppSidebar() {
   const getNav = () => {
     const role = profile?.role;
     if (role === "admin" || role === "country_manager") {
-      return [
+      const items: { title: string; url: string; icon: any }[] = [
         { title: t("dashboard"), url: role === "admin" ? "/admin" : "/ops", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
-        { title: t("users"), url: "/admin/users", icon: Users },
-        { title: "Transport", url: "/admin/transport", icon: Bus },
-        { title: "Tour Generator", url: "/admin/tour-generator", icon: Wand2 },
-        { title: "Airline Search", url: "/admin/airline-search", icon: Plane },
-        { title: "Rate Cards", url: "/admin/rate-cards", icon: CreditCard },
-        { title: "Pricing", url: "/admin/pricing", icon: Percent },
-        { title: "Master Data", url: "/admin/master-data", icon: Database },
       ];
+      // Users — admin only
+      if (canRead(role, "users")) {
+        items.push({ title: t("users"), url: "/admin/users", icon: Users });
+      }
+      // Transport — admin + transport_manager only
+      if (canRead(role, "transport")) {
+        items.push({ title: "Transport", url: "/admin/transport", icon: Bus });
+      }
+      items.push({ title: "Tour Generator", url: "/admin/tour-generator", icon: Wand2 });
+      items.push({ title: "Airline Search", url: "/admin/airline-search", icon: Plane });
+      // Rate Cards — admin + country_manager
+      if (canRead(role, "rateCards")) {
+        items.push({ title: "Rate Cards", url: "/admin/rate-cards", icon: CreditCard });
+      }
+      // Pricing — admin only
+      if (canRead(role, "pricing")) {
+        items.push({ title: "Pricing", url: "/admin/pricing", icon: Percent });
+      }
+      items.push({ title: "Master Data", url: "/admin/master-data", icon: Database });
+      return items;
     }
     if (role === "customer") {
       return [
