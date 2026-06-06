@@ -175,7 +175,8 @@ export default function AdminBookings() {
           <p className="text-muted-foreground text-sm">Manage all customer bookings</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          {isAdmin && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button variant="default" size="sm" data-testid="button-create-booking">
                 <Plus className="h-4 w-4 mr-2" />
@@ -309,6 +310,7 @@ export default function AdminBookings() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
           {selectedIds.length > 0 && (
             <Button 
               variant="default" 
