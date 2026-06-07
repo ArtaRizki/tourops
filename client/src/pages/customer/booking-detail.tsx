@@ -466,7 +466,6 @@ export default function CustomerBookingDetail() {
                     <span>{(booking.partySizeExpected || 1) - travelers.length} traveler(s) still need to be added</span>
                   </div>
                 )}
-                {travelers && travelers.some((t) => !t.passportNumber) && (
                 {Array.isArray(travelers) && travelers.some((t) => !t.passportNumber) && (
                   <div className="flex items-center gap-2 text-sm">
                     <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
