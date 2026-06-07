@@ -311,8 +311,8 @@ export default function CustomerBookingDetail() {
   if (isLoading) return <div className="p-6"><Skeleton className="h-64" /></div>;
   if (!booking) return <div className="p-6"><p className="text-muted-foreground">Booking not found</p></div>;
 
-  const travelerDocs = docs?.filter((d) => ["passport", "id_doc", "visa"].includes(d.docType)) || [];
-  const fulfillmentDocs = docs?.filter((d) => !["passport", "id_doc", "visa"].includes(d.docType)) || [];
+  const travelerDocs = Array.isArray(docs) ? docs.filter((d) => ["passport", "id_doc", "visa"].includes(d.docType)) : [];
+  const fulfillmentDocs = Array.isArray(docs) ? docs.filter((d) => !["passport", "id_doc", "visa"].includes(d.docType)) : [];
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -467,20 +467,21 @@ export default function CustomerBookingDetail() {
                   </div>
                 )}
                 {travelers && travelers.some((t) => !t.passportNumber) && (
+                {Array.isArray(travelers) && travelers.some((t) => !t.passportNumber) && (
                   <div className="flex items-center gap-2 text-sm">
                     <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
                     <span>Some travelers are missing passport details</span>
                   </div>
                 )}
-                {pmts && pmts.some((p) => p.status === "pending") && (
+                {Array.isArray(pmts) && pmts.some((p) => p.status === "pending") && (
                   <div className="flex items-center gap-2 text-sm">
                     <CreditCard className="h-4 w-4 text-amber-500 flex-shrink-0" />
                     <span>Payment pending</span>
                   </div>
                 )}
-                {(!travelers || travelers.length >= (booking.partySizeExpected || 1)) &&
-                  (!pmts || !pmts.some((p) => p.status === "pending")) &&
-                  (!travelers || !travelers.some((t) => !t.passportNumber)) && (
+                {(!Array.isArray(travelers) || travelers.length >= (booking.partySizeExpected || 1)) &&
+                  (!Array.isArray(pmts) || !pmts.some((p) => p.status === "pending")) &&
+                  (!Array.isArray(travelers) || !travelers.some((t) => !t.passportNumber)) && (
                   <p className="text-sm text-muted-foreground">No alerts at this time</p>
                 )}
               </CardContent>
@@ -960,7 +961,7 @@ export default function CustomerBookingDetail() {
             </CardContent>
           </Card>
 
-          {messages && messages.filter((m) => m.visibility === "customer_visible").length > 0 ? (
+          {Array.isArray(messages) && messages.filter((m) => m.visibility === "customer_visible").length > 0 ? (
             <div className="space-y-2">
               {messages.filter((m) => m.visibility === "customer_visible").map((msg) => (
                 <Card key={msg.id} data-testid={`card-message-${msg.id}`}>
@@ -995,7 +996,7 @@ export default function CustomerBookingDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Payment Status</p>
-                    {pmts && pmts.length > 0 ? (
+                    {Array.isArray(pmts) && pmts.length > 0 ? (
                       <Badge variant={pmts.every((p) => p.status === "paid") ? "default" : "secondary"}>
                         {pmts.every((p) => p.status === "paid") ? "Paid" : "Partially Paid"}
                       </Badge>

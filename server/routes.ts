@@ -2011,7 +2011,7 @@ export async function registerRoutes(
     if (!userId) { res.status(401).json({ message: "Unauthorized" }); return null; }
     const profile = await storage.getProfileByUserId(userId);
     if (!profile) { res.status(403).json({ message: "No profile" }); return null; }
-    if (profile.role === "admin" || profile.role === "super_admin") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
+    if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "country_manager") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
     if (profile.role === "transport_manager") {
       if (!profile.transportCompanyId) { res.status(403).json({ message: "Not linked to a transport company" }); return null; }
       return { companyId: profile.transportCompanyId, isAdmin: false };
@@ -2489,7 +2489,7 @@ export async function registerRoutes(
   // ---- Pricing & Markups ----
   app.get("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       res.json(await storage.getMarkupRules());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2687,7 +2687,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       const parsed = insertMarkupRuleSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createMarkupRule(parsed.data));
@@ -2696,14 +2696,14 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       res.json(await storage.updateMarkupRule(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       await storage.deleteMarkupRule(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2718,7 +2718,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       res.json(await storage.updateGlobalSetting(req.body.key, req.body.value));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

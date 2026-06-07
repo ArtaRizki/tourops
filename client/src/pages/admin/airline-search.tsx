@@ -18,7 +18,17 @@ export default function AirlineSearch() {
   const { data: cities } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
 
   const { data: results, refetch, isFetching } = useQuery<any[]>({
-    queryKey: ["/api/flights/search", { legs }],
+    queryKey: ["multi-leg-flights", legs],
+    queryFn: async () => {
+      const allResults = await Promise.all(
+        legs.map(async (leg) => {
+          const res = await fetch(`/api/flights/search?origin=${encodeURIComponent(leg.origin)}&destination=${encodeURIComponent(leg.destination)}&date=${encodeURIComponent(leg.date)}`);
+          if (!res.ok) throw new Error("Search failed");
+          return res.json();
+        })
+      );
+      return allResults;
+    },
     enabled: false,
   });
 
