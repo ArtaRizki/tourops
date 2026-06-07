@@ -97,6 +97,7 @@ export default function SupplierDashboard() {
   const [uploadFileName, setUploadFileName] = useState("");
   const [uploadFileUrl, setUploadFileUrl] = useState("");
   const [uploadDocType, setUploadDocType] = useState("voucher");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const { data: bookingManifest, isLoading: manifestLoading } = useQuery<Booking & { travelers: Traveler[], documents: Document[] }>({
     queryKey: [`/api/supplier/bookings/${selectedBookingId}`],
@@ -644,6 +645,35 @@ export default function SupplierDashboard() {
                 placeholder="e.g. Hotel Voucher - Booking X" 
                 value={uploadFileName} 
                 onChange={(e) => setUploadFileName(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>File Upload (Optional)</Label>
+              <Input 
+                type="file" 
+                disabled={isUploadingFile}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setIsUploadingFile(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    const res = await fetch("/api/upload", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) throw new Error("Upload failed");
+                    const data = await res.json();
+                    setUploadFileUrl(data.url);
+                    if (!uploadFileName) setUploadFileName(file.name);
+                    toast({ title: "File uploaded temporarily", description: "Click Upload Document to save." });
+                  } catch (err: any) {
+                    toast({ title: err.message, variant: "destructive" });
+                  } finally {
+                    setIsUploadingFile(false);
+                  }
+                }}
               />
             </div>
             <div className="space-y-2">
