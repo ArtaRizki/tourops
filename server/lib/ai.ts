@@ -81,6 +81,11 @@ export class AIService {
     `;
 
     try {
+      if (!process.env.OPENAI_API_KEY) {
+        console.warn("OPENAI_API_KEY is not set. Generating fallback itinerary.");
+        return generateFallbackItinerary(params, verifiedSights, verifiedHotels);
+      }
+
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -95,8 +100,8 @@ export class AIService {
       
       return JSON.parse(content);
     } catch (error) {
-      console.error("AI generation failed:", error);
-      throw new Error("Failed to generate itinerary with AI");
+      console.error("AI generation failed, returning fallback:", error);
+      return generateFallbackItinerary(params, verifiedSights, verifiedHotels);
     }
   }
 
@@ -168,6 +173,57 @@ export class AIService {
       throw new Error("Failed to analyze performance with AI");
     }
   }
+}
+
+function generateFallbackItinerary(params: TourGenerationParams, verifiedSights: any[], verifiedHotels: any[]) {
+  const { destination, duration, travelerType } = params;
+  
+  const days = [];
+  for (let i = 1; i <= duration; i++) {
+    const sight = verifiedSights[(i - 1) % Math.max(1, verifiedSights.length)] || { id: "s-1", name: `Sightseeing in ${destination}`, description: "Local highlights", cost: 0 };
+    const hotel = verifiedHotels[(i - 1) % Math.max(1, verifiedHotels.length)] || { id: "h-1", name: `Hotel in ${destination}`, cost: 150 };
+    
+    days.push({
+      dayNumber: i,
+      title: `Day ${i} in ${destination}`,
+      description: `Exploring the highlights of ${destination}.`,
+      items: [
+        {
+          itemType: "sight",
+          startTime: "09:00",
+          title: sight.name,
+          description: sight.description || "Sightseeing tour",
+          cost: sight.cost || 0,
+          sightId: sight.id,
+          needsConfirmation: false
+        },
+        {
+          itemType: "meal",
+          startTime: "13:00",
+          title: "Local Lunch",
+          description: "Enjoy local cuisine",
+          cost: 25,
+          needsConfirmation: true
+        },
+        {
+          itemType: "hotel",
+          startTime: "18:00",
+          title: hotel.name,
+          description: "Check-in for the night",
+          cost: hotel.cost,
+          hotelId: hotel.id,
+          needsConfirmation: false
+        }
+      ]
+    });
+  }
+
+  return {
+    title: `${duration} Days in ${destination} for ${travelerType}`,
+    description: `A generated itinerary for ${destination}.`,
+    category: "leisure",
+    days
+  };
 }
 
 export const aiService = new AIService();

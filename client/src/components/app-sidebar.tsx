@@ -74,12 +74,12 @@ export function AppSidebar() {
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
         { title: t("users"), url: "/admin/users", icon: Users },
-        { title: "Transport", url: "/admin/transport", icon: Bus },
-        { title: "Tour Generator", url: "/admin/tour-generator", icon: Wand2 },
-        { title: "Airline Search", url: "/admin/airline-search", icon: Plane },
-        { title: "Rate Cards", url: "/admin/rate-cards", icon: CreditCard },
-        { title: "Pricing", url: "/admin/pricing", icon: Percent },
-        { title: "Master Data", url: "/admin/master-data", icon: Database },
+        { title: t("transport"), url: "/admin/transport", icon: Bus },
+        { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
+        { title: t("airline_search"), url: "/admin/airline-search", icon: Plane },
+        { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
+        { title: t("pricing"), url: "/admin/pricing", icon: Percent },
+        { title: t("master_data"), url: "/admin/master-data", icon: Database },
       ];
     }
     if (role === "customer") {
@@ -87,21 +87,21 @@ export function AppSidebar() {
         { title: t("browse_tours"), url: "/tours", icon: Globe },
         { title: t("join_groups"), url: "/join-groups", icon: Users },
         { title: t("my_bookings"), url: "/my-bookings", icon: BookOpen },
-        { title: "Leader Dashboard", url: "/leader-dashboard", icon: ShieldCheck },
       ];
     }
-    if (role === "hotel_manager") return [{ title: "Hotel Dashboard", url: "/supplier", icon: Hotel }];
-    if (role === "guide_manager") return [{ title: "Guide Dashboard", url: "/supplier", icon: UserCheck2 }];
-    if (role === "sights_manager") return [{ title: "Sights Dashboard", url: "/supplier", icon: Ticket }];
-    if (role === "airline_supplier") return [{ title: "Airline Dashboard", url: "/supplier", icon: Plane }];
-    if (role === "transport_manager") return [{ title: "Transport Ops", url: "/ops/transport", icon: Bus }];
-    
-    if (role === "city_manager") return [{ title: "City Dashboard", url: "/ops/role", icon: Globe }];
-    if (role === "content_editor") return [{ title: "Editor Dashboard", url: "/ops/role", icon: FileText }];
-    if (role === "flight_agent") return [{ title: "Flight Dashboard", url: "/ops/role", icon: Plane }];
-    if (role === "tour_builder") return [{ title: "Builder Dashboard", url: "/ops/role", icon: Wand2 }];
-    if (role === "supplier") return [{ title: "Supplier Dashboard", url: "/ops/role", icon: Database }];
-    if (role === "travel_agent") return [{ title: "Agent Dashboard", url: "/ops/role", icon: Users }];
+    if (role === "leader") return [{ title: t("leader_dashboard"), url: "/leader-dashboard", icon: ShieldCheck }];
+    if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: "/supplier", icon: Hotel }];
+    if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: "/supplier", icon: UserCheck2 }];
+    if (role === "sights_manager") return [{ title: t("sights_dashboard"), url: "/supplier", icon: Ticket }];
+    if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: "/supplier", icon: Plane }];
+    if (role === "country_manager") return [{ title: t("dashboard"), url: "/ops", icon: Globe }];
+    if (role === "finance_manager") return [{ title: t("dashboard"), url: "/ops", icon: DollarSign }];
+    if (role === "city_manager") return [{ title: t("city_dashboard"), url: "/ops/role", icon: Globe }];
+    if (role === "content_editor") return [{ title: t("editor_dashboard"), url: "/ops/role", icon: FileText }];
+    if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: "/ops/role", icon: Plane }];
+    if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: "/ops/role", icon: Wand2 }];
+    if (role === "supplier") return [{ title: t("supplier_dashboard"), url: "/ops/role", icon: Database }];
+    if (role === "travel_agent") return [{ title: t("agent_dashboard"), url: "/ops/role", icon: Users }];
     
     return [];
   };

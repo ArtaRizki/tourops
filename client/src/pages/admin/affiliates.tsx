@@ -74,7 +74,7 @@ export default function AffiliatesPage() {
                 <span>Commission Rate: <strong>{aff.commissionRate}%</strong></span>
               </div>
               <div className="pt-2 border-t">
-                <Button variant="outline" size="sm" className="w-full gap-2">
+                <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => toast({ title: "Performance Module", description: "Detailed performance tracking will be available in the next update." })}>
                   <ExternalLink className="h-4 w-4" /> View Performance
                 </Button>
               </div>
