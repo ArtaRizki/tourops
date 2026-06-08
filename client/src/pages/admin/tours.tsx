@@ -375,13 +375,14 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
   const [countryCode, setCountryCode] = useState("");
   const [city, setCity] = useState("");
   const [activities, setActivities] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [editDay, setEditDay] = useState<TourDay | null>(null);
 
   const createDay = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/tours/${tourId}/days`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours", tourId, "days"] });
-      setTitle(""); setDescription(""); setCountryCode(""); setCity(""); setActivities("");
+      setTitle(""); setDescription(""); setCountryCode(""); setCity(""); setActivities(""); setImageUrl("");
       setDayNumber((prev) => prev + 1);
       toast({ title: "Day added" });
     },
@@ -427,9 +428,15 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
           <Label>Day Title *</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Athens Arrival" data-testid="input-day-title" />
         </div>
-        <div>
-          <Label>City</Label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>City</Label>
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" />
+          </div>
+          <div>
+            <Label>Image URL (Optional)</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+          </div>
         </div>
         <div>
           <Label>Description</Label>
@@ -440,7 +447,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
           <Textarea value={activities} onChange={(e) => setActivities(e.target.value)} placeholder="Activities for this day..." />
         </div>
         <Button
-          onClick={() => createDay.mutate({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined })}
+          onClick={() => createDay.mutate({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined, imageUrl: imageUrl || undefined })}
           disabled={!title || createDay.isPending}
           data-testid="button-add-day"
         >
@@ -679,6 +686,7 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   const [countryCode, setCountryCode] = useState(day.countryCode || "");
   const [city, setCity] = useState(day.city || "");
   const [activities, setActivities] = useState(day.activities || "");
+  const [imageUrl, setImageUrl] = useState(day.imageUrl || "");
   const [dayNumber, setDayNumber] = useState(day.dayNumber);
 
   return (
@@ -689,10 +697,11 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
       </div>
       <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
       <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+      <div><Label>Image URL (Optional)</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
       <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div><Label>Activities</Label><Textarea value={activities} onChange={(e) => setActivities(e.target.value)} /></div>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => onSave({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined })} disabled={!title || isPending}>
+        <Button onClick={() => onSave({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined, imageUrl: imageUrl || undefined })} disabled={!title || isPending}>
           {isPending ? "Saving..." : "Save"}
         </Button>
         <Button variant="outline" onClick={onCancel}>Cancel</Button>

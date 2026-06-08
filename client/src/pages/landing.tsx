@@ -199,6 +199,9 @@ export default function LandingPage() {
                     src={dest.img}
                     alt={dest.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&q=80";
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -223,6 +226,9 @@ export default function LandingPage() {
                     src={dest.img}
                     alt={dest.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&q=80";
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4">

@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,13 +89,11 @@ export function AppSidebar() {
         { title: t("my_bookings"), url: "/my-bookings", icon: BookOpen },
       ];
     }
-    if (role === "leader") return [{ title: t("leader_dashboard"), url: "/leader-dashboard", icon: ShieldCheck }];
+    if (profile?.isTourLeader) return [{ title: t("leader_dashboard"), url: "/leader-dashboard", icon: ShieldCheck }];
     if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: "/supplier", icon: Hotel }];
     if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: "/supplier", icon: UserCheck2 }];
     if (role === "sights_manager") return [{ title: t("sights_dashboard"), url: "/supplier", icon: Ticket }];
     if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: "/supplier", icon: Plane }];
-    if (role === "country_manager") return [{ title: t("dashboard"), url: "/ops", icon: Globe }];
-    if (role === "finance_manager") return [{ title: t("dashboard"), url: "/ops", icon: DollarSign }];
     if (role === "city_manager") return [{ title: t("city_dashboard"), url: "/ops/role", icon: Globe }];
     if (role === "content_editor") return [{ title: t("editor_dashboard"), url: "/ops/role", icon: FileText }];
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: "/ops/role", icon: Plane }];

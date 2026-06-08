@@ -268,7 +268,13 @@ export async function registerRoutes(
         
         for (const country of tour.countries) {
           if (!country) continue;
-          const countryName = country.trim();
+          let countryName = country.trim();
+          const lowerName = countryName.toLowerCase();
+          if (lowerName === 'il') countryName = 'Israel';
+          else if (lowerName === 'us' || lowerName === 'usa') countryName = 'United States';
+          else if (lowerName === 'uk') countryName = 'United Kingdom';
+          else if (lowerName === 'ae' || lowerName === 'uae') countryName = 'United Arab Emirates';
+          
           if (destMap.has(countryName)) {
             const dest = destMap.get(countryName)!;
             dest.tours += 1;
@@ -277,10 +283,13 @@ export async function registerRoutes(
               dest.img = tour.imageUrl;
             }
           } else {
+            // Provide reliable fallback images based on country name for well-known broken cases
+            let finalImg = tour.imageUrl || 'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&q=80';
+            
             destMap.set(countryName, {
               name: countryName,
               tours: 1,
-              img: tour.imageUrl || 'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&q=80', // Fallback placeholder
+              img: finalImg,
             });
           }
         }

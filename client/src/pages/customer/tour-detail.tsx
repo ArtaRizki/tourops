@@ -266,16 +266,36 @@ export default function TourDetail() {
           <h2 className="text-xl font-bold font-serif mb-4">Itinerary</h2>
           <div className="space-y-3">
             {days.sort((a, b) => a.dayNumber - b.dayNumber).map((day) => (
-              <Card key={day.id} data-testid={`card-day-${day.dayNumber}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-primary">{day.dayNumber}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{day.title}</h3>
+              <Card key={day.id} data-testid={`card-day-${day.dayNumber}`} className="bg-slate-200/60 dark:bg-slate-800/60 border-none shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex flex-col sm:flex-row items-start gap-6">
+                    {day.imageUrl ? (
+                      <div className="w-full sm:w-48 aspect-[4/3] sm:aspect-auto sm:h-32 flex-shrink-0 relative shadow-md bg-white p-1">
+                        <img src={day.imageUrl} alt={day.title} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-sm bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl font-bold text-slate-400">{day.dayNumber}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">Tour day #{day.dayNumber}</h3>
+                      <p className="font-medium italic text-slate-800 dark:text-slate-200">{day.title}</p>
                       {day.city && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}{day.countryCode ? `, ${day.countryCode}` : ""}</p>}
-                      {day.description && <p className="text-sm text-muted-foreground mt-1">{day.description}</p>}
+                      {day.description && (
+                        <div className="text-sm text-slate-700 dark:text-slate-300 mt-2 space-y-1">
+                          {day.description.split('\n').map((line, i) => {
+                            if (line.trim().startsWith('-')) {
+                              return <li key={i} className="ml-4 list-disc">{line.replace('-', '').trim()}</li>;
+                            }
+                            if (line.trim().toLowerCase().startsWith('overnight:')) {
+                              const [label, ...rest] = line.split(':');
+                              return <p key={i} className="mt-2"><span className="font-bold">{label}:</span> {rest.join(':').trim()}</p>;
+                            }
+                            return <p key={i}>{line}</p>;
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

@@ -85,6 +85,7 @@ export const tourDays = pgTable("tour_days", {
   countryCode: text("country_code"),
   city: text("city"),
   activities: text("activities"),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   tourIdIdx: index("tour_days_tour_id_idx").on(table.tourId),
