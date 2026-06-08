@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import type { Tour, TourDeparture, TourDay } from "@shared/schema";
@@ -224,8 +224,28 @@ export default function TourDetail() {
             {tour.inclusions && (
               <Card className="border-none shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500">
                 <CardContent className="p-5">
-                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Inclusions</h3>
-                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">{tour.inclusions}</div>
+                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Inclusions</h3>
+                  <ul className="space-y-3">
+                    {tour.inclusions.split('\n').filter(Boolean).map((inc, i) => {
+                      const lowerText = inc.toLowerCase();
+                      let Icon = CheckCircle;
+                      if (lowerText.includes('air') || lowerText.includes('flight')) Icon = Plane;
+                      else if (lowerText.includes('meet') || lowerText.includes('transfer') || lowerText.includes('porterage')) Icon = Flag;
+                      else if (lowerText.includes('hotel') || lowerText.includes('night') || lowerText.includes('accommodation') || lowerText.includes('room')) Icon = Bed;
+                      else if (lowerText.includes('touring') || lowerText.includes('coach') || lowerText.includes('bus')) Icon = Bus;
+                      else if (lowerText.includes('breakfast') || lowerText.includes('dinner') || lowerText.includes('meal') || lowerText.includes('buffet')) Icon = Utensils;
+                      else if (lowerText.includes('guide') || lowerText.includes('escort') || lowerText.includes('services of')) Icon = User;
+                      else if (lowerText.includes('fee') || lowerText.includes('entrance') || lowerText.includes('sightseeing')) Icon = CircleDollarSign;
+                      else if (lowerText.includes('tip') || lowerText.includes('gratuities')) Icon = CircleDollarSign;
+                      
+                      return (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-3">
+                          <Icon className="h-5 w-5 mt-0.5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
+                          <span className="leading-relaxed">{inc.trim()}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </CardContent>
               </Card>
             )}
