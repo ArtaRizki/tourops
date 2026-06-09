@@ -253,7 +253,14 @@ export default function TourDetail() {
               <Card className="border-none shadow-sm bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500">
                 <CardContent className="p-5">
                   <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> Exclusions</h3>
-                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">{tour.exclusions}</div>
+                  <ul className="space-y-2">
+                    {tour.exclusions.split('\n').filter(Boolean).map((exc, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
+                        {exc.trim()}
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             )}
@@ -281,7 +288,21 @@ export default function TourDetail() {
                     <div className="flex-1 space-y-2">
                       <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">Tour day #{day.dayNumber}</h3>
                       <p className="font-medium italic text-slate-800 dark:text-slate-200">{day.title}</p>
-                      {day.city && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}{day.countryCode ? `, ${day.countryCode}` : ""}</p>}
+                      {day.city && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {day.city}
+                          {day.countryCode ? `, ${
+                            (() => {
+                              try {
+                                return new Intl.DisplayNames(['en'], {type: 'region'}).of(day.countryCode) || day.countryCode;
+                              } catch {
+                                return day.countryCode;
+                              }
+                            })()
+                          }` : ""}
+                        </p>
+                      )}
                       {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{day.description}</p>}
                       {day.activities && (
                         <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
