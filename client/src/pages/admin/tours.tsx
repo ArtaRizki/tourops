@@ -474,7 +474,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
                           {day.countryCode && <Badge variant="secondary" className="text-xs">{day.countryCode}</Badge>}
                           {day.city && <span className="text-xs text-muted-foreground">{day.city}</span>}
                         </div>
-                        {day.description && <p className="text-xs text-muted-foreground mt-1">{day.description}</p>}
+                        {day.description && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{day.description}</p>}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" onClick={() => setEditDay(day)} data-testid={`button-edit-day-${day.id}`}>

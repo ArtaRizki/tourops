@@ -299,7 +299,7 @@ export default function TourBrochure() {
                         <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}</span>
                       )}
                     </div>
-                    {day.description && <p className="text-sm text-muted-foreground leading-relaxed">{day.description}</p>}
+                    {day.description && <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{day.description}</p>}
                     {day.activities && <p className="text-xs text-muted-foreground">Activities: {day.activities}</p>}
                   </div>
                 ))}
