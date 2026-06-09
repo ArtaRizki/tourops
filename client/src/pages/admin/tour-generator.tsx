@@ -86,15 +86,15 @@ export default function TourGenerator() {
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const tourData = { title, description, duration, category, isPublished: false };
+      const baseTourData = { title, description, duration, category };
       let tourId = selectedTourId;
 
       if (selectedTourId === "new") {
-        const res = await apiRequest("POST", "/api/tours", tourData);
+        const res = await apiRequest("POST", "/api/tours", { ...baseTourData, isPublished: false });
         const newTour = await res.json();
         tourId = newTour.id;
       } else {
-        await apiRequest("PATCH", `/api/tours/${selectedTourId}`, tourData);
+        await apiRequest("PATCH", `/api/tours/${selectedTourId}`, baseTourData);
       }
 
       // Sync Days

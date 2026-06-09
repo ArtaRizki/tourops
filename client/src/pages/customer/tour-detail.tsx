@@ -283,6 +283,12 @@ export default function TourDetail() {
                       <p className="font-medium italic text-slate-800 dark:text-slate-200">{day.title}</p>
                       {day.city && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}{day.countryCode ? `, ${day.countryCode}` : ""}</p>}
                       {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{day.description}</p>}
+                      {day.activities && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Activities & Sights</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{day.activities}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
