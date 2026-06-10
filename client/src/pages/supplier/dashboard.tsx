@@ -134,9 +134,9 @@ export default function SupplierDashboard() {
   const config = ROLE_CONFIG[profile?.role || ""] || ROLE_CONFIG.admin;
   const DashboardIcon = config.icon;
 
-  const pending = workflows?.filter((w) => w.status === "assigned" || w.status === "in_progress").length || 0;
-  const completed = workflows?.filter((w) => w.status === "completed").length || 0;
-  const blocked = workflows?.filter((w) => w.status === "blocked").length || 0;
+  const pending = (workflows || []).filter((w) => w.status === "assigned" || w.status === "in_progress").length;
+  const completed = (workflows || []).filter((w) => w.status === "completed").length;
+  const blocked = (workflows || []).filter((w) => w.status === "blocked").length;
 
   if (isLoading) {
     return <div className="p-6 space-y-4"><Skeleton className="h-8 w-64" /><div className="grid grid-cols-3 gap-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}</div></div>;

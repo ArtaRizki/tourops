@@ -26,7 +26,7 @@ export function NotificationBell() {
     },
   });
 
-  const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
+  const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
 
   const getIcon = (type: string) => {
     switch (type) {

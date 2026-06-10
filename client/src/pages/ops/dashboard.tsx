@@ -29,8 +29,8 @@ export default function OpsDashboard() {
     },
   });
 
-  const active = workflows?.filter((w) => w.status !== "completed" && w.status !== "cancelled").length || 0;
-  const completed = workflows?.filter((w) => w.status === "completed").length || 0;
+  const active = (workflows || []).filter((w) => w.status !== "completed" && w.status !== "cancelled").length;
+  const completed = (workflows || []).filter((w) => w.status === "completed").length;
 
   if (isLoading) return <div className="p-6 space-y-4"><Skeleton className="h-8 w-64" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
 
