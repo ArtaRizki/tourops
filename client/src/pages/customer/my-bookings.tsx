@@ -15,6 +15,31 @@ import { BookOpen, Calendar, Users, ArrowRight, Link2, MapPin } from "lucide-rea
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking } from "@shared/schema";
 
+import React from "react";
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6">
+          <div className="bg-destructive/10 text-destructive p-4 rounded-md">
+            <h2 className="font-bold">Something went wrong.</h2>
+            <p className="text-sm font-mono mt-2">{String(this.state.error)}</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function MyBookings() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -51,7 +76,8 @@ export default function MyBookings() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <ErrorBoundary>
+      <div className="p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-serif" data-testid="text-my-bookings-title">My Bookings</h1>
@@ -83,21 +109,25 @@ export default function MyBookings() {
               </div>
             </DialogContent>
           </Dialog>
-          <Link href="/tours">
-            <Button data-testid="button-browse-tours"><MapPin className="h-4 w-4 mr-2" />Browse Tours</Button>
-          </Link>
+          <Button asChild data-testid="button-browse-tours">
+            <Link href="/tours">
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-2" />Browse Tours
+              </div>
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {!bookings || bookings.length === 0 ? (
+      {!Array.isArray(bookings) || bookings.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-16">
             <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
             <h3 className="font-semibold mb-1">No bookings yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Browse our tours and book your next adventure</p>
-            <Link href="/tours">
-              <Button>Explore Tours</Button>
-            </Link>
+            <Button asChild>
+              <Link href="/tours">Explore Tours</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -138,5 +168,6 @@ export default function MyBookings() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
