@@ -46,7 +46,14 @@ export default function BrowseTours() {
       // Search
       const matchesSearch = !search ||
         t.title.toLowerCase().includes(search.toLowerCase()) ||
-        t.countries?.some((c) => c.toLowerCase().includes(search.toLowerCase())) ||
+        t.countries?.some((c) => {
+          let cName = c.trim().toLowerCase();
+          if (cName === 'il') cName = 'israel';
+          else if (cName === 'us' || cName === 'usa') cName = 'united states';
+          else if (cName === 'uk') cName = 'united kingdom';
+          else if (cName === 'ae' || cName === 'uae') cName = 'united arab emirates';
+          return c.toLowerCase().includes(search.toLowerCase()) || cName.includes(search.toLowerCase());
+        }) ||
         t.tags?.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
 
       // Category
