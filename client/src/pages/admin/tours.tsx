@@ -860,7 +860,7 @@ function FinancialAnalytics({ tourId }: { tourId: string }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {pricing?.breakdown.map((b: any, idx: number) => (
+            {(pricing?.breakdown || []).map((b: any, idx: number) => (
               <tr key={idx} className="hover:bg-muted/50">
                 <td className="p-2">{b.item}</td>
                 <td className="p-2 text-right">${b.cost?.toFixed(2) || "0.00"}</td>
