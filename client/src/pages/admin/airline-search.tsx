@@ -1,15 +1,30 @@
 import { useState } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plane, Search, TrendingDown, DollarSign, Plus, Trash2, ArrowRight } from "lucide-react";
-import type { City } from "@shared/schema";
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6">
+          <div className="bg-destructive/10 text-destructive p-4 rounded-md">
+            <h2 className="font-bold">Something went wrong.</h2>
+            <p className="text-sm font-mono mt-2">{String(this.state.error)}</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function AirlineSearch() {
   const [legs, setLegs] = useState([{ origin: "", destination: "", date: "" }]);
@@ -58,7 +73,8 @@ export default function AirlineSearch() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <ErrorBoundary>
+      <div className="p-6 space-y-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold font-serif flex items-center gap-2">
@@ -169,9 +185,9 @@ export default function AirlineSearch() {
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center text-[10px] font-bold">
-                                  {flight.airline.slice(0, 2).toUpperCase()}
+                                  {flight.airlineName ? flight.airlineName.slice(0, 2).toUpperCase() : "UN"}
                                 </div>
-                                {flight.airline}
+                                {flight.airlineName}
                               </div>
                             </TableCell>
                             <TableCell>{flight.flightNumber}</TableCell>
@@ -203,5 +219,6 @@ export default function AirlineSearch() {
         </Card>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
