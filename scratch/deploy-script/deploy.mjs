@@ -14,14 +14,14 @@ const commands = [
 conn.on('ready', () => {
   console.log('SSH Client :: ready');
   console.log(`Executing commands: ${commands}`);
-  
+
   conn.exec(commands, (err, stream) => {
     if (err) {
       console.error('Execution error:', err);
       conn.end();
       process.exit(1);
     }
-    
+
     stream.on('close', (code, signal) => {
       console.log(`Stream :: close :: code: ${code}, signal: ${signal}`);
       conn.end();

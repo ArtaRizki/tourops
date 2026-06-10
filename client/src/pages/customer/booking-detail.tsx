@@ -52,21 +52,7 @@ export default function CustomerBookingDetail() {
     enabled: booking?.bookingType === "leader_group",
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
 
-  if (!booking) {
-    return <div className="p-8">Booking not found</div>;
-  }
-
-  const isLeaderGroup = booking?.bookingType === "leader_group";
-  const isPrivateFamily = booking?.bookingType === "private_family";
 
   const [showAddTraveler, setShowAddTraveler] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -226,6 +212,22 @@ export default function CustomerBookingDetail() {
 
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return <div className="p-8">Booking not found</div>;
+  }
+
+  const isLeaderGroup = booking?.bookingType === "leader_group";
+  const isPrivateFamily = booking?.bookingType === "private_family";
 
   const copyJoinCode = () => {
     if (booking?.joinCode) {
