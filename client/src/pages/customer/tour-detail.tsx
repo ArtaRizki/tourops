@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign } from "lucide-react";
 import { Link } from "wouter";
@@ -19,6 +20,7 @@ import { useState } from "react";
 import type { Tour, TourDeparture, TourDay } from "@shared/schema";
 
 function PublicGroupsList({ departureId }: { departureId: string }) {
+  const { t } = useLanguage();
   const { data: groups, isLoading } = useQuery<any[]>({
     queryKey: ["/api/departures", departureId, "public-groups"],
   });
@@ -28,7 +30,7 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
 
   return (
     <div className="mt-3 space-y-2 border-t pt-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Join an existing group:</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("join_existing_group")}</p>
       {groups.map((group) => (
         <div key={group.id} className="flex items-center justify-between p-2 bg-primary/5 rounded-md border border-primary/10">
           <div className="flex items-center gap-2">
@@ -37,7 +39,7 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
             <Badge variant="outline" className="text-[10px] h-4">{group.partySizeExpected} pax</Badge>
           </div>
           <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-            <Link href={`${window.location.pathname}?joinCode=${group.joinCode}`}>Join Group</Link>
+            <Link href={`${window.location.pathname}?joinCode=${group.joinCode}`}>{t("join_group")}</Link>
           </Button>
         </div>
       ))}
@@ -52,6 +54,7 @@ export default function TourDetail() {
   const { isAuthenticated } = useAuth();
   const tourId = params?.id;
 
+  const { t } = useLanguage();
   const { data: tour, isLoading } = useQuery<Tour>({ queryKey: ["/api/tours", tourId] });
   const { data: departures } = useQuery<TourDeparture[]>({ queryKey: ["/api/tours", tourId, "departures"] });
   const { data: days } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
@@ -106,18 +109,18 @@ export default function TourDetail() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              Join Group: {joinedGroupData?.groupName}
+              {t("join_group")}: {joinedGroupData?.groupName}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
-              <p className="text-sm text-muted-foreground">You are joining a group for:</p>
+              <p className="text-sm text-muted-foreground">{t("joining_group_for")}</p>
               <p className="font-bold text-lg mt-1">{tour.title}</p>
-              <p className="text-xs text-muted-foreground mt-1">Departure: {joinedGroupData?.departureId}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("departure")} {joinedGroupData?.departureId}</p>
             </div>
             
             <div className="space-y-2">
-              <Label>Party Size (Including you)</Label>
+              <Label>{t("party_size_including_you")}</Label>
               <Input 
                 type="number" 
                 min={1} 
@@ -143,18 +146,18 @@ export default function TourDetail() {
               })}
               disabled={bookMutation.isPending}
             >
-              {bookMutation.isPending ? "Joining..." : "Confirm & Join Group"}
+              {bookMutation.isPending ? t("loading") : t("confirm_and_join")}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link href="/tours">
-          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back to Tours</Button>
+          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />{t("back_to_tours")}</Button>
         </Link>
         <Link href={`/tours/${tourId}/brochure`}>
           <Button variant="outline" size="sm" data-testid="button-view-brochure">
-            <Printer className="h-4 w-4 mr-1" />View Brochure
+            <Printer className="h-4 w-4 mr-1" />{t("view_brochure")}
           </Button>
         </Link>
       </div>
@@ -168,22 +171,22 @@ export default function TourDetail() {
           <div>
             <h1 className="text-3xl font-bold font-serif" data-testid="text-tour-title">{tour.title}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{tour.duration} days</span>
+              <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{tour.duration} {t("days")}</span>
               {tour.countries && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{tour.countries.join(", ")}</span>}
             </div>
           </div>
           <div className="text-right">
             {Number(tour.basePrice) > 0 ? (
               <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
-                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Starting from</p>
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t("starting_from")}</p>
                 <div className="flex items-baseline justify-end gap-1">
                   <span className="text-3xl font-bold text-primary">${Number(tour.basePrice).toLocaleString()}</span>
-                  <span className="text-sm text-muted-foreground">/person</span>
+                  <span className="text-sm text-muted-foreground">/{t("per_person")}</span>
                 </div>
                 {(Number(tour.childPrice) > 0 || Number(tour.singleSupplement) > 0) && (
                   <div className="mt-2 pt-2 border-t border-primary/10 text-xs text-muted-foreground space-y-1">
-                    {Number(tour.childPrice) > 0 && <p>Child: ${Number(tour.childPrice).toLocaleString()}</p>}
-                    {Number(tour.singleSupplement) > 0 && <p>Single Supp: +${Number(tour.singleSupplement).toLocaleString()}</p>}
+                    {Number(tour.childPrice) > 0 && <p>{t("child_price")} ${Number(tour.childPrice).toLocaleString()}</p>}
+                    {Number(tour.singleSupplement) > 0 && <p>{t("single_supp")} +${Number(tour.singleSupplement).toLocaleString()}</p>}
                   </div>
                 )}
               </div>
@@ -207,7 +210,7 @@ export default function TourDetail() {
           {tour.highlights && (
             <Card className="md:col-span-1 border-none shadow-sm bg-slate-50 dark:bg-slate-900">
               <CardContent className="p-5">
-                <h3 className="font-bold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Highlights</h3>
+                <h3 className="font-bold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {t("highlights")}</h3>
                 <ul className="space-y-2">
                   {tour.highlights.split('\n').filter(Boolean).map((h, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -224,7 +227,7 @@ export default function TourDetail() {
             {tour.inclusions && (
               <Card className="border-none shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500">
                 <CardContent className="p-5">
-                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Inclusions</h3>
+                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> {t("inclusions")}</h3>
                   <ul className="space-y-3">
                     {tour.inclusions.split('\n').filter(Boolean).map((inc, i) => {
                       const lowerText = inc.toLowerCase();
@@ -252,7 +255,7 @@ export default function TourDetail() {
             {tour.exclusions && (
               <Card className="border-none shadow-sm bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500">
                 <CardContent className="p-5">
-                  <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> Exclusions</h3>
+                  <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> {t("exclusions")}</h3>
                   <ul className="space-y-2">
                     {tour.exclusions.split('\n').filter(Boolean).map((exc, i) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -270,7 +273,7 @@ export default function TourDetail() {
 
       {days && days.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold font-serif mb-4">Itinerary</h2>
+          <h2 className="text-xl font-bold font-serif mb-4">{t("itinerary")}</h2>
           <div className="space-y-3">
             {days.sort((a, b) => a.dayNumber - b.dayNumber).map((day) => (
               <Card key={day.id} data-testid={`card-day-${day.dayNumber}`} className="bg-slate-200/60 dark:bg-slate-800/60 border-none shadow-sm">
@@ -286,7 +289,7 @@ export default function TourDetail() {
                       </div>
                     )}
                     <div className="flex-1 space-y-2">
-                      <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">Tour day #{day.dayNumber}</h3>
+                      <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">{t("tour_day")} #{day.dayNumber}</h3>
                       <p className="font-medium italic text-slate-800 dark:text-slate-200">{day.title}</p>
                       {day.city && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -306,7 +309,7 @@ export default function TourDetail() {
                       {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{day.description}</p>}
                       {day.activities && (
                         <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Activities & Sights</p>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t("activities_sights")}</p>
                           <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{day.activities}</p>
                         </div>
                       )}
@@ -320,9 +323,9 @@ export default function TourDetail() {
       )}
 
       <div>
-        <h2 className="text-xl font-bold font-serif mb-4">Available Departures</h2>
+        <h2 className="text-xl font-bold font-serif mb-4">{t("available_departures")}</h2>
         {openDepartures.length === 0 ? (
-          <Card><CardContent className="flex flex-col items-center py-12"><Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" /><p className="text-sm text-muted-foreground">No departures available at the moment</p></CardContent></Card>
+          <Card><CardContent className="flex flex-col items-center py-12"><Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" /><p className="text-sm text-muted-foreground">{t("no_departures")}</p></CardContent></Card>
         ) : (
           <div className="space-y-2">
             {openDepartures.map((dep) => (
@@ -333,34 +336,34 @@ export default function TourDetail() {
                       <div>
                         <p className="font-medium">{dep.startDate} - {dep.endDate}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{(dep.capacityTotal || 0) - (dep.capacityBooked || 0)} spots left</span>
-                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{dep.pricePerPerson}/person</span>}
+                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{(dep.capacityTotal || 0) - (dep.capacityBooked || 0)} {t("spots_left")}</span>
+                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{dep.pricePerPerson}/{t("per_person")}</span>}
                         </div>
                       </div>
                     </div>
                     {isAuthenticated ? (
                       <Dialog open={showBooking && departureId === dep.id} onOpenChange={(open) => { setShowBooking(open); if (open) setDepartureId(dep.id); }}>
                         <DialogTrigger asChild>
-                          <Button data-testid={`button-book-${dep.id}`}>Book Now</Button>
+                          <Button data-testid={`button-book-${dep.id}`}>{t("book_now")}</Button>
                         </DialogTrigger>
                         <DialogContent>
-                          <DialogHeader><DialogTitle>Book This Tour</DialogTitle></DialogHeader>
+                          <DialogHeader><DialogTitle>{t("book_this_tour")}</DialogTitle></DialogHeader>
                           <div className="space-y-4">
                             <div>
-                              <Label>Booking Type</Label>
+                              <Label>{t("booking_type")}</Label>
                               <Select value={bookingType} onValueChange={setBookingType}>
                                 <SelectTrigger data-testid="select-booking-type"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="join_public_group">Join Public Group</SelectItem>
-                                  <SelectItem value="leader_group">Create Leader Group</SelectItem>
-                                  <SelectItem value="private_family">Private Family</SelectItem>
+                                  <SelectItem value="join_public_group">{t("join_public_group")}</SelectItem>
+                                  <SelectItem value="leader_group">{t("create_leader_group")}</SelectItem>
+                                  <SelectItem value="private_family">{t("private_family")}</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             {bookingType === "leader_group" && (
-                              <div><Label>Group Name</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="My Travel Group" data-testid="input-group-name" /></div>
+                              <div><Label>{t("group_name")}</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="My Travel Group" data-testid="input-group-name" /></div>
                             )}
-                            <div><Label>Party Size</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
+                            <div><Label>{t("party_size")}</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
                             <div><Label>Notes (optional)</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requests..." /></div>
                             <Button
                               className="w-full"
@@ -376,13 +379,13 @@ export default function TourDetail() {
                               disabled={bookMutation.isPending}
                               data-testid="button-confirm-booking"
                             >
-                              {bookMutation.isPending ? "Booking..." : "Confirm Booking"}
+                              {bookMutation.isPending ? t("loading") : t("confirm_booking")}
                             </Button>
                           </div>
                         </DialogContent>
                       </Dialog>
                     ) : (
-                      <a href="/#login"><Button data-testid="button-sign-in-to-book">Sign In to Book</Button></a>
+                      <a href="/#login"><Button data-testid="button-sign-in-to-book">{t("sign_in_to_book")}</Button></a>
                     )}
                   </div>
                   <PublicGroupsList departureId={dep.id} />

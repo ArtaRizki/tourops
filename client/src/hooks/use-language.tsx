@@ -172,6 +172,14 @@ const translations = {
     booking_created: "Booking created successfully!",
     booking_failed: "Booking failed",
     join_existing_group: "Join an existing group:",
+    child_price: "Child:",
+    single_supp: "Single Supp:",
+    tour_day: "Tour day",
+    activities_sights: "Activities & Sights",
+    party_size_including_you: "Party Size (Including you)",
+    confirm_and_join: "Confirm & Join Group",
+    joining_group_for: "You are joining a group for:",
+    departure: "Departure:",
 
     // Footer
     company: "Company",
@@ -342,6 +350,14 @@ const translations = {
     booking_created: "¡Reserva creada exitosamente!",
     booking_failed: "La reserva falló",
     join_existing_group: "Unirse a un grupo existente:",
+    child_price: "Niño:",
+    single_supp: "Sup. Individual:",
+    tour_day: "Día del tour",
+    activities_sights: "Actividades y Atracciones",
+    party_size_including_you: "Tamaño del Grupo (Incluyéndote)",
+    confirm_and_join: "Confirmar y Unirse",
+    joining_group_for: "Te estás uniendo a un grupo para:",
+    departure: "Salida:",
 
     // Footer
     company: "Empresa",
@@ -512,6 +528,14 @@ const translations = {
     booking_created: "Pesanan berhasil dibuat!",
     booking_failed: "Pesanan gagal",
     join_existing_group: "Gabung grup yang ada:",
+    child_price: "Anak:",
+    single_supp: "Tambahan Sendiri:",
+    tour_day: "Hari tur",
+    activities_sights: "Aktivitas & Atraksi",
+    party_size_including_you: "Jumlah Peserta (Termasuk Anda)",
+    confirm_and_join: "Konfirmasi & Gabung Grup",
+    joining_group_for: "Anda bergabung dengan grup untuk:",
+    departure: "Keberangkatan:",
 
     // Footer
     company: "Perusahaan",
