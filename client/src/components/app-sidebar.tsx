@@ -178,7 +178,7 @@ export function AppSidebar() {
           <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-sm">
             <AvatarImage src={undefined} />
             <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-              {user?.username?.substring(0, 2).toUpperCase()}
+              {user?.username?.substring(0, 2)?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">

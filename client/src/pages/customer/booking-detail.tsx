@@ -859,7 +859,7 @@ export default function CustomerBookingDetail() {
           {travelerDocs.length > 0 ? (
             <div className="space-y-2">
               {travelerDocs.map((doc) => {
-                const traveler = travelers?.find((t) => t.id === doc.travelerId);
+                const traveler = Array.isArray(travelers) ? travelers.find((t) => t.id === doc.travelerId) : undefined;
                 return (
                   <Card key={doc.id} data-testid={`card-doc-${doc.id}`}>
                     <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">

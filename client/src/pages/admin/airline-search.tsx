@@ -189,7 +189,7 @@ export default function AirlineSearch() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {segmentResults.map((flight: any, i: number) => (
+                        {(segmentResults.flights || segmentResults).map((flight: any, i: number) => (
                           <TableRow key={i}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
