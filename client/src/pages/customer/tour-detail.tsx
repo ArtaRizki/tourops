@@ -115,7 +115,7 @@ export default function TourDetail() {
           <div className="space-y-4 py-4">
             <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
               <p className="text-sm text-muted-foreground">{t("joining_group_for")}</p>
-              <p className="font-bold text-lg mt-1">{tour.title}</p>
+              <p className="font-bold text-lg mt-1">{language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}</p>
               <p className="text-xs text-muted-foreground mt-1">{t("departure")} {joinedGroupData?.departureId}</p>
             </div>
             
@@ -163,13 +163,13 @@ export default function TourDetail() {
       </div>
 
       <div className="aspect-video overflow-hidden rounded-md">
-        <img src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={tour.title} className="w-full h-full object-cover" />
+        <img src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} className="w-full h-full object-cover" />
       </div>
 
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-serif" data-testid="text-tour-title">{tour.title}</h1>
+            <h1 className="text-3xl font-bold font-serif" data-testid="text-tour-title">{language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{tour.duration} {t("days")}</span>
               {tour.countries && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{tour.countries.join(", ")}</span>}
@@ -194,13 +194,13 @@ export default function TourDetail() {
           </div>
         </div>
 
-        <p className="text-muted-foreground leading-relaxed">{tour.description}</p>
+        <p className="text-muted-foreground leading-relaxed">{language === 'en' ? tour.description : ((tour as any).translations?.[language]?.description || tour.description)}</p>
 
         {tour.galleryUrls && tour.galleryUrls.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {tour.galleryUrls.map((url, i) => (
               <div key={i} className="aspect-square rounded-md overflow-hidden border shadow-sm">
-                <img src={url} alt={`${tour.title} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                <img src={url} alt={`${language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
               </div>
             ))}
           </div>
@@ -281,7 +281,7 @@ export default function TourDetail() {
                   <div className="flex flex-col sm:flex-row items-start gap-6">
                     {day.imageUrl ? (
                       <div className="w-full sm:w-48 aspect-[4/3] sm:aspect-auto sm:h-32 flex-shrink-0 relative shadow-md bg-white p-1">
-                        <img src={day.imageUrl} alt={day.title} className="w-full h-full object-cover" />
+                        <img src={day.imageUrl} alt={language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)} className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="w-16 h-16 rounded-sm bg-white shadow-sm flex items-center justify-center flex-shrink-0">
@@ -290,7 +290,7 @@ export default function TourDetail() {
                     )}
                     <div className="flex-1 space-y-2">
                       <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">{t("tour_day")} #{day.dayNumber}</h3>
-                      <p className="font-medium italic text-slate-800 dark:text-slate-200">{day.title}</p>
+                      <p className="font-medium italic text-slate-800 dark:text-slate-200">{language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)}</p>
                       {day.city && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
@@ -306,11 +306,11 @@ export default function TourDetail() {
                           }` : ""}
                         </p>
                       )}
-                      {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{day.description}</p>}
+                      {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description)}</p>}
                       {day.activities && (
                         <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t("activities_sights")}</p>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{day.activities}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities)}</p>
                         </div>
                       )}
                     </div>

@@ -173,6 +173,46 @@ export class AIService {
       throw new Error("Failed to analyze performance with AI");
     }
   }
+
+  /**
+   * Translates tour content to Spanish (ES) and Indonesian (ID).
+   */
+  async translateTourContent(content: any) {
+    const prompt = `
+      You are an expert travel translator.
+      Translate the following tour data into Spanish (es) and Indonesian (id).
+      Maintain the same formatting (e.g. line breaks for bullet points).
+      Do NOT translate proper nouns (names of cities, specific hotels) if they shouldn't be translated.
+      
+      DATA TO TRANSLATE:
+      ${JSON.stringify(content, null, 2)}
+      
+      OUTPUT FORMAT:
+      Return a JSON object containing two keys: "es" and "id".
+      Inside each key, provide the translated data matching the exact keys passed in the input data.
+      Example:
+      {
+        "es": { "title": "...", "description": "..." },
+        "id": { "title": "...", "description": "..." }
+      }
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      });
+
+      const result = response.choices[0].message.content;
+      if (!result) throw new Error("AI returned empty translation");
+      
+      return JSON.parse(result);
+    } catch (error) {
+      console.error("AI translation failed:", error);
+      throw new Error("Failed to translate content with AI");
+    }
+  }
 }
 
 function generateFallbackItinerary(params: TourGenerationParams, verifiedSights: any[], verifiedHotels: any[]) {

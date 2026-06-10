@@ -64,6 +64,7 @@ export const tours = pgTable("tours", {
   tags: text("tags").array(),
   category: text("category"),
   internalNotes: text("internal_notes"),
+  translations: jsonb("translations"),
   isPublished: boolean("is_published").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -86,6 +87,7 @@ export const tourDays = pgTable("tour_days", {
   city: text("city"),
   activities: text("activities"),
   imageUrl: text("image_url"),
+  translations: jsonb("translations"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   tourIdIdx: index("tour_days_tour_id_idx").on(table.tourId),

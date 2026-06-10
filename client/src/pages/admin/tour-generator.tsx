@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Tour, TourDay, Country, City, Sight } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +35,9 @@ export default function TourGenerator() {
   const [duration, setDuration] = useState(1);
   const [category, setCategory] = useState("cultural");
   const [days, setDays] = useState<Partial<TourDay>[]>([]);
+  const [translations, setTranslations] = useState<any>({});
+  const [activeLang, setActiveLang] = useState("en");
+
 
   // AI Parameters
   const [aiOpen, setAiOpen] = useState(false);
@@ -73,6 +76,7 @@ export default function TourGenerator() {
         setTitle(tour.title);
         setDescription(tour.description || "");
         setDuration(tour.duration);
+        setTranslations((tour as any).translations || {});
       }
     }
   }, [selectedTourId, tours]);
@@ -86,7 +90,7 @@ export default function TourGenerator() {
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const baseTourData = { title, description, duration, category };
+      const baseTourData = { title, description, duration, category, translations };
       let tourId = selectedTourId;
 
       if (selectedTourId === "new") {
@@ -138,6 +142,34 @@ export default function TourGenerator() {
     onError: (e: Error) => toast({ title: "AI Generation failed", description: e.message, variant: "destructive" }),
   });
 
+  
+  const translateMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        title,
+        description,
+        days: days.map(d => ({ title: d.title, description: d.description, activities: d.activities }))
+      };
+      const res = await apiRequest("POST", "/api/ai/translate-content", payload);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setTranslations({
+        es: { title: data.es.title, description: data.es.description },
+        id: { title: data.id.title, description: data.id.description }
+      });
+      setDays(prevDays => prevDays.map((d, i) => ({
+        ...d,
+        translations: {
+          es: data.es.days?.[i] || {},
+          id: data.id.days?.[i] || {}
+        }
+      })));
+      toast({ title: "Auto-translated successfully!" });
+    },
+    onError: (e: Error) => toast({ title: "Translation failed", description: e.message, variant: "destructive" }),
+  });
+
   const handleAddDay = () => {
     const nextDay = days.length + 1;
     setDays([...days, { dayNumber: nextDay, title: `Day ${nextDay}`, description: "", activities: "" }]);
@@ -170,7 +202,33 @@ export default function TourGenerator() {
             <p className="text-muted-foreground">Design your perfect itinerary day-by-day.</p>
           </div>
         </div>
+        
         <div className="flex gap-2">
+          <div className="flex bg-muted p-1 rounded-md">
+            {["en", "es", "id"].map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setActiveLang(lang)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-sm transition-all ${
+                  activeLang === lang 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {lang.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => translateMutation.mutate()} 
+            disabled={translateMutation.isPending || selectedTourId === "new"}
+            className="gap-2"
+          >
+            <Languages className="h-4 w-4" />
+            {translateMutation.isPending ? "Translating..." : "Auto Translate"}
+          </Button>
+
           <Dialog open={aiOpen} onOpenChange={setAiOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10 shadow-sm transition-all duration-300">
@@ -314,8 +372,11 @@ export default function TourGenerator() {
             <div className="space-y-2">
               <Label>Tour Title</Label>
               <Input 
-                value={title} 
-                onChange={(e) => setTitle(e.target.value)} 
+                value={activeLang === 'en' ? title : (translations?.[activeLang]?.title || '')} 
+                onChange={(e) => {
+                  if (activeLang === 'en') setTitle(e.target.value);
+                  else setTranslations({ ...translations, [activeLang]: { ...translations?.[activeLang], title: e.target.value } });
+                }} 
                 placeholder="e.g. Wonders of Indonesia" 
                 className="font-semibold"
               />
@@ -324,8 +385,11 @@ export default function TourGenerator() {
           <div className="space-y-2">
             <Label>Overall Description</Label>
             <Textarea 
-              value={description} 
-              onChange={(e) => setDescription(e.target.value)} 
+              value={activeLang === 'en' ? description : (translations?.[activeLang]?.description || '')} 
+              onChange={(e) => {
+                  if (activeLang === 'en') setDescription(e.target.value);
+                  else setTranslations({ ...translations, [activeLang]: { ...translations?.[activeLang], description: e.target.value } });
+              }} 
               placeholder="Describe the magic of this tour..."
               rows={3}
             />
@@ -382,8 +446,14 @@ export default function TourGenerator() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1 mr-4">
                     <Input 
-                      value={day.title || ""} 
-                      onChange={(e) => updateDay(index, "title", e.target.value)}
+                      value={activeLang === 'en' ? (day.title || "") : ((day as any).translations?.[activeLang]?.title || "")} 
+                      onChange={(e) => {
+                        if (activeLang === 'en') updateDay(index, "title", e.target.value);
+                        else {
+                          const trans = (day as any).translations || {};
+                          updateDay(index, "translations", { ...trans, [activeLang]: { ...trans[activeLang], title: e.target.value } });
+                        }
+                      }}
                       placeholder="Day Title"
                       className="text-lg font-bold border-none p-0 focus-visible:ring-0 placeholder:text-muted-foreground/30"
                     />
@@ -428,8 +498,14 @@ export default function TourGenerator() {
                   <div className="space-y-1">
                     <Label className="text-[10px] uppercase text-muted-foreground">Description</Label>
                     <Textarea 
-                      value={day.description || ""} 
-                      onChange={(e) => updateDay(index, "description", e.target.value)}
+                      value={activeLang === 'en' ? (day.description || "") : ((day as any).translations?.[activeLang]?.description || "")} 
+                      onChange={(e) => {
+                        if (activeLang === 'en') updateDay(index, "description", e.target.value);
+                        else {
+                          const trans = (day as any).translations || {};
+                          updateDay(index, "translations", { ...trans, [activeLang]: { ...trans[activeLang], description: e.target.value } });
+                        }
+                      }}
                       placeholder="What happens today?"
                       className="text-sm resize-none"
                       rows={2}
@@ -467,8 +543,14 @@ export default function TourGenerator() {
                       )}
                     </div>
                     <Textarea 
-                      value={day.activities || ""} 
-                      onChange={(e) => updateDay(index, "activities", e.target.value)}
+                      value={activeLang === 'en' ? (day.activities || "") : ((day as any).translations?.[activeLang]?.activities || "")} 
+                      onChange={(e) => {
+                        if (activeLang === 'en') updateDay(index, "activities", e.target.value);
+                        else {
+                          const trans = (day as any).translations || {};
+                          updateDay(index, "translations", { ...trans, [activeLang]: { ...trans[activeLang], activities: e.target.value } });
+                        }
+                      }}
                       placeholder="Lunch at..., Visit to..."
                       className="text-sm bg-primary/5 italic"
                       rows={2}

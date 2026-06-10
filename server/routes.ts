@@ -350,6 +350,14 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  app.post("/api/ai/translate-content", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const translated = await aiService.translateTourContent(req.body);
+      res.json(translated);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Tour Days ----
   app.get("/api/tours/:id/days", async (req, res) => {
     try { res.json(await storage.getTourDays(req.params.id as string)); }
