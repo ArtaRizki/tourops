@@ -275,7 +275,7 @@ export default function BrowseTours() {
                         <Tag className="h-2.5 w-2.5 mr-1" />{tour.category}
                       </Badge>
                     )}
-                    {tour.tags?.slice(0, 2).map((tag) => (
+                    {(tour.tags || []).slice(0, 2).map((tag) => (
                       <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
                     ))}
                   </div>

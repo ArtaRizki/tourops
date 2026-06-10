@@ -66,8 +66,8 @@ export default function TourBrochure() {
     return <div className="p-6"><Skeleton className="h-64" /></div>;
   }
 
-  const sortedDays = days?.slice().sort((a, b) => a.dayNumber - b.dayNumber) || [];
-  const openDepartures = departures?.filter((d) => d.status === "open") || [];
+  const sortedDays = days ? [...days].sort((a, b) => a.dayNumber - b.dayNumber) : [];
+  const openDepartures = (departures || []).filter((d) => d.status === "open");
   const highlightLines = tour?.highlights ? tour.highlights.split("\n").filter((l: string) => l.trim()) : [];
   const displayTitle = customTitle || tour?.title || "Tour Brochure";
 

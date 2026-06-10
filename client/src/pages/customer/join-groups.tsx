@@ -26,10 +26,10 @@ export default function JoinGroups() {
     );
   }
 
-  const filteredGroups = groups?.filter(g => 
-    g.groupName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.tourTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.joinCode?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredGroups = (groups || []).filter(g => 
+    (g.groupName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (g.tourTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (g.joinCode || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

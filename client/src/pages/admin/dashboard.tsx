@@ -50,22 +50,22 @@ export default function AdminDashboard() {
   const { data: stats, isLoading: loadingStats } = useQuery<any>({ queryKey: ["/api/admin/stats"] });
 
   const totalBookings = bookings?.length || 0;
-  const confirmedBookings = bookings?.filter((b) => b.status === "confirmed").length || 0;
-  const pendingBookings = bookings?.filter((b) => b.status === "submitted").length || 0;
-  const blockedFulfillments = bookings?.filter((b) => b.fulfillmentStatus === "blocked").length || 0;
-  const upcomingDepartures = departures?.filter((d) => d.status === "open").length || 0;
-  const pendingDocs = documents?.filter(d => d.status === "uploaded").length || 0;
-  const blockedWorkflows = workflows?.filter(w => w.status === "blocked").length || 0;
-  const pendingPayments = payments?.filter(p => p.status === "pending").length || 0;
+  const confirmedBookings = (bookings || []).filter((b) => b.status === "confirmed").length;
+  const pendingBookings = (bookings || []).filter((b) => b.status === "submitted").length;
+  const blockedFulfillments = (bookings || []).filter((b) => b.fulfillmentStatus === "blocked").length;
+  const upcomingDepartures = (departures || []).filter((d) => d.status === "open").length;
+  const pendingDocs = documents ? documents.filter(d => d.status === "uploaded").length : 0;
+  const blockedWorkflows = workflows ? workflows.filter(w => w.status === "blocked").length : 0;
+  const pendingPayments = payments ? payments.filter(p => p.status === "pending").length : 0;
   const totalTours = tours?.length || 0;
 
-  const totalRevenue = payments?.filter(p => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
-  const pendingRevenue = payments?.filter(p => p.status === "pending").reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
+  const totalRevenue = (payments || []).filter(p => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const pendingRevenue = (payments || []).filter(p => p.status === "pending").reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
   // Tour popularity
   const tourStats = tours?.map(t => {
-    const bookingCount = bookings?.filter(b => b.tourId === t.id && b.status !== "cancelled").length || 0;
-    const revenue = bookings?.filter(b => b.tourId === t.id && b.status === "confirmed").reduce((sum, b) => sum + (b.totalPrice || 0), 0) || 0;
+    const bookingCount = (bookings || []).filter(b => b.tourId === t.id && b.status !== "cancelled").length;
+    const revenue = (bookings || []).filter(b => b.tourId === t.id && b.status === "confirmed").reduce((sum, b) => sum + (b.totalPrice || 0), 0);
     return { id: t.id, title: t.title, count: bookingCount, revenue };
   }).sort((a, b) => b.count - a.count).slice(0, 5) || [];
 
@@ -164,9 +164,9 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fulfillment Funnel</p>
               {[
-                { label: "Pending", count: bookings?.filter((b) => b.fulfillmentStatus === "pending").length || 0, color: "bg-muted" },
-                { label: "In Progress", count: bookings?.filter((b) => b.fulfillmentStatus === "in_progress").length || 0, color: "bg-primary" },
-                { label: "Completed", count: bookings?.filter((b) => b.fulfillmentStatus === "completed").length || 0, color: "bg-green-600" },
+                { label: "Pending", count: (bookings || []).filter((b) => b.fulfillmentStatus === "pending").length, color: "bg-muted" },
+                { label: "In Progress", count: (bookings || []).filter((b) => b.fulfillmentStatus === "in_progress").length, color: "bg-primary" },
+                { label: "Completed", count: (bookings || []).filter((b) => b.fulfillmentStatus === "completed").length, color: "bg-green-600" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">

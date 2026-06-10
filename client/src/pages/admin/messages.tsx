@@ -16,12 +16,15 @@ export default function AdminMessages() {
   const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
   const { data: bookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
 
-  const filtered = messages?.filter((m) => {
+  const filtered = (messages || []).filter((m) => {
     const matchVisibility = visibilityFilter === "all" || m.visibility === visibilityFilter;
     const booking = bookings?.find(b => b.id === m.bookingId);
-    const matchSearch = !search || m.messageText.toLowerCase().includes(search.toLowerCase()) || m.senderName?.toLowerCase().includes(search.toLowerCase()) || booking?.bookingCode?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || 
+      (m.messageText || "").toLowerCase().includes(search.toLowerCase()) || 
+      (m.senderName || "").toLowerCase().includes(search.toLowerCase()) || 
+      (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase());
     return matchVisibility && matchSearch;
-  }) || [];
+  });
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 mb-2" />)}</div>;
 

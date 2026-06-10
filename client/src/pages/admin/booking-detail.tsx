@@ -1346,7 +1346,7 @@ export default function AdminBookingDetail() {
                         <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-primary border-4 border-background" />
                         <div className="space-y-1">
                           <div className="flex items-center justify-between gap-4">
-                            <p className="text-sm font-semibold">{log.action?.replace(/_/g, " ").toUpperCase()}</p>
+                            <p className="text-sm font-semibold">{log.action ? log.action.replace(/_/g, " ").toUpperCase() : ""}</p>
                             <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}</p>
                           </div>
                           <p className="text-xs text-muted-foreground">

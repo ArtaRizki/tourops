@@ -54,7 +54,7 @@ export default function TourDetail() {
   const { isAuthenticated } = useAuth();
   const tourId = params?.id;
 
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { data: tour, isLoading } = useQuery<Tour>({ queryKey: ["/api/tours", tourId] });
   const { data: departures } = useQuery<TourDeparture[]>({ queryKey: ["/api/tours", tourId, "departures"] });
   const { data: days } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });

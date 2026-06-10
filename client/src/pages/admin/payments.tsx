@@ -36,15 +36,17 @@ export default function AdminPayments() {
     },
   });
 
-  const filtered = payments?.filter((p) => {
+  const filtered = (payments || []).filter((p) => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const booking = bookings?.find(b => b.id === p.bookingId);
-    const matchSearch = !search || booking?.bookingCode?.toLowerCase().includes(search.toLowerCase()) || p.notes?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || 
+      (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase()) || 
+      (p.notes || "").toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
-  }) || [];
+  });
 
-  const totalPending = payments?.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0) || 0;
-  const totalPaid = payments?.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0) || 0;
+  const totalPending = (payments || []).filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = (payments || []).filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0);
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 mb-2" />)}</div>;
 

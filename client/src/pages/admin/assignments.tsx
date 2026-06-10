@@ -23,15 +23,17 @@ export default function AdminAssignments() {
   const { data: bookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
   const { data: users } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
 
-  const filtered = assignments?.filter((a) => {
+  const filtered = (assignments || []).filter((a) => {
     const matchService = serviceFilter === "all" || a.serviceType === serviceFilter;
     const matchStatus = statusFilter === "all" || a.status === statusFilter;
     const booking = bookings?.find(b => b.id === a.bookingId);
-    const matchSearch = !search || booking?.bookingCode?.toLowerCase().includes(search.toLowerCase()) || a.countryCode?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || 
+      (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase()) || 
+      (a.countryCode || "").toLowerCase().includes(search.toLowerCase());
     return matchService && matchStatus && matchSearch;
-  }) || [];
+  });
 
-  const unassigned = assignments?.filter(a => !a.assignedUserId || a.status === "unassigned") || [];
+  const unassigned = (assignments || []).filter(a => !a.assignedUserId || a.status === "unassigned");
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 mb-2" />)}</div>;
 

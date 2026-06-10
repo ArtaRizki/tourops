@@ -70,7 +70,7 @@ export default function AdminWorkflowDetail() {
 
   const Icon = serviceIcons[workflow.serviceType] || Workflow;
   const assignedUser = allUsers?.find(u => u.userId === workflow.assignedUserId);
-  const completedSteps = steps?.filter(s => s.status === "done").length || 0;
+  const completedSteps = (steps || []).filter(s => s.status === "done").length;
   const totalSteps = steps?.length || 0;
 
   return (

@@ -108,12 +108,14 @@ export default function AdminBookings() {
     });
   };
 
-  const filtered = bookings?.filter((b) => {
-    const matchSearch = !search || b.bookingCode.toLowerCase().includes(search.toLowerCase()) || b.groupName?.toLowerCase().includes(search.toLowerCase());
+  const filtered = (bookings || []).filter((b) => {
+    const matchSearch = !search || 
+      (b.bookingCode || "").toLowerCase().includes(search.toLowerCase()) || 
+      (b.groupName || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || b.status === statusFilter;
     const matchType = typeFilter === "all" || b.bookingType === typeFilter;
     return matchSearch && matchStatus && matchType;
-  }) || [];
+  });
 
   const bulkInitMutation = useMutation({
     mutationFn: (ids: string[]) => apiRequest("POST", "/api/bookings/bulk-initialize", { bookingIds: ids }),

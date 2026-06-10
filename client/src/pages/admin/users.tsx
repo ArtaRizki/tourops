@@ -62,15 +62,15 @@ export default function AdminUsers() {
     },
   });
 
-  const filtered = profiles?.filter((p: any) =>
+  const filtered = (profiles || []).filter((p: any) =>
     !search || p.userId.toLowerCase().includes(search.toLowerCase()) ||
-    p.companyName?.toLowerCase().includes(search.toLowerCase()) ||
-    p.role?.toLowerCase().includes(search.toLowerCase()) ||
-    p.user?.email?.toLowerCase().includes(search.toLowerCase()) ||
-    p.user?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-    p.user?.lastName?.toLowerCase().includes(search.toLowerCase()) ||
-    p.user?.username?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+    (p.companyName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (p.role || "").toLowerCase().includes(search.toLowerCase()) ||
+    (p.user?.email || "").toLowerCase().includes(search.toLowerCase()) ||
+    (p.user?.firstName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (p.user?.lastName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (p.user?.username || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   if (isLoading) {
     return <div className="p-6 space-y-4"><Skeleton className="h-8 w-48" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;

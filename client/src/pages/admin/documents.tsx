@@ -38,15 +38,17 @@ export default function AdminDocuments() {
     },
   });
 
-  const filtered = documents?.filter((d) => {
+  const filtered = (documents || []).filter((d) => {
     const matchStatus = statusFilter === "all" || d.status === statusFilter;
     const matchType = typeFilter === "all" || d.docType === typeFilter;
     const booking = bookings?.find(b => b.id === d.bookingId);
-    const matchSearch = !search || d.fileName.toLowerCase().includes(search.toLowerCase()) || booking?.bookingCode?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || 
+      (d.fileName || "").toLowerCase().includes(search.toLowerCase()) || 
+      (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchType && matchSearch;
-  }) || [];
+  });
 
-  const pendingDocs = documents?.filter(d => d.status === "uploaded").length || 0;
+  const pendingDocs = documents ? documents.filter(d => d.status === "uploaded").length : 0;
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 mb-2" />)}</div>;
 
