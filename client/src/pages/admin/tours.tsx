@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
-import type { Tour, TourDay, TourDayItem } from "@shared/schema";
+import type { Tour, TourDay, TourDayItem, City } from "@shared/schema";
 
 export default function AdminTours() {
   const { toast } = useToast();
@@ -384,6 +384,7 @@ export default function AdminTours() {
 function ItineraryEditor({ tourId, duration }: { tourId: string; duration: number }) {
   const { toast } = useToast();
   const { data: days, isLoading } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
 
   const [dayNumber, setDayNumber] = useState(1);
   const [title, setTitle] = useState("");
@@ -447,7 +448,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>City</Label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" />
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" list="cities-datalist" />
           </div>
           <div>
             <Label>Image URL (Optional)</Label>
@@ -513,6 +514,11 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
           ))}
         </div>
       )}
+      <datalist id="cities-datalist">
+        {citiesList?.map((c) => (
+          <option key={c.id} value={c.name} />
+        ))}
+      </datalist>
     </div>
   );
 }
@@ -712,7 +718,7 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
         <div><Label>Country</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} /></div>
       </div>
       <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-      <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+      <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} list="cities-datalist" /></div>
       <div><Label>Image URL (Optional)</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
       <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div><Label>Activities</Label><Textarea value={activities} onChange={(e) => setActivities(e.target.value)} /></div>

@@ -28,6 +28,9 @@ import { scraperSafety } from "./lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "./replit_integrations/auth";
 import { registerAuthRoutes } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
+import { db } from "./db";
+import { countries, cities, tourDays } from "@shared/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -369,6 +372,49 @@ export async function registerRoutes(
   });
 
   // ---- Tour Days ----
+  async function ensureCityExists(cityName: string | null | undefined, countryCode: string | null | undefined) {
+    if (!cityName || !cityName.trim()) return;
+    const nameTrimmed = cityName.trim();
+    
+    let countryId: string | null = null;
+    if (countryCode && countryCode.trim()) {
+      const codeUpper = countryCode.trim().toUpperCase();
+      const [country] = await db.select().from(countries).where(eq(countries.code, codeUpper)).limit(1);
+      if (country) {
+        countryId = country.id;
+      } else {
+        const [countryByName] = await db.select().from(countries).where(eq(sql`lower(${countries.name})`, codeUpper.toLowerCase())).limit(1);
+        if (countryByName) {
+          countryId = countryByName.id;
+        }
+      }
+    }
+
+    if (!countryId) {
+      const [firstCountry] = await db.select().from(countries).limit(1);
+      if (firstCountry) {
+        countryId = firstCountry.id;
+      } else {
+        return;
+      }
+    }
+
+    const [existingCity] = await db.select()
+      .from(cities)
+      .where(and(
+        eq(sql`lower(${cities.name})`, nameTrimmed.toLowerCase()),
+        eq(cities.countryId, countryId)
+      ))
+      .limit(1);
+
+    if (!existingCity) {
+      await db.insert(cities).values({
+        name: nameTrimmed,
+        countryId: countryId,
+      });
+    }
+  }
+
   app.get("/api/tours/:id/days", async (req, res) => {
     try { res.json(await storage.getTourDays(req.params.id as string)); }
     catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -379,6 +425,11 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      
+      if (parsed.data.city) {
+        await ensureCityExists(parsed.data.city, parsed.data.countryCode);
+      }
+
       res.json(await storage.createTourDay(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -386,6 +437,13 @@ export async function registerRoutes(
   app.patch("/api/tour-days/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      
+      if (req.body.city) {
+        const [existingDay] = await db.select().from(tourDays).where(eq(tourDays.id, req.params.id as string)).limit(1);
+        const countryCode = req.body.countryCode || existingDay?.countryCode;
+        await ensureCityExists(req.body.city, countryCode);
+      }
+
       res.json(await storage.updateTourDay(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

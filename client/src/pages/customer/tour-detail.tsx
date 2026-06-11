@@ -285,41 +285,66 @@ export default function TourDetail() {
           <h2 className="text-xl font-bold font-serif mb-4">{t("itinerary")}</h2>
           <div className="space-y-3">
             {days.sort((a, b) => a.dayNumber - b.dayNumber).map((day) => (
-              <Card key={day.id} data-testid={`card-day-${day.dayNumber}`} className="bg-slate-200/60 dark:bg-slate-800/60 border-none shadow-sm">
+              <Card key={day.id} data-testid={`card-day-${day.dayNumber}`} className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-850 shadow-sm rounded-xl">
                 <CardContent className="p-5">
-                  <div className="flex flex-col sm:flex-row items-start gap-6">
-                    {day.imageUrl ? (
-                      <div className="w-full sm:w-48 aspect-[4/3] sm:aspect-auto sm:h-32 flex-shrink-0 relative shadow-md bg-white p-1">
-                        <img src={day.imageUrl} alt={language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)} className="w-full h-full object-cover" />
+                  <div className="flex items-start gap-4">
+                    {/* Day number badge on the left */}
+                    <div className="w-12 h-12 flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-md flex items-center justify-center font-bold text-slate-800 dark:text-slate-200 shadow-sm text-lg">
+                      {day.dayNumber}
+                    </div>
+
+                    {/* Main content + optional image on the right */}
+                    <div className="flex-1 min-w-0 flex flex-col md:flex-row gap-5 justify-between">
+                      {/* Text details */}
+                      <div className="flex-1 space-y-3 min-w-0">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 leading-snug">
+                            {language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)}
+                          </h3>
+                          {day.city && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+                              <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                              {day.city}
+                              {day.countryCode ? `, ${
+                                (() => {
+                                  try {
+                                    const localeCode = language === 'id' ? 'id' : language === 'es' ? 'es' : 'en';
+                                    return new Intl.DisplayNames([localeCode], {type: 'region'}).of(day.countryCode) || day.countryCode;
+                                  } catch {
+                                    return day.countryCode;
+                                  }
+                                })()
+                              }` : ""}
+                            </p>
+                          )}
+                        </div>
+
+                        {day.description && (
+                          <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                            {language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description)}
+                          </p>
+                        )}
+
+                        {day.activities && (
+                          <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50 space-y-1">
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-450 dark:text-slate-400">
+                              {t("activities_sights")}
+                            </p>
+                            <p className="text-sm text-slate-550 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
+                              {language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities)}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-sm bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                        <span className="text-xl font-bold text-slate-400">{day.dayNumber}</span>
-                      </div>
-                    )}
-                    <div className="flex-1 space-y-2">
-                      <h3 className="font-bold text-lg underline underline-offset-4 decoration-2">{t("tour_day")} #{day.dayNumber}</h3>
-                      <p className="font-medium italic text-slate-800 dark:text-slate-200">{language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)}</p>
-                      {day.city && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {day.city}
-                          {day.countryCode ? `, ${
-                            (() => {
-                              try {
-                                return new Intl.DisplayNames(['en'], {type: 'region'}).of(day.countryCode) || day.countryCode;
-                              } catch {
-                                return day.countryCode;
-                              }
-                            })()
-                          }` : ""}
-                        </p>
-                      )}
-                      {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description)}</p>}
-                      {day.activities && (
-                        <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t("activities_sights")}</p>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities)}</p>
+
+                      {/* Day image on the right */}
+                      {day.imageUrl && (
+                        <div className="w-full md:w-52 aspect-[16/10] md:h-32 rounded-lg overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm flex-shrink-0 self-center md:self-start">
+                          <img 
+                            src={day.imageUrl} 
+                            alt={language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)} 
+                            className="w-full h-full object-cover" 
+                          />
                         </div>
                       )}
                     </div>
