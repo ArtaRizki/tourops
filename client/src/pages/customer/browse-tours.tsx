@@ -10,6 +10,7 @@ import { Link, useLocation } from "wouter";
 import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useMemo } from "react";
 import { PublicHeader } from "@/components/public-header";
 import type { Tour } from "@shared/schema";
@@ -25,6 +26,7 @@ const DURATION_OPTIONS = [
 
 export default function BrowseTours() {
   const { toast } = useToast();
+  const { language, t } = useLanguage();
   const [search, setSearch] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -128,15 +130,15 @@ export default function BrowseTours() {
       <PublicHeader />
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-serif" data-testid="text-browse-title">Explore Tours</h1>
-          <p className="text-muted-foreground text-sm">Discover your next adventure — {tours?.length || 0} tours available</p>
+          <h1 className="text-2xl font-bold font-serif" data-testid="text-browse-title">{t("explore_tours_title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("discover_adventure")} — {tours?.length || 0} {t("tours_available")}</p>
         </div>
         
         <Card className="w-full md:w-auto bg-primary/5 border-primary/20 shadow-sm border-dashed">
           <CardContent className="p-3 flex flex-col sm:flex-row gap-3 items-center">
             <div className="flex items-center gap-2 text-primary font-medium">
               <Users className="h-4 w-4" />
-              <span className="text-xs">Have a Join Code?</span>
+              <span className="text-xs">{t("have_join_code")}</span>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
               <Input 
@@ -147,7 +149,7 @@ export default function BrowseTours() {
                 onChange={(e) => setJoinCode(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleJoinCode()}
               />
-              <Button size="sm" className="h-8 text-xs" onClick={handleJoinCode}>Join Group</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleJoinCode}>{t("join_group")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -159,7 +161,7 @@ export default function BrowseTours() {
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search tours, destinations, tags..."
+              placeholder={t("search_placeholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -171,12 +173,12 @@ export default function BrowseTours() {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="h-4 w-4 mr-2" />
-            Filters
+            {t("filter")}
             {hasActiveFilters && <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]">!</Badge>}
           </Button>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4 mr-1" /> Clear
+              <X className="h-4 w-4 mr-1" /> {t("clear")}
             </Button>
           )}
         </div>
@@ -186,30 +188,33 @@ export default function BrowseTours() {
             <CardContent className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-sm font-medium mb-2">Category</p>
+                  <p className="text-sm font-medium mb-2">{t("category")}</p>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="any">All Categories</SelectItem>
+                      <SelectItem value="any">{t("all_categories")}</SelectItem>
                       {TOUR_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        <SelectItem key={cat} value={cat}>{t(cat.toLowerCase() as any) || cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <p className="text-sm font-medium mb-2">Duration</p>
+                  <p className="text-sm font-medium mb-2">{t("duration")}</p>
                   <Select value={durationFilter} onValueChange={setDurationFilter}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {DURATION_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
+                      {DURATION_OPTIONS.map((opt) => {
+                        let label = opt.label;
+                        if (opt.value === "any") label = t("any_duration");
+                        else label = opt.label.replace("days", t("days"));
+                        return <SelectItem key={opt.value} value={opt.value}>{label}</SelectItem>;
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <p className="text-sm font-medium mb-2">Travel Dates</p>
+                  <p className="text-sm font-medium mb-2">{t("travel_dates")}</p>
                   <div className="flex gap-2">
                     <Input
                       type="date"
@@ -226,7 +231,7 @@ export default function BrowseTours() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium mb-2">Max Price: ${maxPrice.toLocaleString()}</p>
+                  <p className="text-sm font-medium mb-2">{t("max_price")}: ${maxPrice.toLocaleString()}</p>
                   <Slider
                     min={0}
                     max={10000}
@@ -247,11 +252,11 @@ export default function BrowseTours() {
         <Card>
           <CardContent className="flex flex-col items-center py-16">
             <MapPin className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <h3 className="font-semibold mb-1">No tours found</h3>
-            <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+            <h3 className="font-semibold mb-1">{t("no_tours_found")}</h3>
+            <p className="text-sm text-muted-foreground">{t("try_adjusting")}</p>
             {hasActiveFilters && (
               <Button variant="outline" className="mt-4" onClick={clearFilters}>
-                Clear All Filters
+                {t("clear_all_filters")}
               </Button>
             )}
           </CardContent>
@@ -264,7 +269,7 @@ export default function BrowseTours() {
                 <div className="aspect-video overflow-hidden">
                   <img
                     src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800"}
-                    alt={tour.title}
+                    alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
@@ -272,17 +277,17 @@ export default function BrowseTours() {
                   <div className="flex flex-wrap gap-1">
                     {tour.category && (
                       <Badge variant="secondary" className="text-xs">
-                        <Tag className="h-2.5 w-2.5 mr-1" />{tour.category}
+                        <Tag className="h-2.5 w-2.5 mr-1" />{t(tour.category.toLowerCase() as any) || tour.category}
                       </Badge>
                     )}
                     {(tour.tags || []).slice(0, 2).map((tag) => (
                       <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
                     ))}
                   </div>
-                  <h3 className="font-semibold text-lg leading-tight">{tour.title}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2 flex-1">{tour.description}</p>
+                  <h3 className="font-semibold text-lg leading-tight">{language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2 flex-1">{language === 'en' ? tour.description : ((tour as any).translations?.[language]?.description || tour.description)}</p>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{tour.duration} days</span>
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{tour.duration} {t("days")}</span>
                     {tour.countries && tour.countries.length > 0 && (
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{tour.countries.join(", ")}</span>
                     )}
@@ -292,17 +297,17 @@ export default function BrowseTours() {
                       <div>
                         <span className="text-lg font-bold flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />{Number(tour.basePrice).toLocaleString()}
-                          <span className="text-xs font-normal text-muted-foreground">/person</span>
+                          <span className="text-xs font-normal text-muted-foreground">/{t("per_person")}</span>
                         </span>
                         {Number(tour.childPrice) > 0 && (
-                          <p className="text-xs text-muted-foreground">Child: ${Number(tour.childPrice).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{t("child_price")} ${Number(tour.childPrice).toLocaleString()}</p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground font-medium">Contact for pricing</span>
+                      <span className="text-sm text-muted-foreground font-medium">{t("contact_for_pricing")}</span>
                     )}
                     <Button variant="ghost" size="sm">
-                      View Details <ArrowRight className="ml-1 h-3 w-3" />
+                      {t("view_details")} <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
                 </CardContent>

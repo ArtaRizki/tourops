@@ -207,66 +207,75 @@ export default function TourDetail() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {tour.highlights && (
-            <Card className="md:col-span-1 border-none shadow-sm bg-slate-50 dark:bg-slate-900">
-              <CardContent className="p-5">
-                <h3 className="font-bold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {t("highlights")}</h3>
-                <ul className="space-y-2">
-                  {tour.highlights.split('\n').filter(Boolean).map((h, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                      {h.trim()}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {tour.inclusions && (
-              <Card className="border-none shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500">
+          {(() => {
+            const highlightsStr = language === 'en' ? tour.highlights : ((tour as any).translations?.[language]?.highlights || tour.highlights);
+            return highlightsStr && (
+              <Card className="md:col-span-1 border-none shadow-sm bg-slate-50 dark:bg-slate-900">
                 <CardContent className="p-5">
-                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> {t("inclusions")}</h3>
-                  <ul className="space-y-3">
-                    {tour.inclusions.split('\n').filter(Boolean).map((inc, i) => {
-                      const lowerText = inc.toLowerCase();
-                      let Icon = CheckCircle;
-                      if (lowerText.includes('air') || lowerText.includes('flight')) Icon = Plane;
-                      else if (lowerText.includes('meet') || lowerText.includes('transfer') || lowerText.includes('porterage')) Icon = Flag;
-                      else if (lowerText.includes('hotel') || lowerText.includes('night') || lowerText.includes('accommodation') || lowerText.includes('room')) Icon = Bed;
-                      else if (lowerText.includes('touring') || lowerText.includes('coach') || lowerText.includes('bus')) Icon = Bus;
-                      else if (lowerText.includes('breakfast') || lowerText.includes('dinner') || lowerText.includes('meal') || lowerText.includes('buffet')) Icon = Utensils;
-                      else if (lowerText.includes('guide') || lowerText.includes('escort') || lowerText.includes('services of')) Icon = User;
-                      else if (lowerText.includes('fee') || lowerText.includes('entrance') || lowerText.includes('sightseeing')) Icon = CircleDollarSign;
-                      else if (lowerText.includes('tip') || lowerText.includes('gratuities')) Icon = CircleDollarSign;
-                      
-                      return (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-3">
-                          <Icon className="h-5 w-5 mt-0.5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
-                          <span className="leading-relaxed">{inc.trim()}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-            {tour.exclusions && (
-              <Card className="border-none shadow-sm bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500">
-                <CardContent className="p-5">
-                  <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> {t("exclusions")}</h3>
+                  <h3 className="font-bold mb-3 flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {t("highlights")}</h3>
                   <ul className="space-y-2">
-                    {tour.exclusions.split('\n').filter(Boolean).map((exc, i) => (
+                    {highlightsStr.split('\n').filter(Boolean).map((h: string, i: number) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
-                        {exc.trim()}
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                        {h.trim()}
                       </li>
                     ))}
                   </ul>
                 </CardContent>
               </Card>
-            )}
+            );
+          })()}
+
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(() => {
+              const inclusionsStr = language === 'en' ? tour.inclusions : ((tour as any).translations?.[language]?.inclusions || tour.inclusions);
+              return inclusionsStr && (
+                <Card className="border-none shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500">
+                  <CardContent className="p-5">
+                    <h3 className="font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> {t("inclusions")}</h3>
+                    <ul className="space-y-3">
+                      {inclusionsStr.split('\n').filter(Boolean).map((inc: string, i: number) => {
+                        const lowerText = inc.toLowerCase();
+                        let Icon = CheckCircle;
+                        if (lowerText.includes('air') || lowerText.includes('flight')) Icon = Plane;
+                        else if (lowerText.includes('meet') || lowerText.includes('transfer') || lowerText.includes('porterage')) Icon = Flag;
+                        else if (lowerText.includes('hotel') || lowerText.includes('night') || lowerText.includes('accommodation') || lowerText.includes('room')) Icon = Bed;
+                        else if (lowerText.includes('touring') || lowerText.includes('coach') || lowerText.includes('bus')) Icon = Bus;
+                        else if (lowerText.includes('breakfast') || lowerText.includes('dinner') || lowerText.includes('meal') || lowerText.includes('buffet')) Icon = Utensils;
+                        else if (lowerText.includes('guide') || lowerText.includes('escort') || lowerText.includes('services of')) Icon = User;
+                        else if (lowerText.includes('fee') || lowerText.includes('entrance') || lowerText.includes('sightseeing')) Icon = CircleDollarSign;
+                        else if (lowerText.includes('tip') || lowerText.includes('gratuities')) Icon = CircleDollarSign;
+                        
+                        return (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-3">
+                            <Icon className="h-5 w-5 mt-0.5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
+                            <span className="leading-relaxed">{inc.trim()}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            {(() => {
+              const exclusionsStr = language === 'en' ? tour.exclusions : ((tour as any).translations?.[language]?.exclusions || tour.exclusions);
+              return exclusionsStr && (
+                <Card className="border-none shadow-sm bg-rose-50/50 dark:bg-rose-950/20 border-l-4 border-l-rose-500">
+                  <CardContent className="p-5">
+                    <h3 className="font-bold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2"><ArrowLeft className="h-4 w-4 rotate-45" /> {t("exclusions")}</h3>
+                    <ul className="space-y-2">
+                      {exclusionsStr.split('\n').filter(Boolean).map((exc: string, i: number) => (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <div className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
+                          {exc.trim()}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
         </div>
       </div>

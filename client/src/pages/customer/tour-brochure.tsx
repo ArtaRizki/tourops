@@ -11,18 +11,20 @@ import { ArrowLeft, Printer, Calendar, MapPin, DollarSign, Upload, Image, Eye } 
 import { Link } from "wouter";
 import { useState, useRef } from "react";
 import type { Tour, TourDeparture, TourDay } from "@shared/schema";
+import { useLanguage } from "@/hooks/use-language";
 
 type TemplateId = "classic" | "modern" | "elegant";
-
-const TEMPLATES: { id: TemplateId; name: string; description: string }[] = [
-  { id: "classic", name: "Classic", description: "Clean layout with traditional styling" },
-  { id: "modern", name: "Modern", description: "Bold headers with accent colors" },
-  { id: "elegant", name: "Elegant", description: "Refined design with serif typography" },
-];
 
 export default function TourBrochure() {
   const [, params] = useRoute("/tours/:id/brochure");
   const preselectedTourId = params?.id;
+  const { language, t } = useLanguage();
+
+  const TEMPLATES: { id: TemplateId; name: string; description: string }[] = [
+    { id: "classic", name: t("classic") || "Classic", description: t("classic_desc") || "Clean layout with traditional styling" },
+    { id: "modern", name: t("modern") || "Modern", description: t("modern_desc") || "Bold headers with accent colors" },
+    { id: "elegant", name: t("elegant") || "Elegant", description: t("elegant_desc") || "Refined design with serif typography" },
+  ];
 
   const { data: allTours, isLoading: toursLoading } = useQuery<Tour[]>({
     queryKey: ["/api/tours/public"],
@@ -66,10 +68,14 @@ export default function TourBrochure() {
     return <div className="p-6"><Skeleton className="h-64" /></div>;
   }
 
+  const tourTitle = tour ? (language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)) : "";
+  const tourDesc = tour ? (language === 'en' ? tour.description : ((tour as any).translations?.[language]?.description || tour.description)) : "";
+  const tourHighlights = tour ? (language === 'en' ? tour.highlights : ((tour as any).translations?.[language]?.highlights || tour.highlights)) : "";
+
   const sortedDays = days ? [...days].sort((a, b) => a.dayNumber - b.dayNumber) : [];
   const openDepartures = (departures || []).filter((d) => d.status === "open");
-  const highlightLines = tour?.highlights ? tour.highlights.split("\n").filter((l: string) => l.trim()) : [];
-  const displayTitle = customTitle || tour?.title || "Tour Brochure";
+  const highlightLines = tourHighlights ? tourHighlights.split("\n").filter((l: string) => l.trim()) : [];
+  const displayTitle = customTitle || tourTitle || t("create_tour_brochure");
 
   const templateStyles: Record<TemplateId, { headerBg: string; headerText: string; accent: string; font: string; dayBadge: string }> = {
     classic: {
@@ -102,24 +108,24 @@ export default function TourBrochure() {
       <div className="p-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <Link href={tourId ? `/tours/${tourId}` : "/tours"}>
           <Button variant="ghost" size="sm" data-testid="button-back-from-brochure">
-            <ArrowLeft className="h-4 w-4 mr-1" />Back
+            <ArrowLeft className="h-4 w-4 mr-1" />{t("back")}
           </Button>
         </Link>
-        <h1 className="text-xl font-bold font-serif">Create Tour Brochure</h1>
+        <h1 className="text-xl font-bold font-serif">{t("create_tour_brochure")}</h1>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={() => setShowPreview(!showPreview)}
             data-testid="button-toggle-preview"
           >
-            <Eye className="h-4 w-4 mr-1" />{showPreview ? "Edit Settings" : "Preview"}
+            <Eye className="h-4 w-4 mr-1" />{showPreview ? t("edit_settings") : t("preview")}
           </Button>
           <Button
             onClick={() => window.print()}
             disabled={!tour}
             data-testid="button-print-brochure"
           >
-            <Printer className="h-4 w-4 mr-1" />Print / Save as PDF
+            <Printer className="h-4 w-4 mr-1" />{t("print_save_pdf")}
           </Button>
         </div>
       </div>
@@ -129,38 +135,39 @@ export default function TourBrochure() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Tour Selection</CardTitle>
+                <CardTitle className="text-base">{t("tour_selection")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Select Tour *</Label>
+                  <Label>{t("select_tour")} *</Label>
                   <Select value={selectedTourId} onValueChange={setSelectedTourId}>
                     <SelectTrigger data-testid="select-brochure-tour">
-                      <SelectValue placeholder="Choose a tour..." />
+                      <SelectValue placeholder={t("choose_tour")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {allTours?.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
-                      ))}
+                      {allTours?.map((t) => {
+                        const title = language === 'en' ? t.title : ((t as any).translations?.[language]?.title || t.title);
+                        return <SelectItem key={t.id} value={t.id}>{title}</SelectItem>;
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Custom Brochure Title</Label>
+                  <Label>{t("custom_brochure_title")}</Label>
                   <Input
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder={tour?.title || "Enter a custom title..."}
+                    placeholder={tourTitle || t("choose_tour")}
                     data-testid="input-brochure-title"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Leave blank to use the tour name</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("leave_blank_tour_name")}</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Brochure Template</CardTitle>
+                <CardTitle className="text-base">{t("brochure_template")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {TEMPLATES.map((t) => (
@@ -184,7 +191,7 @@ export default function TourBrochure() {
 
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Tour Leader Info</CardTitle>
+                <CardTitle className="text-base">{t("tour_leader_info")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap items-start gap-6">
@@ -209,18 +216,18 @@ export default function TourBrochure() {
                       onClick={() => fileInputRef.current?.click()}
                       data-testid="button-upload-leader-photo"
                     >
-                      <Upload className="h-3 w-3 mr-1" />Upload Photo
+                      <Upload className="h-3 w-3 mr-1" />{t("upload_photo")}
                     </Button>
                   </div>
                   <div className="flex-1 min-w-[200px]">
-                    <Label>Leader Name</Label>
+                    <Label>{t("leader_name")}</Label>
                     <Input
                       value={leaderName}
                       onChange={(e) => setLeaderName(e.target.value)}
-                      placeholder="Your name as tour leader"
+                      placeholder={t("your_name_leader")}
                       data-testid="input-leader-name"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Displayed on the brochure as the group leader</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("displayed_brochure_leader")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -239,12 +246,12 @@ export default function TourBrochure() {
             )}
             <h1 className={`text-4xl font-bold ${ts.font}`} data-testid="text-brochure-title">{displayTitle}</h1>
             <div className="flex flex-wrap items-center justify-center gap-6 opacity-90">
-              <span className="flex items-center gap-1"><Calendar className="h-5 w-5" />{tour.duration} days</span>
+              <span className="flex items-center gap-1"><Calendar className="h-5 w-5" />{tour.duration} {t("days")}</span>
               {tour.countries && tour.countries.length > 0 && (
                 <span className="flex items-center gap-1"><MapPin className="h-5 w-5" />{tour.countries.join(", ")}</span>
               )}
               {tour.basePrice ? (
-                <span className="flex items-center gap-1"><DollarSign className="h-5 w-5" />From ${Number(tour.basePrice).toLocaleString()}</span>
+                <span className="flex items-center gap-1"><DollarSign className="h-5 w-5" />{t("starting_from")} ${Number(tour.basePrice).toLocaleString()}</span>
               ) : null}
             </div>
             {(leaderName || leaderPhotoUrl) && (
@@ -257,7 +264,7 @@ export default function TourBrochure() {
                 )}
                 {leaderName && (
                   <div className="text-left">
-                    <p className="text-xs opacity-75">Your Tour Leader</p>
+                    <p className="text-xs opacity-75">{t("tour_leader_info")}</p>
                     <p className="font-semibold">{leaderName}</p>
                   </div>
                 )}
@@ -265,16 +272,16 @@ export default function TourBrochure() {
             )}
           </div>
 
-          {tour.description && (
+          {tourDesc && (
             <div className="space-y-2">
-              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>About This Tour</h2>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{tour.description}</p>
+              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>{t("about_this_tour")}</h2>
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{tourDesc}</p>
             </div>
           )}
 
           {highlightLines.length > 0 && (
             <div className="space-y-3">
-              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>Highlights</h2>
+              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>{t("highlights")}</h2>
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {highlightLines.map((h: string, i: number) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
@@ -288,36 +295,41 @@ export default function TourBrochure() {
 
           {sortedDays.length > 0 && (
             <div className="space-y-4">
-              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>Day-by-Day Itinerary</h2>
+              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>{t("day_by_day_itinerary")}</h2>
               <div className="space-y-4">
-                {sortedDays.map((day) => (
-                  <div key={day.id} className="border rounded-md p-4 space-y-1 break-inside-avoid" data-testid={`brochure-day-${day.dayNumber}`}>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${ts.dayBadge}`}>Day {day.dayNumber}</span>
-                      <h3 className="font-semibold">{day.title}</h3>
-                      {day.city && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}</span>
-                      )}
+                {sortedDays.map((day) => {
+                  const dayTitle = language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title);
+                  const dayDesc = language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description);
+                  const dayAct = language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities);
+                  return (
+                    <div key={day.id} className="border rounded-md p-4 space-y-1 break-inside-avoid" data-testid={`brochure-day-${day.dayNumber}`}>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${ts.dayBadge}`}>{t("tour_day")} #{day.dayNumber}</span>
+                        <h3 className="font-semibold">{dayTitle}</h3>
+                        {day.city && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{day.city}</span>
+                        )}
+                      </div>
+                      {dayDesc && <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{dayDesc}</p>}
+                      {dayAct && <p className="text-xs text-muted-foreground">{t("activities_sights")}: {dayAct}</p>}
                     </div>
-                    {day.description && <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{day.description}</p>}
-                    {day.activities && <p className="text-xs text-muted-foreground">Activities: {day.activities}</p>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
           {openDepartures.length > 0 && (
             <div className="space-y-3">
-              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>Available Departures</h2>
+              <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>{t("available_departures")}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="py-2 pr-4 font-semibold">Start Date</th>
-                      <th className="py-2 pr-4 font-semibold">End Date</th>
-                      <th className="py-2 pr-4 font-semibold">Price / Person</th>
-                      <th className="py-2 pr-4 font-semibold">Availability</th>
+                      <th className="py-2 pr-4 font-semibold">{t("start_date")}</th>
+                      <th className="py-2 pr-4 font-semibold">{t("end_date")}</th>
+                      <th className="py-2 pr-4 font-semibold">{t("price_person")}</th>
+                      <th className="py-2 pr-4 font-semibold">{t("availability")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -325,7 +337,7 @@ export default function TourBrochure() {
                       <tr key={dep.id} className="border-b" data-testid={`brochure-departure-${dep.id}`}>
                         <td className="py-2 pr-4">{dep.startDate ? new Date(dep.startDate).toLocaleDateString() : "TBA"}</td>
                         <td className="py-2 pr-4">{dep.endDate ? new Date(dep.endDate).toLocaleDateString() : "TBA"}</td>
-                        <td className="py-2 pr-4">{dep.pricePerPerson ? `$${Number(dep.pricePerPerson).toLocaleString()}` : "Contact us"}</td>
+                        <td className="py-2 pr-4">{dep.pricePerPerson ? `$${Number(dep.pricePerPerson).toLocaleString()}` : t("contact_for_pricing")}</td>
                         <td className="py-2 pr-4">{dep.capacityTotal ? `${dep.capacityBooked || 0}/${dep.capacityTotal}` : "Open"}</td>
                       </tr>
                     ))}
@@ -336,8 +348,8 @@ export default function TourBrochure() {
           )}
 
           <div className="text-center text-xs text-muted-foreground border-t pt-4 print:mt-8">
-            {leaderName && <p className="mb-1">Led by {leaderName}</p>}
-            <p>Generated on {new Date().toLocaleDateString()} | Contact us for more details and bookings</p>
+            {leaderName && <p className="mb-1">{t("led_by")} {leaderName}</p>}
+            <p>{t("generated_on")} {new Date().toLocaleDateString()} | {t("contact_details_bookings")}</p>
           </div>
         </div>
       ) : (
@@ -345,7 +357,7 @@ export default function TourBrochure() {
           <Card>
             <CardContent className="flex flex-col items-center py-16">
               <Image className="h-12 w-12 text-muted-foreground/40 mb-4" />
-              <p className="text-muted-foreground text-sm">Select a tour above to preview your brochure</p>
+              <p className="text-muted-foreground text-sm">{t("choose_tour")}</p>
             </CardContent>
           </Card>
         </div>
