@@ -467,17 +467,13 @@ export default function TourGenerator() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Location</Label>
-                      <Select 
-                        value={day.city || ""} 
-                        onValueChange={(v) => updateDay(index, "city", v)}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="City" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cities?.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        value={day.city || ""}
+                        onChange={(e) => updateDay(index, "city", e.target.value)}
+                        placeholder="City"
+                        list="cities-datalist"
+                        className="h-8 text-xs"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Country</Label>
@@ -569,6 +565,11 @@ export default function TourGenerator() {
           </Button>
         </div>
       </div>
+      <datalist id="cities-datalist">
+        {cities?.map((c) => (
+          <option key={c.id} value={c.name} />
+        ))}
+      </datalist>
     </div>
   );
 }
