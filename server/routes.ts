@@ -261,6 +261,13 @@ export async function registerRoutes(
   app.get("/api/destinations/popular", async (_req, res) => {
     try {
       const tours = await storage.getPublishedTours();
+      const allCountries = await storage.getAllCountries();
+      const countryMap = new Map<string, string>();
+      for (const c of allCountries) {
+        countryMap.set(c.code.toLowerCase(), c.name);
+        countryMap.set(c.name.toLowerCase(), c.name);
+      }
+
       const destMap = new Map<string, { name: string, tours: number, img: string }>();
 
       for (const tour of tours) {
@@ -268,8 +275,11 @@ export async function registerRoutes(
         
         for (const country of tour.countries) {
           if (!country) continue;
-          let countryName = country.trim();
-          const lowerName = countryName.toLowerCase();
+          const trimmed = country.trim();
+          const lowerName = trimmed.toLowerCase();
+          
+          let countryName = countryMap.get(lowerName) || trimmed;
+          // Apply manual fallbacks if country is not in database
           if (lowerName === 'il') countryName = 'Israel';
           else if (lowerName === 'us' || lowerName === 'usa') countryName = 'United States';
           else if (lowerName === 'uk') countryName = 'United Kingdom';

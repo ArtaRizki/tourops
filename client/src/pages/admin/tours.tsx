@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
 import type { Tour, TourDay, TourDayItem } from "@shared/schema";
@@ -58,6 +59,10 @@ export default function AdminTours() {
   const filteredTours = tours?.filter((t) => t.title.toLowerCase().includes(search.toLowerCase())) || [];
 
   function TourForm({ tour, onSubmit, isPending }: { tour?: Tour | null; onSubmit: (data: any) => void; isPending: boolean }) {
+    const { data: allCountries } = useQuery<any[]>({
+      queryKey: ["/api/master/countries"],
+    });
+
     const [title, setTitle] = useState(tour?.title || "");
     const [description, setDescription] = useState(tour?.description || "");
     const [highlights, setHighlights] = useState(tour?.highlights || "");
@@ -69,7 +74,7 @@ export default function AdminTours() {
     const [basePrice, setBasePrice] = useState(tour?.basePrice || 0);
     const [childPrice, setChildPrice] = useState(tour?.childPrice || 0);
     const [singleSupplement, setSingleSupplement] = useState(tour?.singleSupplement || 0);
-    const [countries, setCountries] = useState((tour?.countries || []).join(", "));
+    const [selectedCountry, setSelectedCountry] = useState(tour?.countries?.[0] || "");
     const [tags, setTags] = useState((tour?.tags || []).join(", "));
     const [category, setCategory] = useState(tour?.category || "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
@@ -160,13 +165,24 @@ export default function AdminTours() {
             <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." rows={2} />
           </div>
           <div className="space-y-3">
-            <div>
+             <div>
               <Label>Single Supplement ($)</Label>
               <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
             </div>
             <div>
-              <Label>Countries (comma separated)</Label>
-              <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="GR, IT, ES" />
+              <Label>Country *</Label>
+              <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                <SelectTrigger data-testid="select-tour-country">
+                  <SelectValue placeholder="Select a country..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allCountries?.map((c) => (
+                    <SelectItem key={c.code} value={c.name}>
+                      {c.name} ({c.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -213,7 +229,7 @@ export default function AdminTours() {
             duration, basePrice: String(basePrice), childPrice: String(childPrice),
             singleSupplement: String(singleSupplement), category, internalNotes,
             galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
-            countries: countries.split(",").map((c) => c.trim()).filter(Boolean),
+            countries: selectedCountry ? [selectedCountry] : [],
             tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
           })}
           disabled={isPending || !title}
