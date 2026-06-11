@@ -15,6 +15,17 @@ import { useLanguage } from "@/hooks/use-language";
 
 type TemplateId = "classic" | "modern" | "elegant";
 
+const cleanDayTitle = (title: string, dayNumber: number): string => {
+  if (!title) return "";
+  const regex = new RegExp(`^(?:tour\\s+)?day\\s*(?:#\\s*)?${dayNumber}\\s*[:\\-\\s]+`, 'i');
+  const generalRegex = /^(?:tour\s+)?day\s*(?:#\s*)?\d+\s*[:\-\s]+/i;
+  let cleaned = title.replace(regex, "");
+  if (cleaned === title) {
+    cleaned = title.replace(generalRegex, "");
+  }
+  return cleaned.trim();
+};
+
 export default function TourBrochure() {
   const [, params] = useRoute("/tours/:id/brochure");
   const preselectedTourId = params?.id;
@@ -298,7 +309,8 @@ export default function TourBrochure() {
               <h2 className={`text-2xl font-bold ${ts.font} ${ts.accent}`}>{t("day_by_day_itinerary")}</h2>
               <div className="space-y-4">
                 {sortedDays.map((day) => {
-                  const dayTitle = language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title);
+                  const rawDayTitle = language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title);
+                  const dayTitle = cleanDayTitle(rawDayTitle, day.dayNumber);
                   const dayDesc = language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description);
                   const dayAct = language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities);
                   return (

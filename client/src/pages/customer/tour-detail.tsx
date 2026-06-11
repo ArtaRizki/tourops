@@ -47,6 +47,17 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
   );
 }
 
+const cleanDayTitle = (title: string, dayNumber: number): string => {
+  if (!title) return "";
+  const regex = new RegExp(`^(?:tour\\s+)?day\\s*(?:#\\s*)?${dayNumber}\\s*[:\\-\\s]+`, 'i');
+  const generalRegex = /^(?:tour\s+)?day\s*(?:#\s*)?\d+\s*[:\-\s]+/i;
+  let cleaned = title.replace(regex, "");
+  if (cleaned === title) {
+    cleaned = title.replace(generalRegex, "");
+  }
+  return cleaned.trim();
+};
+
 export default function TourDetail() {
   const [, params] = useRoute("/tours/:id");
   const [, navigate] = useLocation();
@@ -299,7 +310,7 @@ export default function TourDetail() {
                       <div className="flex-1 space-y-3 min-w-0">
                         <div>
                           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 leading-snug">
-                            {language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)}
+                            {cleanDayTitle(language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title), day.dayNumber)}
                           </h3>
                           {day.city && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
