@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient, getQueryFn } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -49,6 +49,7 @@ function AuthenticatedLayout() {
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
   });
+  const [location] = useLocation();
 
   const role = profile?.role;
 
@@ -72,6 +73,21 @@ function AuthenticatedLayout() {
   // If profile fetch failed (e.g. session lost), redirect to login
   if (profileError || profile === null) {
     return <Redirect to="/" />;
+  }
+
+  const isAdmin = role === "admin" || role === "super_admin";
+  const isCountryManager = role === "country_manager";
+
+  if (!isAdmin && location.startsWith("/admin")) {
+    if (isCountryManager && location === "/admin/master-data") {
+      // Allowed
+    } else {
+      const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
+      if (supplierRoles.includes(role || "")) {
+        return <Redirect to="/supplier" />;
+      }
+      return <Redirect to={isCountryManager || role === "transport_manager" ? "/ops" : "/ops/role"} />;
+    }
   }
 
   return (
