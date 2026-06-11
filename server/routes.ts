@@ -1075,20 +1075,79 @@ export async function registerRoutes(
   app.post("/api/master-records", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      res.status(201).json(await storage.createMasterRecord(req.body));
+      const record = await storage.createMasterRecord(req.body);
+      
+      // If it is a city manager creating a city, auto-insert into cities table
+      if (req.body.recordType === "city_manager" && req.body.title) {
+        const userId = getUserId(req);
+        const profile = await storage.getProfileByUserId(userId!);
+        const countryCode = profile?.countryCode || "EG"; // default to Egypt if not set
+        
+        let countryId: string | null = null;
+        const [country] = await db.select().from(countries).where(eq(countries.code, countryCode.toUpperCase())).limit(1);
+        if (country) {
+          countryId = country.id;
+        } else {
+          const [firstCountry] = await db.select().from(countries).limit(1);
+          if (firstCountry) countryId = firstCountry.id;
+        }
+        
+        if (countryId) {
+          const nameTrimmed = req.body.title.trim();
+          const [existingCity] = await db.select()
+            .from(cities)
+            .where(and(
+              eq(sql`lower(${cities.name})`, nameTrimmed.toLowerCase()),
+              eq(cities.countryId, countryId)
+            ))
+            .limit(1);
+            
+          if (!existingCity) {
+            await db.insert(cities).values({
+              name: nameTrimmed,
+              countryId: countryId
+            });
+          }
+        }
+      }
+      
+      res.status(201).json(record);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.patch("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      res.json(await storage.updateMasterRecord(req.params.id as string, req.body));
+      const oldRecord = await storage.getMasterRecord(req.params.id as string);
+      const updated = await storage.updateMasterRecord(req.params.id as string, req.body);
+      
+      if (oldRecord && oldRecord.recordType === "city_manager" && req.body.title && req.body.title !== oldRecord.title) {
+        const oldName = oldRecord.title.trim().toLowerCase();
+        const newName = req.body.title.trim();
+        
+        const match = await db.select().from(cities).where(eq(sql`lower(${cities.name})`, oldName)).limit(1);
+        if (match[0]) {
+          await db.update(cities).set({ name: newName }).where(eq(cities.id, match[0].id));
+        }
+      }
+      
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const oldRecord = await storage.getMasterRecord(req.params.id as string);
+      
+      if (oldRecord && oldRecord.recordType === "city_manager") {
+        const cityName = oldRecord.title.trim().toLowerCase();
+        const match = await db.select().from(cities).where(eq(sql`lower(${cities.name})`, cityName)).limit(1);
+        if (match[0]) {
+          await db.delete(cities).where(eq(cities.id, match[0].id));
+        }
+      }
+      
       await storage.deleteMasterRecord(req.params.id as string);
       res.sendStatus(204);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
