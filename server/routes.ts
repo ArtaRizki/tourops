@@ -329,7 +329,7 @@ export async function registerRoutes(
 
   app.post("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const payload = { ...req.body };
       if (!payload.slug && payload.title) {
         payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
@@ -342,14 +342,14 @@ export async function registerRoutes(
 
   app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateTour(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteTour(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -357,7 +357,7 @@ export async function registerRoutes(
 
   app.post("/api/ai/generate-itinerary", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const itinerary = await aiService.generateItinerary(req.body);
       res.json(itinerary);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -365,7 +365,7 @@ export async function registerRoutes(
 
   app.post("/api/ai/translate-content", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const translated = await aiService.translateTourContent(req.body);
       res.json(translated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -422,7 +422,7 @@ export async function registerRoutes(
 
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertTourDaySchema.safeParse({ ...req.body, tourId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       

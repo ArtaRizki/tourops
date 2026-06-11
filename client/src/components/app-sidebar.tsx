@@ -67,9 +67,9 @@ export function AppSidebar() {
 
   const getNav = () => {
     const role = profile?.role;
-    if (role === "admin" || role === "super_admin" || role === "country_manager") {
+    if (role === "admin" || role === "super_admin") {
       return [
-        { title: t("dashboard"), url: (role === "admin" || role === "super_admin") ? "/admin" : "/ops", icon: LayoutDashboard },
+        { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
@@ -79,6 +79,12 @@ export function AppSidebar() {
         { title: t("airline_search"), url: "/admin/airline-search", icon: Plane },
         { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
+        { title: t("master_data"), url: "/admin/master-data", icon: Database },
+      ];
+    }
+    if (role === "country_manager") {
+      return [
+        { title: t("dashboard"), url: "/ops", icon: LayoutDashboard },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
       ];
     }
