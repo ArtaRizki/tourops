@@ -705,13 +705,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(getStoredLanguage);
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
     localStorage.setItem("tourops-language", lang);
     document.documentElement.lang = lang;
 
     // Set translation cookie for Google Translate
-    document.cookie = `googtrans=/en/${lang}; path=/`;
-    document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
+    if (lang === "en") {
+      document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
+      document.cookie = "googtrans=; path=/;";
+      document.cookie = `googtrans=; path=/; domain=${window.location.hostname}`;
+    } else {
+      document.cookie = `googtrans=/en/${lang}; path=/`;
+      document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
+    }
+
+    window.location.reload();
   };
 
   useEffect(() => {
