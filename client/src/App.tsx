@@ -80,7 +80,7 @@ function AuthenticatedLayout() {
 
   if (!isAdmin && location.startsWith("/admin")) {
     if (isCountryManager && location === "/admin/master-data") {
-      // Allowed
+      // Allowed — country_manager can access master data
     } else {
       const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
       if (supplierRoles.includes(role || "")) {
