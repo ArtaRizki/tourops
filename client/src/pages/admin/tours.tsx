@@ -190,13 +190,19 @@ export default function AdminTours() {
         {/* Row 6: Image Upload + Tags */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Cover Image URL</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="/images/tour.png" />
-            <Label>Or Upload Image</Label>
+            <Label>Cover Image</Label>
             <div className="flex gap-2 items-center">
               <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
               {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
             </div>
+            {imageUrl && (
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <div>
@@ -394,6 +400,31 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
   const [activities, setActivities] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [editDay, setEditDay] = useState<TourDay | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setImageUrl(data.url);
+      toast({ title: "Image uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const createDay = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/tours/${tourId}/days`, data),
@@ -451,8 +482,19 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
             <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" list="cities-datalist" />
           </div>
           <div>
-            <Label>Image URL (Optional)</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+            <Label>Day Image (Optional)</Label>
+            <div className="flex gap-2 items-center">
+              <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+              {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+            </div>
+            {imageUrl && (
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <div>
@@ -703,6 +745,7 @@ function DayItemsEditor({ dayId }: { dayId: string }) {
 }
 
 function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSave: (data: any) => void; onCancel: () => void; isPending: boolean }) {
+  const { toast } = useToast();
   const [title, setTitle] = useState(day.title);
   const [description, setDescription] = useState(day.description || "");
   const [countryCode, setCountryCode] = useState(day.countryCode || "");
@@ -710,6 +753,31 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   const [activities, setActivities] = useState(day.activities || "");
   const [imageUrl, setImageUrl] = useState(day.imageUrl || "");
   const [dayNumber, setDayNumber] = useState(day.dayNumber);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setImageUrl(data.url);
+      toast({ title: "Image uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -719,7 +787,21 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
       </div>
       <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
       <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} list="cities-datalist" /></div>
-      <div><Label>Image URL (Optional)</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
+      <div>
+        <Label>Day Image (Optional)</Label>
+        <div className="flex gap-2 items-center">
+          <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+          {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+        </div>
+        {imageUrl && (
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
       <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div><Label>Activities</Label><Textarea value={activities} onChange={(e) => setActivities(e.target.value)} /></div>
       <div className="flex flex-wrap gap-2">

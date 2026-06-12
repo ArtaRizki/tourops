@@ -16,7 +16,7 @@ import {
   ArrowLeft, Users, FileText, Workflow, MessageSquare, Plus, Send,
   CheckCircle, Clock, Link2, CreditCard, Upload, Copy, AlertTriangle,
   Plane, Hotel, Bus, UserCheck, Ticket, Eye, XCircle, ExternalLink, Download,
-  Printer, Globe
+  Printer, Globe, X, Loader2
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -81,6 +81,31 @@ export default function CustomerBookingDetail() {
   const [activePayment, setActivePayment] = useState<Payment | null>(null);
   const [receiptUrl, setReceiptUrl] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setReceiptUrl(data.url);
+      toast({ title: "Receipt uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Failed to upload receipt", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const addTraveler = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/travelers`, data),
@@ -1106,22 +1131,32 @@ export default function CustomerBookingDetail() {
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
-                                <Label>Receipt Image URL</Label>
-                                <Input 
-                                  placeholder="https://... (e.g. ending in .jpg, .png)" 
-                                  value={receiptUrl} 
-                                  onChange={(e) => setReceiptUrl(e.target.value)} 
-                                />
-                                {receiptUrl && !receiptUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) && (
-                                  <p className="text-xs text-destructive flex items-center mt-1"><AlertTriangle className="h-3 w-3 mr-1" /> Warning: Link doesn't appear to be a direct image.</p>
+                                <Label>Receipt Image Attachment</Label>
+                                <div className="flex gap-2 items-center">
+                                  <Input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    onChange={handleImageUpload} 
+                                    disabled={isUploading} 
+                                    className="cursor-pointer" 
+                                  />
+                                  {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                                </div>
+                                {receiptUrl && (
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Badge variant="outline" className="text-xs max-w-[200px] truncate">{receiptUrl}</Badge>
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setReceiptUrl("")}>
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 )}
-                                {receiptUrl && receiptUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) && (
+                                {receiptUrl && (
                                   <div className="mt-3 p-2 bg-muted/20 border rounded-md">
                                     <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">IMAGE PREVIEW</p>
                                     <img src={receiptUrl} alt="Receipt preview" className="mx-auto rounded max-h-32 object-contain" />
                                   </div>
                                 )}
-                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">Please paste a direct image link of your transfer proof.</p>
+                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">Please attach the image file of your transfer proof.</p>
                               </div>
                               <div className="space-y-2">
                                 <Label>Notes (Optional)</Label>
