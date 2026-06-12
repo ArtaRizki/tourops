@@ -708,11 +708,41 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     localStorage.setItem("tourops-language", lang);
     document.documentElement.lang = lang;
+
+    // Set translation cookie for Google Translate
+    document.cookie = `googtrans=/en/${lang}; path=/`;
+    document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
   };
 
   useEffect(() => {
     document.documentElement.lang = language;
-  }, []);
+
+    // Ensure cookie matches on mount / state change
+    document.cookie = `googtrans=/en/${language}; path=/`;
+    document.cookie = `googtrans=/en/${language}; path=/; domain=${window.location.hostname}`;
+
+    const triggerGoogleTranslate = () => {
+      const select = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+      if (select) {
+        select.value = language;
+        select.dispatchEvent(new Event('change'));
+        return true;
+      }
+      return false;
+    };
+
+    if (!triggerGoogleTranslate()) {
+      let count = 0;
+      const interval = setInterval(() => {
+        if (triggerGoogleTranslate()) {
+          clearInterval(interval);
+        }
+        count++;
+        if (count > 20) clearInterval(interval);
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [language]);
 
   const t = (key: TranslationKey): string => {
     return translations[language][key] || translations.en[key] || key;
