@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages, ChevronDown } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Tour, TourDay, Country, City, Sight } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 export default function TourGenerator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [selectedTourId, setSelectedTourId] = useState<string>("new");
+  const [selectedTourId, setSelectedTourId] = useState<string>("new-tour");
   
   // Form State
   const [title, setTitle] = useState("");
@@ -54,18 +54,19 @@ export default function TourGenerator() {
 
   // Queries
   const { data: tours, isLoading: loadingTours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
+  console.log("RENDER_TOUR_GENERATOR - tours:", tours === undefined ? "undefined" : Array.isArray(tours) ? `Array(${tours.length})` : typeof tours, "isLoading:", loadingTours);
   const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
   const { data: cities } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: sights } = useQuery<Sight[]>({ queryKey: ["/api/master/sights"] });
 
   const { data: existingDays, isLoading: loadingDays } = useQuery<TourDay[]>({
     queryKey: [`/api/tours/${selectedTourId}/days`],
-    enabled: selectedTourId !== "new",
+    enabled: selectedTourId !== "new-tour",
   });
 
   // Effects
   useEffect(() => {
-    if (selectedTourId === "new") {
+    if (selectedTourId === "new-tour") {
       setTitle("");
       setDescription("");
       setDuration(1);
@@ -82,7 +83,7 @@ export default function TourGenerator() {
   }, [selectedTourId, tours]);
 
   useEffect(() => {
-    if (selectedTourId !== "new" && existingDays) {
+    if (selectedTourId !== "new-tour" && existingDays) {
       setDays(existingDays.sort((a, b) => a.dayNumber - b.dayNumber));
     }
   }, [existingDays, selectedTourId]);
@@ -93,7 +94,7 @@ export default function TourGenerator() {
       const baseTourData = { title, description, duration, category, translations };
       let tourId = selectedTourId;
 
-      if (selectedTourId === "new") {
+      if (selectedTourId === "new-tour") {
         const res = await apiRequest("POST", "/api/tours", { ...baseTourData, isPublished: false });
         const newTour = await res.json();
         tourId = newTour.id;
@@ -104,7 +105,7 @@ export default function TourGenerator() {
       // Sync Days
       // For simplicity, we delete all existing days and recreate them
       // In a production app, you'd want to use PATCH for existing days
-      if (selectedTourId !== "new") {
+      if (selectedTourId !== "new-tour") {
         const oldDays = await (await apiRequest("GET", `/api/tours/${selectedTourId}/days`)).json() as TourDay[];
         for (const d of oldDays) {
           await apiRequest("DELETE", `/api/tour-days/${d.id}`);
@@ -222,7 +223,7 @@ export default function TourGenerator() {
           <Button 
             variant="outline" 
             onClick={() => translateMutation.mutate()} 
-            disabled={translateMutation.isPending || selectedTourId === "new"}
+            disabled={translateMutation.isPending || selectedTourId === "new-tour"}
             className="gap-2"
           >
             <Languages className="h-4 w-4" />
@@ -357,17 +358,19 @@ export default function TourGenerator() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Template / Existing Tour</Label>
-              <Select value={selectedTourId} onValueChange={setSelectedTourId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="New Tour" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Start New Tour</SelectItem>
+              <div className="relative">
+                <select 
+                  value={selectedTourId} 
+                  onChange={(e) => setSelectedTourId(e.target.value)}
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8 font-medium cursor-pointer"
+                >
+                  <option value="new-tour">Start New Tour</option>
                   {tours?.map(t => (
-                    <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                    <option key={t.id} value={t.id}>{t.title}</option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Tour Title</Label>
