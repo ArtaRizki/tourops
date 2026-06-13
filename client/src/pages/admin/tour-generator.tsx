@@ -70,6 +70,7 @@ export default function TourGenerator() {
       setTitle("");
       setDescription("");
       setDuration(1);
+      setCategory("cultural");
       setDays([{ dayNumber: 1, title: "Arrival", description: "", activities: "" }]);
     } else {
       const tour = tours?.find(t => t.id === selectedTourId);
@@ -77,6 +78,7 @@ export default function TourGenerator() {
         setTitle(tour.title);
         setDescription(tour.description || "");
         setDuration(tour.duration);
+        setCategory(tour.category === "null" || tour.category === "NULL" ? "" : (tour.category || ""));
         setTranslations((tour as any).translations || {});
       }
     }
@@ -120,11 +122,66 @@ export default function TourGenerator() {
     },
     onSuccess: (tourId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       toast({ title: "Tour saved successfully" });
       setLocation("/admin");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const addCityMutation = useMutation({
+    mutationFn: async ({ name, countryCode }: { name: string; countryCode?: string }) => {
+      const selectedCountry = countries?.find(c => c.code === countryCode);
+      const countryId = selectedCountry?.id || countries?.[0]?.id;
+      if (!countryId) {
+        throw new Error("No country found in the system. Please ensure countries are loaded.");
+      }
+      const res = await apiRequest("POST", "/api/master/cities", {
+        name,
+        countryId,
+        isActive: true
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to create city");
+      }
+      return res.json();
+    },
+    onSuccess: (newCity) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
+      toast({
+        title: "City added successfully",
+        description: `"${newCity.name}" has been added to the master list.`
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Failed to add city",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleAddCity = async (name: string, countryCode: string | undefined | null, dayIndex: number) => {
+    try {
+      const selectedCountry = countries?.find(c => c.code === countryCode);
+      const countryId = selectedCountry?.id || countries?.[0]?.id;
+      if (!countryId) {
+        toast({ title: "Error", description: "No country found in the system.", variant: "destructive" });
+        return;
+      }
+      
+      const newCity = await addCityMutation.mutateAsync({ name, countryCode: countryCode || undefined });
+      const matchedCountry = countries?.find(c => c.id === newCity.countryId);
+      if (matchedCountry) {
+        updateDay(dayIndex, "countryCode", matchedCountry.code);
+      }
+      updateDay(dayIndex, "city", newCity.name);
+    } catch (e) {
+      // Error handled by mutation
+    }
+  };
 
   const aiMutation = useMutation({
     mutationFn: async () => {
@@ -409,15 +466,21 @@ export default function TourGenerator() {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category || "none"} onValueChange={(val) => setCategory(val === "none" ? "" : val)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Select Category</SelectItem>
                   <SelectItem value="cultural">Cultural</SelectItem>
                   <SelectItem value="adventure">Adventure</SelectItem>
                   <SelectItem value="religious">Religious</SelectItem>
                   <SelectItem value="leisure">Leisure</SelectItem>
+                  {category && !["cultural", "adventure", "religious", "leisure", "null", "NULL", "none"].includes(category) && (
+                    <SelectItem value={category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -477,6 +540,24 @@ export default function TourGenerator() {
                         list="cities-datalist"
                         className="h-8 text-xs"
                       />
+                      {(() => {
+                        const typedCity = day.city?.trim();
+                        const cityExists = cities?.some(c => c.name.toLowerCase() === typedCity?.toLowerCase());
+                        const showAddCityButton = typedCity && !cityExists && countries && countries.length > 0;
+                        if (!showAddCityButton) return null;
+                        return (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => handleAddCity(typedCity, day.countryCode, index)}
+                            disabled={addCityMutation.isPending}
+                            className="mt-1.5 h-7 px-2 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 flex items-center gap-1 w-full justify-start rounded border border-primary/20 transition-all"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add "{typedCity}" as new city
+                          </Button>
+                        );
+                      })()}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Country</Label>

@@ -391,6 +391,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
   const { toast } = useToast();
   const { data: days, isLoading } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const { data: countries } = useQuery<any[]>({ queryKey: ["/api/master/countries"] });
 
   const [dayNumber, setDayNumber] = useState(1);
   const [title, setTitle] = useState("");
@@ -401,6 +402,44 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
   const [imageUrl, setImageUrl] = useState("");
   const [editDay, setEditDay] = useState<TourDay | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const addCityMutation = useMutation({
+    mutationFn: async ({ name, countryCode }: { name: string; countryCode?: string }) => {
+      const selectedCountry = countries?.find(c => c.code === countryCode);
+      const countryId = selectedCountry?.id || countries?.[0]?.id;
+      if (!countryId) {
+        throw new Error("No country found in the system.");
+      }
+      const res = await apiRequest("POST", "/api/master/cities", {
+        name,
+        countryId,
+        isActive: true
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to create city");
+      }
+      return res.json();
+    },
+    onSuccess: (newCity) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
+      toast({
+        title: "City added successfully",
+        description: `"${newCity.name}" has been added to the master list.`
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Failed to add city",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const typedCity = city.trim();
+  const cityExists = citiesList?.some(c => c.name.toLowerCase() === typedCity.toLowerCase());
+  const showAddCityButton = typedCity && !cityExists && countries && countries.length > 0;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -430,6 +469,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
     mutationFn: (data: any) => apiRequest("POST", `/api/tours/${tourId}/days`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours", tourId, "days"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       setTitle(""); setDescription(""); setCountryCode(""); setCity(""); setActivities(""); setImageUrl("");
       setDayNumber((prev) => prev + 1);
       toast({ title: "Day added" });
@@ -441,6 +481,7 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/tour-days/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours", tourId, "days"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       setEditDay(null);
       toast({ title: "Day updated" });
     },
@@ -480,6 +521,27 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
           <div>
             <Label>City</Label>
             <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" list="cities-datalist" />
+            {showAddCityButton && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    const newCity = await addCityMutation.mutateAsync({ name: typedCity, countryCode });
+                    setCity(newCity.name);
+                    const matchedCountry = countries?.find(c => c.id === newCity.countryId);
+                    if (matchedCountry) {
+                      setCountryCode(matchedCountry.code);
+                    }
+                  } catch (e) {}
+                }}
+                disabled={addCityMutation.isPending}
+                className="mt-1.5 h-7 px-2 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 flex items-center gap-1 w-full justify-start rounded border border-primary/20 transition-all"
+              >
+                <Plus className="h-3 w-3" />
+                Add "{typedCity}" as new city
+              </Button>
+            )}
           </div>
           <div>
             <Label>Day Image (Optional)</Label>
@@ -755,6 +817,47 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   const [dayNumber, setDayNumber] = useState(day.dayNumber);
   const [isUploading, setIsUploading] = useState(false);
 
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const { data: countries } = useQuery<any[]>({ queryKey: ["/api/master/countries"] });
+
+  const addCityMutation = useMutation({
+    mutationFn: async ({ name, countryCode }: { name: string; countryCode?: string }) => {
+      const selectedCountry = countries?.find(c => c.code === countryCode);
+      const countryId = selectedCountry?.id || countries?.[0]?.id;
+      if (!countryId) {
+        throw new Error("No country found in the system.");
+      }
+      const res = await apiRequest("POST", "/api/master/cities", {
+        name,
+        countryId,
+        isActive: true
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to create city");
+      }
+      return res.json();
+    },
+    onSuccess: (newCity) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
+      toast({
+        title: "City added successfully",
+        description: `"${newCity.name}" has been added to the master list.`
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Failed to add city",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const typedCity = city.trim();
+  const cityExists = citiesList?.some(c => c.name.toLowerCase() === typedCity.toLowerCase());
+  const showAddCityButton = typedCity && !cityExists && countries && countries.length > 0;
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -786,7 +889,31 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
         <div><Label>Country</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} /></div>
       </div>
       <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-      <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} list="cities-datalist" /></div>
+      <div>
+        <Label>City</Label>
+        <Input value={city} onChange={(e) => setCity(e.target.value)} list="cities-datalist" />
+        {showAddCityButton && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={async () => {
+              try {
+                const newCity = await addCityMutation.mutateAsync({ name: typedCity, countryCode });
+                setCity(newCity.name);
+                const matchedCountry = countries?.find(c => c.id === newCity.countryId);
+                if (matchedCountry) {
+                  setCountryCode(matchedCountry.code);
+                }
+              } catch (e) {}
+            }}
+            disabled={addCityMutation.isPending}
+            className="mt-1.5 h-7 px-2 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 flex items-center gap-1 w-full justify-start rounded border border-primary/20 transition-all"
+          >
+            <Plus className="h-3 w-3" />
+            Add "{typedCity}" as new city
+          </Button>
+        )}
+      </div>
       <div>
         <Label>Day Image (Optional)</Label>
         <div className="flex gap-2 items-center">
