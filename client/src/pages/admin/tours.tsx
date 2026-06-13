@@ -13,7 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
-import type { Tour, TourDay, TourDayItem, City } from "@shared/schema";
+import type { Tour, TourDay, TourDayItem } from "@shared/schema";
+
+interface City {
+  id: string;
+  name: string;
+  countryId: string;
+  isActive: boolean | null;
+}
 
 export default function AdminTours() {
   const { toast } = useToast();
@@ -76,7 +83,7 @@ export default function AdminTours() {
     const [singleSupplement, setSingleSupplement] = useState(tour?.singleSupplement || 0);
     const [selectedCountry, setSelectedCountry] = useState(tour?.countries?.[0] || "");
     const [tags, setTags] = useState((tour?.tags || []).join(", "));
-    const [category, setCategory] = useState(tour?.category || "");
+    const [category, setCategory] = useState(typeof tour?.category === "string" ? tour.category : "");
     const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
     const [isUploading, setIsUploading] = useState(false);
 

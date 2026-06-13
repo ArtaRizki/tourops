@@ -78,7 +78,7 @@ export default function TourGenerator() {
         setTitle(tour.title);
         setDescription(tour.description || "");
         setDuration(tour.duration);
-        setCategory(tour.category === "null" || tour.category === "NULL" ? "" : (tour.category || ""));
+        setCategory(typeof tour.category === "string" ? (tour.category === "null" || tour.category === "NULL" ? "" : tour.category) : "");
         setTranslations((tour as any).translations || {});
       }
     }
@@ -191,7 +191,7 @@ export default function TourGenerator() {
     onSuccess: (data) => {
       setTitle(data.title);
       setDescription(data.description);
-      setCategory(data.category || "cultural");
+      setCategory(typeof data.category === "string" ? data.category : "cultural");
       setDuration(data.days.length);
       setDays(data.days);
       setAiOpen(false);
