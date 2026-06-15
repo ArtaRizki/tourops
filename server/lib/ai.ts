@@ -65,10 +65,24 @@ export class AIService {
       - title: A catchy name for the tour.
       - description: A brief summary.
       - category: One of [cultural, adventure, religious, leisure].
+      - highlights: A short string of key highlights (max 3 sentences).
+      - inclusions: A string describing what is included (comma separated).
+      - exclusions: A string describing what is not included (comma separated).
+      - internalNotes: Any recommendations or notes for the travel agent (string).
+      - basePrice: An estimated base price for the tour per person (number).
+      - childPrice: An estimated price for a child (number, usually 70-80% of base).
+      - singleSupplement: Estimated extra cost for solo traveler (number).
+      - tags: An array of string tags (e.g., ["adventure", "beach", "family"]).
+      - countryCode: The 2-letter ISO country code of the main destination (e.g., "ID" for Indonesia).
+      - imageUrl: A highly descriptive prompt for an AI image generator to create a beautiful 16:9 4k travel photography cover image for this tour.
       - days: An array of ${duration} objects, each with:
         - dayNumber: number
         - title: Title of the day
-        - description: Summary
+        - city: The name of the city for this day (string).
+        - countryCode: 2-letter ISO country code for this day.
+        - description: Summary of the day
+        - activities: A comma-separated string of sights/activities for the day.
+        - imageUrl: A descriptive prompt for an AI image generator focusing on the key sight of the day.
         - items: Array of objects:
           - itemType: [sight, meal, hotel, transport, flight, custom]
           - startTime: "HH:MM"
@@ -226,7 +240,11 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
     days.push({
       dayNumber: i,
       title: `Day ${i} in ${destination}`,
+      city: destination,
+      countryCode: "ID",
       description: `Exploring the highlights of ${destination}.`,
+      activities: `${sight.name}, Local exploring`,
+      imageUrl: `A beautiful travel photo of ${sight.name} in ${destination}`,
       items: [
         {
           itemType: "sight",
@@ -262,6 +280,16 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
     title: `${duration} Days in ${destination} for ${travelerType}`,
     description: `A generated itinerary for ${destination}.`,
     category: "leisure",
+    highlights: `Experience the best of ${destination}. Enjoy the local culture and attractions.`,
+    inclusions: "Accommodation, Breakfast, Transport",
+    exclusions: "Flights, Personal expenses, Insurance",
+    internalNotes: "Standard package",
+    basePrice: 500 * duration,
+    childPrice: 400 * duration,
+    singleSupplement: 150 * duration,
+    tags: ["leisure", "sightseeing", destination.toLowerCase()],
+    countryCode: "ID",
+    imageUrl: `A stunning wide-angle travel photography shot of ${destination}`,
     days
   };
 }

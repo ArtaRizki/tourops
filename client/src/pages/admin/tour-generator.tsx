@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -174,6 +174,101 @@ export default function TourGenerator() {
     }
   }, [existingDays, selectedTourId]);
 
+  // Draft System
+  const [hasDraft, setHasDraft] = useState(false);
+  const skipDraftRef = useRef(false);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    // Reset refs on tour change
+    skipDraftRef.current = false;
+    initializedRef.current = false;
+    setHasDraft(false);
+
+    const draftKey = `tour-draft-${selectedTourId}`;
+    const draft = localStorage.getItem(draftKey);
+    if (draft) {
+      setHasDraft(true);
+    } else {
+      skipDraftRef.current = true;
+    }
+  }, [selectedTourId]);
+
+  useEffect(() => {
+    if (!loadingTours && !loadingDays && skipDraftRef.current && !initializedRef.current) {
+       // Just marking that the initial server load is done, so we can start autosaving
+       initializedRef.current = true;
+    }
+  }, [loadingTours, loadingDays]);
+
+  const restoreDraft = () => {
+    const draftKey = `tour-draft-${selectedTourId}`;
+    const draftStr = localStorage.getItem(draftKey);
+    if (draftStr) {
+      try {
+        const draft = JSON.parse(draftStr);
+        setTitle(draft.title || "");
+        setDescription(draft.description || "");
+        setHighlights(draft.highlights || "");
+        setInclusions(draft.inclusions || "");
+        setExclusions(draft.exclusions || "");
+        setInternalNotes(draft.internalNotes || "");
+        setBasePrice(Number(draft.basePrice) || 0);
+        setChildPrice(Number(draft.childPrice) || 0);
+        setSingleSupplement(Number(draft.singleSupplement) || 0);
+        setSelectedCountry(draft.selectedCountry || "");
+        setTags(draft.tags || "");
+        setGalleryUrls(draft.galleryUrls || "");
+        setImageUrl(draft.imageUrl || "");
+        setDuration(draft.duration || 1);
+        setCategory(draft.category || "cultural");
+        if (draft.days && Array.isArray(draft.days)) {
+           setDays(draft.days);
+        }
+        toast({ title: "Draft restored successfully." });
+      } catch (e) {
+        toast({ title: "Failed to restore draft", variant: "destructive" });
+      }
+    }
+    setHasDraft(false);
+    skipDraftRef.current = true;
+    initializedRef.current = true;
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem(`tour-draft-${selectedTourId}`);
+    setHasDraft(false);
+    skipDraftRef.current = true;
+    initializedRef.current = true;
+    toast({ title: "Draft discarded." });
+  };
+
+  useEffect(() => {
+    if (hasDraft || !skipDraftRef.current || !initializedRef.current) return;
+    
+    // Don't autosave empty new tours
+    if (selectedTourId === "new-tour" && !title && !description) return;
+
+    const timeoutId = setTimeout(() => {
+      const draftKey = `tour-draft-${selectedTourId}`;
+      const draftData = {
+        title, description, duration, category,
+        highlights, inclusions, exclusions, internalNotes,
+        basePrice, childPrice, singleSupplement,
+        selectedCountry, tags, galleryUrls, imageUrl, days
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    selectedTourId, title, description, duration, category,
+    highlights, inclusions, exclusions, internalNotes,
+    basePrice, childPrice, singleSupplement,
+    selectedCountry, tags, galleryUrls, imageUrl, days,
+    hasDraft
+  ]);
+
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -197,6 +292,7 @@ export default function TourGenerator() {
       return newTour.id;
     },
     onSuccess: (tourId) => {
+      localStorage.removeItem(`tour-draft-${selectedTourId}`);
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
       queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       toast({ title: "Tour saved successfully" });
@@ -265,11 +361,40 @@ export default function TourGenerator() {
       return res.json();
     },
     onSuccess: (data) => {
-      setTitle(data.title);
-      setDescription(data.description);
+      setTitle(data.title || "");
+      setDescription(data.description || "");
       setCategory(typeof data.category === "string" ? data.category : "cultural");
-      setDuration(data.days.length);
-      setDays(data.days);
+      
+      if (data.highlights) setHighlights(data.highlights);
+      if (data.inclusions) setInclusions(data.inclusions);
+      if (data.exclusions) setExclusions(data.exclusions);
+      if (data.internalNotes) setInternalNotes(data.internalNotes);
+      if (data.basePrice) setBasePrice(Number(data.basePrice));
+      if (data.childPrice) setChildPrice(Number(data.childPrice));
+      if (data.singleSupplement) setSingleSupplement(Number(data.singleSupplement));
+      if (data.tags && Array.isArray(data.tags)) setTags(data.tags.join(", "));
+      if (data.countryCode) {
+        const c = countries?.find(c => c.code === data.countryCode);
+        if (c) setSelectedCountry(c.name);
+      }
+      if (data.imageUrl) {
+        setImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(data.imageUrl)}?width=1200&height=800&nologo=true`);
+      }
+      
+      const enrichedDays = data.days?.map((d: any, i: number) => {
+        let dayImageUrl = d.imageUrl;
+        if (dayImageUrl) {
+            dayImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(dayImageUrl)}?width=800&height=600&nologo=true`;
+        }
+        return {
+          ...d,
+          dayNumber: i + 1,
+          imageUrl: dayImageUrl || ""
+        };
+      }) || [];
+
+      setDuration(enrichedDays.length);
+      setDays(enrichedDays);
       setAiOpen(false);
       toast({ title: "Itinerary generated by AI!" });
     },
@@ -326,33 +451,34 @@ export default function TourGenerator() {
 
   return (
     <div className="container mx-auto p-6 space-y-8 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/admin")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tour Generator</h1>
-            <p className="text-muted-foreground">Design your perfect itinerary day-by-day.</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setLocation("/admin")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Tour Generator</h1>
+              <p className="text-muted-foreground">Design your perfect itinerary day-by-day.</p>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <div className="flex bg-muted p-1 rounded-md">
-            {["en", "es", "id"].map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setActiveLang(lang)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-sm transition-all ${
-                  activeLang === lang 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {lang.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          
+          <div className="flex gap-2">
+            <div className="flex bg-muted p-1 rounded-md">
+              {["en", "es", "id"].map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setActiveLang(lang)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-sm transition-all ${
+                    activeLang === lang 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
+            </div>
           <Button 
             variant="outline" 
             onClick={() => translateMutation.mutate()} 
@@ -478,6 +604,19 @@ export default function TourGenerator() {
           </Button>
         </div>
       </div>
+
+      {hasDraft && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Info className="h-5 w-5 text-amber-500" />
+            <p className="font-medium text-sm">We found an unsaved draft from your last session.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={discardDraft} className="text-amber-700 hover:text-amber-900 hover:bg-amber-100">Discard</Button>
+            <Button size="sm" onClick={restoreDraft} className="bg-amber-500 hover:bg-amber-600 text-white">Restore Draft</Button>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
@@ -903,6 +1042,7 @@ export default function TourGenerator() {
           <option key={c.id} value={c.name} />
         ))}
       </datalist>
+    </div>
     </div>
   );
 }
