@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdered, X, FileDown, Clock, Utensils, Plane, Hotel, Activity, ChevronDown, ChevronUp, DollarSign, Sparkles, Loader2, Upload } from "lucide-react";
 import type { Tour, TourDay, TourDayItem } from "@shared/schema";
 
@@ -23,32 +24,12 @@ interface City {
 }
 
 export default function AdminTours() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [editTour, setEditTour] = useState<Tour | null>(null);
   const [itineraryTour, setItineraryTour] = useState<Tour | null>(null);
 
   const { data: tours, isLoading } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/tours", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
-      setShowCreate(false);
-      toast({ title: "Tour created successfully" });
-    },
-    onError: (err: any) => toast({ title: "Failed to create tour", description: err.message, variant: "destructive" }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/tours/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
-      setEditTour(null);
-      toast({ title: "Tour updated successfully" });
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/tours/${id}`),
@@ -64,195 +45,6 @@ export default function AdminTours() {
   });
 
   const filteredTours = tours?.filter((t) => t.title.toLowerCase().includes(search.toLowerCase())) || [];
-
-  function TourForm({ tour, onSubmit, isPending }: { tour?: Tour | null; onSubmit: (data: any) => void; isPending: boolean }) {
-    const { data: allCountries } = useQuery<any[]>({
-      queryKey: ["/api/master/countries"],
-    });
-
-    const [title, setTitle] = useState(tour?.title || "");
-    const [description, setDescription] = useState(tour?.description || "");
-    const [highlights, setHighlights] = useState(tour?.highlights || "");
-    const [inclusions, setInclusions] = useState(tour?.inclusions || "");
-    const [exclusions, setExclusions] = useState(tour?.exclusions || "");
-    const [imageUrl, setImageUrl] = useState(tour?.imageUrl || "");
-    const [galleryUrls, setGalleryUrls] = useState((tour?.galleryUrls || []).join(", "));
-    const [duration, setDuration] = useState(tour?.duration || 7);
-    const [basePrice, setBasePrice] = useState(tour?.basePrice || 0);
-    const [childPrice, setChildPrice] = useState(tour?.childPrice || 0);
-    const [singleSupplement, setSingleSupplement] = useState(tour?.singleSupplement || 0);
-    const [selectedCountry, setSelectedCountry] = useState(tour?.countries?.[0] || "");
-    const [tags, setTags] = useState((tour?.tags || []).join(", "));
-    const [category, setCategory] = useState(typeof tour?.category === "string" ? tour.category : "");
-    const [internalNotes, setInternalNotes] = useState(tour?.internalNotes || "");
-    const [isUploading, setIsUploading] = useState(false);
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      setIsUploading(true);
-      const formData = new FormData();
-      formData.append("image", file);
-
-      try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        
-        if (!res.ok) throw new Error("Upload failed");
-        
-        const data = await res.json();
-        setImageUrl(data.url);
-        toast({ title: "Image uploaded successfully" });
-      } catch (error) {
-        toast({ title: "Failed to upload image", variant: "destructive" });
-      } finally {
-        setIsUploading(false);
-      }
-    };
-
-    return (
-      <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
-        {/* Row 1: Title full width */}
-        <div>
-          <Label>Tour Title *</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ancient Greece Explorer" data-testid="input-tour-title" />
-        </div>
-
-        {/* Row 2: Category | Duration | Base Price | Child Price | Single Supp */}
-        <div className="grid grid-cols-5 gap-3">
-          <div className="col-span-2">
-            <Label>Category</Label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Adventure, Cultural, Religious" />
-          </div>
-          <div>
-            <Label>Duration (days)</Label>
-            <Input type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 1)} data-testid="input-tour-duration" />
-          </div>
-          <div>
-            <Label>Base Price ($)</Label>
-            <Input type="number" value={basePrice} onChange={(e) => setBasePrice(parseInt(e.target.value) || 0)} data-testid="input-tour-price" />
-          </div>
-          <div>
-            <Label>Child Price ($)</Label>
-            <Input type="number" value={childPrice} onChange={(e) => setChildPrice(parseInt(e.target.value) || 0)} />
-          </div>
-        </div>
-
-        {/* Row 3: Description | Highlights */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tour description..." rows={3} data-testid="input-tour-description" />
-          </div>
-          <div>
-            <Label>Highlights</Label>
-            <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." rows={3} />
-          </div>
-        </div>
-
-        {/* Row 4: Inclusions | Exclusions */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Inclusions</Label>
-            <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} placeholder="What's included..." rows={2} />
-          </div>
-          <div>
-            <Label>Exclusions</Label>
-            <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="What's not included..." rows={2} />
-          </div>
-        </div>
-
-        {/* Row 5: Internal Notes | Single Supplement + Countries */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Internal Notes</Label>
-            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." rows={2} />
-          </div>
-          <div className="space-y-3">
-             <div>
-              <Label>Single Supplement ($)</Label>
-              <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
-            </div>
-            <div>
-              <Label>Country *</Label>
-              <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                <SelectTrigger data-testid="select-tour-country">
-                  <SelectValue placeholder="Select a country..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allCountries?.map((c) => (
-                    <SelectItem key={c.code} value={c.name}>
-                      {c.name} ({c.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 6: Image Upload + Tags */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Cover Image</Label>
-            <div className="flex gap-2 items-center">
-              <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
-              {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
-            </div>
-            {imageUrl && (
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <div>
-              <Label>Tags (comma separated)</Label>
-              <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
-            </div>
-            <div>
-              <Label>Gallery URLs (comma separated)</Label>
-              <Input value={galleryUrls} onChange={(e) => setGalleryUrls(e.target.value)} placeholder="url1, url2, url3" />
-            </div>
-            {imageUrl && (
-              <div className="border rounded-md overflow-hidden bg-muted h-24">
-                <img
-                  src={imageUrl}
-                  alt="Preview"
-                  className="object-cover w-full h-full"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                  onLoad={(e) => (e.currentTarget.style.display = 'block')}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Button
-          className="w-full"
-          onClick={() => onSubmit({
-            ...(tour?.id ? { id: tour.id } : {}),
-            title, description, highlights, inclusions, exclusions, imageUrl,
-            duration, basePrice: String(basePrice), childPrice: String(childPrice),
-            singleSupplement: String(singleSupplement), category, internalNotes,
-            galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
-            countries: selectedCountry ? [selectedCountry] : [],
-            tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-          })}
-          disabled={isPending || !title}
-          data-testid="button-save-tour"
-        >
-          {isPending ? "Saving..." : tour ? "Update Tour" : "Create Tour"}
-        </Button>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -273,21 +65,9 @@ export default function AdminTours() {
           <p className="text-muted-foreground text-sm">Manage your tour catalog</p>
         </div>
         <div className="flex gap-2">
-          <AIGeneratorDialog onGenerated={(data) => {
-            setShowCreate(false);
-            setEditTour(data);
-            toast({ title: "Itinerary generated! Please review the details below." });
-          }} />
-
-          <Dialog open={showCreate} onOpenChange={setShowCreate}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-create-tour"><Plus className="h-4 w-4 mr-2" />Create Tour</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader><DialogTitle>Create New Tour</DialogTitle></DialogHeader>
-              <TourForm onSubmit={(data) => createMutation.mutate(data)} isPending={createMutation.isPending} />
-            </DialogContent>
-          </Dialog>
+          <Button data-testid="button-create-tour" onClick={() => setLocation("/admin/tour-generator")}>
+            <Plus className="h-4 w-4 mr-2" />Create Tour
+          </Button>
         </div>
       </div>
 
@@ -338,17 +118,9 @@ export default function AdminTours() {
                   <Button size="icon" variant="ghost" onClick={() => togglePublish.mutate(tour)} data-testid={`button-toggle-publish-${tour.id}`}>
                     {tour.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
-                  <Dialog open={editTour?.id === tour.id} onOpenChange={(open) => !open && setEditTour(null)}>
-                    <DialogTrigger asChild>
-                      <Button size="icon" variant="ghost" onClick={() => setEditTour(tour)} data-testid={`button-edit-tour-${tour.id}`}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
-                      <DialogHeader><DialogTitle>Edit Tour</DialogTitle></DialogHeader>
-                      <TourForm tour={editTour} onSubmit={(data) => updateMutation.mutate(data)} isPending={updateMutation.isPending} />
-                    </DialogContent>
-                  </Dialog>
+                  <Button size="icon" variant="ghost" onClick={() => setLocation(`/admin/tour-generator?id=${tour.id}`)} data-testid={`button-edit-tour-${tour.id}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setItineraryTour(tour)} data-testid={`button-itinerary-${tour.id}`}>
                     <ListOrdered className="h-4 w-4" />
                   </Button>
@@ -953,116 +725,8 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   );
 }
 
-function AIGeneratorDialog({ onGenerated }: { onGenerated: (data: any) => void }) {
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [dest, setDest] = useState("");
-  const [days, setDays] = useState("5");
-  const [pace, setPace] = useState("moderate");
 
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const res = await apiRequest("POST", "/api/ai/generate-itinerary", {
-        destination: dest,
-        duration: parseInt(days),
-        pace,
-        travelerType: "general",
-        interests: ["cultural", "leisure"],
-        budget: "mid-range"
-      });
-      const data = await res.json();
-      
-      // Step 2: Save the generated tour to DB
-      const createRes = await apiRequest("POST", "/api/tours", {
-        title: data.title,
-        description: data.description,
-        duration: parseInt(days),
-        category: data.category,
-        isPublished: false
-      });
-      const tour = await createRes.json();
 
-      // Step 3: Create days and items
-      for (const day of data.days) {
-        const dayRes = await apiRequest("POST", `/api/tours/${tour.id}/days`, {
-          dayNumber: day.dayNumber,
-          title: day.title,
-          description: day.description
-        });
-        const createdDay = await dayRes.json();
-
-        for (const item of day.items) {
-          await apiRequest("POST", `/api/tour-days/${createdDay.id}/items`, {
-            itemType: item.itemType,
-            title: item.title,
-            description: item.description,
-            cost: item.cost.toString(),
-            startTime: item.startTime,
-            sightId: item.sightId,
-            hotelId: item.hotelId
-          });
-        }
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
-      onGenerated(tour);
-      setOpen(false);
-      toast({ title: "Tour generated and saved as draft!" });
-    } catch (e: any) {
-      toast({ title: "AI Generation failed", description: e.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2 border-primary/50 hover:bg-primary/5">
-          <Sparkles className="h-4 w-4 text-primary" /> AI Generator
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Magic Tour Generator</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Destination City/Country</Label>
-            <Input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="e.g. Bali, Indonesia" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Duration (Days)</Label>
-              <Input type="number" value={days} onChange={(e) => setDays(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Pace</Label>
-              <select 
-                value={pace} 
-                onChange={(e) => setPace(e.target.value)}
-                className="w-full p-2 border rounded-md text-sm"
-              >
-                <option value="slow">Slow & Relaxed</option>
-                <option value="moderate">Moderate</option>
-                <option value="fast">Fast (Action-packed)</option>
-              </select>
-            </div>
-          </div>
-          <Button className="w-full gap-2" onClick={generate} disabled={loading || !dest}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Generate Professional Itinerary
-          </Button>
-          <p className="text-[10px] text-muted-foreground text-center">
-            Note: This will create a draft tour with structured schedule items using verified data where available.
-          </p>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function FinancialAnalytics({ tourId }: { tourId: string }) {
   const { data: pricing, isLoading } = useQuery<any>({ queryKey: [`/api/tours/${tourId}/price-breakdown`] });

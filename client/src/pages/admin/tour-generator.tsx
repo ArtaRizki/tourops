@@ -14,6 +14,7 @@ import type { Tour, TourDay, Country, City, Sight } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -28,17 +29,56 @@ import { Checkbox } from "@/components/ui/checkbox";
 export default function TourGenerator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [selectedTourId, setSelectedTourId] = useState<string>("new-tour");
+  const [selectedTourId, setSelectedTourId] = useState<string>(() => {
+    return new URLSearchParams(window.location.search).get("id") || "new-tour";
+  });
   
   // Form State
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [highlights, setHighlights] = useState("");
+  const [inclusions, setInclusions] = useState("");
+  const [exclusions, setExclusions] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [basePrice, setBasePrice] = useState(0);
+  const [childPrice, setChildPrice] = useState(0);
+  const [singleSupplement, setSingleSupplement] = useState(0);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [tags, setTags] = useState("");
+  const [galleryUrls, setGalleryUrls] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  
   const [duration, setDuration] = useState(1);
   const [category, setCategory] = useState("cultural");
   const [days, setDays] = useState<Partial<TourDay>[]>([]);
   const [translations, setTranslations] = useState<any>({});
   const [activeLang, setActiveLang] = useState("en");
   const [uploadingDayIndex, setUploadingDayIndex] = useState<number | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingCover(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setImageUrl(data.url);
+      toast({ title: "Cover image uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
 
   const handleDayImageUpload = async (index: number, file: File) => {
     setUploadingDayIndex(index);
@@ -86,11 +126,21 @@ export default function TourGenerator() {
     enabled: selectedTourId !== "new-tour",
   });
 
-  // Effects
   useEffect(() => {
     if (selectedTourId === "new-tour") {
       setTitle("");
       setDescription("");
+      setHighlights("");
+      setInclusions("");
+      setExclusions("");
+      setInternalNotes("");
+      setBasePrice(0);
+      setChildPrice(0);
+      setSingleSupplement(0);
+      setSelectedCountry("");
+      setTags("");
+      setGalleryUrls("");
+      setImageUrl("");
       setDuration(1);
       setCategory("cultural");
       setDays([{ dayNumber: 1, title: "Arrival", description: "", activities: "" }]);
@@ -99,6 +149,17 @@ export default function TourGenerator() {
       if (tour) {
         setTitle(tour.title);
         setDescription(tour.description || "");
+        setHighlights(tour.highlights || "");
+        setInclusions(tour.inclusions || "");
+        setExclusions(tour.exclusions || "");
+        setInternalNotes(tour.internalNotes || "");
+        setBasePrice(Number(tour.basePrice) || 0);
+        setChildPrice(Number(tour.childPrice) || 0);
+        setSingleSupplement(Number(tour.singleSupplement) || 0);
+        setSelectedCountry(tour.countries?.[0] || "");
+        setTags((tour.tags || []).join(", "));
+        setGalleryUrls((tour.galleryUrls || []).join(", "));
+        setImageUrl(tour.imageUrl || "");
         setDuration(tour.duration);
         setCategory(typeof tour.category === "string" ? (tour.category === "null" || tour.category === "NULL" ? "" : tour.category) : "");
         setTranslations((tour as any).translations || {});
@@ -115,7 +176,15 @@ export default function TourGenerator() {
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const baseTourData = { title, description, duration, category, translations };
+      const baseTourData = { 
+        title, description, duration, category, translations,
+        highlights, inclusions, exclusions, internalNotes,
+        basePrice: String(basePrice), childPrice: String(childPrice), singleSupplement: String(singleSupplement),
+        countries: selectedCountry ? [selectedCountry] : [],
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
+        imageUrl
+      };
       let tourId = selectedTourId;
 
       if (selectedTourId === "new-tour") {
@@ -425,7 +494,15 @@ export default function TourGenerator() {
         </div>
       </div>
 
-      <Card className="border-primary/20 shadow-lg">
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="general">General Info</TabsTrigger>
+          <TabsTrigger value="details">Pricing & Details</TabsTrigger>
+          <TabsTrigger value="media">Media & Tags</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general">
+          <Card className="border-primary/20 shadow-lg">
         <CardHeader className="bg-primary/5">
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
@@ -506,9 +583,130 @@ export default function TourGenerator() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="details">
+        <Card className="border-primary/20 shadow-lg">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              Pricing & Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Base Price ($)</Label>
+                <Input type="number" value={basePrice} onChange={(e) => setBasePrice(parseInt(e.target.value) || 0)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Child Price ($)</Label>
+                <Input type="number" value={childPrice} onChange={(e) => setChildPrice(parseInt(e.target.value) || 0)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Single Supplement ($)</Label>
+                <Input type="number" value={singleSupplement} onChange={(e) => setSingleSupplement(parseInt(e.target.value) || 0)} />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Highlights</Label>
+                <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} placeholder="Key highlights..." rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Internal Notes</Label>
+                <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} placeholder="Admin-only notes..." rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Inclusions</Label>
+                <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} placeholder="What's included..." rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Exclusions</Label>
+                <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="What's not included..." rows={3} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Country *</Label>
+                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a country..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries?.map((c) => (
+                      <SelectItem key={c.code} value={c.name}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="media">
+        <Card className="border-primary/20 shadow-lg">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Media & Tags
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Cover Image</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input type="file" accept="image/*" onChange={handleCoverUpload} disabled={isUploadingCover} className="cursor-pointer" />
+                    {isUploadingCover && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                  </div>
+                  {imageUrl && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                {imageUrl && (
+                  <div className="border rounded-md overflow-hidden bg-muted h-32 w-full max-w-sm">
+                    <img
+                      src={imageUrl}
+                      alt="Cover Preview"
+                      className="object-cover w-full h-full"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                      onLoad={(e) => (e.currentTarget.style.display = 'block')}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Tags (comma separated)</Label>
+                  <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="adventure, cultural, family" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gallery URLs (comma separated)</Label>
+                  <Input value={galleryUrls} onChange={(e) => setGalleryUrls(e.target.value)} placeholder="url1, url2, url3" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+      </Tabs>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
