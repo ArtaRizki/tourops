@@ -378,13 +378,13 @@ export default function TourGenerator() {
         if (c) setSelectedCountry(c.name);
       }
       if (data.imageUrl) {
-        setImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(data.imageUrl)}?width=1200&height=800&nologo=true`);
+        setImageUrl(`https://picsum.photos/seed/${encodeURIComponent(data.title || "tour")}/1200/800`);
       }
       
       const enrichedDays = data.days?.map((d: any, i: number) => {
         let dayImageUrl = d.imageUrl;
         if (dayImageUrl) {
-            dayImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(dayImageUrl)}?width=800&height=600&nologo=true`;
+            dayImageUrl = `https://picsum.photos/seed/${encodeURIComponent(d.title || "day"+i)}/800/600`;
         }
         return {
           ...d,
@@ -428,6 +428,14 @@ export default function TourGenerator() {
     },
     onError: (e: Error) => toast({ title: "Translation failed", description: e.message, variant: "destructive" }),
   });
+
+  useEffect(() => {
+    if (activeLang !== "en" && title && !translateMutation.isPending) {
+      if (!translations?.[activeLang]?.title) {
+        translateMutation.mutate();
+      }
+    }
+  }, [activeLang]);
 
   const handleAddDay = () => {
     const nextDay = days.length + 1;
