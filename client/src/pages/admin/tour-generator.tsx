@@ -186,31 +186,15 @@ export default function TourGenerator() {
         galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
         imageUrl
       };
-      let tourId = selectedTourId;
+      
+      const payload = {
+        tour: baseTourData,
+        days: days
+      };
 
-      if (selectedTourId === "new-tour") {
-        const res = await apiRequest("POST", "/api/tours", { ...baseTourData, isPublished: false });
-        const newTour = await res.json();
-        tourId = newTour.id;
-      } else {
-        await apiRequest("PATCH", `/api/tours/${selectedTourId}`, baseTourData);
-      }
-
-      // Sync Days
-      // For simplicity, we delete all existing days and recreate them
-      // In a production app, you'd want to use PATCH for existing days
-      if (selectedTourId !== "new-tour") {
-        const oldDays = await (await apiRequest("GET", `/api/tours/${selectedTourId}/days`)).json() as TourDay[];
-        for (const d of oldDays) {
-          await apiRequest("DELETE", `/api/tour-days/${d.id}`);
-        }
-      }
-
-      for (const day of days) {
-        await apiRequest("POST", `/api/tours/${tourId}/days`, { ...day, tourId });
-      }
-
-      return tourId;
+      const res = await apiRequest("PUT", `/api/tours/${selectedTourId}/full`, payload);
+      const newTour = await res.json();
+      return newTour.id;
     },
     onSuccess: (tourId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });

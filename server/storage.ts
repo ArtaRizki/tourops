@@ -132,6 +132,7 @@ export interface IStorage {
   createTour(data: InsertTour): Promise<Tour>;
   updateTour(id: string, data: Partial<Tour>): Promise<Tour>;
   deleteTour(id: string): Promise<void>;
+  upsertTourFull(id: string | "new-tour", tourData: InsertTour, daysData: InsertTourDay[], userId?: string, userName?: string): Promise<Tour>;
 
   getTourDays(tourId: string): Promise<TourDay[]>;
   createTourDay(data: InsertTourDay): Promise<TourDay>;
@@ -497,6 +498,65 @@ export class DatabaseStorage implements IStorage {
     const [tour] = await db.update(tours).set(data).where(eq(tours.id, id)).returning();
     if (current) await this.logChange("tour", id, "updated", current, data, userId, userName);
     return tour;
+  }
+
+  async upsertTourFull(id: string | "new-tour", tourData: InsertTour, daysData: InsertTourDay[], userId?: string, userName?: string): Promise<Tour> {
+    return await db.transaction(async (tx) => {
+      let tourId = id;
+      let tourRes: Tour;
+
+      if (id === "new-tour") {
+        const [created] = await tx.insert(tours).values(tourData).returning();
+        tourId = created.id;
+        tourRes = created;
+      } else {
+        const currentArr = await tx.select().from(tours).where(eq(tours.id, id));
+        const current = currentArr[0];
+        const [updated] = await tx.update(tours).set(tourData).where(eq(tours.id, id)).returning();
+        tourRes = updated;
+        
+        if (current && userId && userName) {
+          const diff: any = {};
+          let changed = false;
+          for (const key in tourData) {
+            if (JSON.stringify((current as any)[key]) !== JSON.stringify((tourData as any)[key])) {
+              diff[key] = { from: (current as any)[key], to: (tourData as any)[key] };
+              changed = true;
+            }
+          }
+          if (changed) {
+            await tx.insert(auditLogs).values({
+              entityType: "tour",
+              entityId: id,
+              action: "updated",
+              changes: diff,
+              userId,
+              userName
+            });
+          }
+        }
+      }
+
+      const existingDays = id === "new-tour" ? [] : await tx.select().from(tourDays).where(eq(tourDays.tourId, tourId));
+      const incomingDayIds = daysData.filter(d => (d as any).id).map(d => (d as any).id);
+
+      for (const existing of existingDays) {
+        if (!incomingDayIds.includes(existing.id)) {
+          await tx.delete(tourDays).where(eq(tourDays.id, existing.id));
+        }
+      }
+
+      for (const d of daysData) {
+        const dayId = (d as any).id;
+        if (dayId && existingDays.some(ex => ex.id === dayId)) {
+          await tx.update(tourDays).set({ ...d, tourId }).where(eq(tourDays.id, dayId));
+        } else {
+          await tx.insert(tourDays).values({ ...d, tourId });
+        }
+      }
+
+      return tourRes;
+    });
   }
 
   async deleteTour(id: string): Promise<void> {

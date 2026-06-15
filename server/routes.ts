@@ -340,12 +340,44 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
-    try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      res.json(await storage.updateTour(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
+    app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
+      try {
+        if (!await requireRole(req, res, ADMIN_ROLES)) return;
+        res.json(await storage.updateTour(req.params.id as string, req.body, (req.user as any)?.id, (req.user as any)?.username));
+      } catch (e: any) { res.status(500).json({ message: e.message }); }
+    });
+
+    app.put("/api/tours/:id/full", isAuthenticated, async (req, res) => {
+      try {
+        if (!await requireRole(req, res, ADMIN_ROLES)) return;
+        const { tour, days } = req.body;
+        
+        const payload = { ...tour };
+        if (!payload.slug && payload.title) {
+          payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
+        }
+        
+        const parsedTour = insertTourSchema.safeParse(payload);
+        if (!parsedTour.success) return res.status(400).json({ message: parsedTour.error.message });
+        
+        // Validation for days
+        const parsedDays = [];
+        for (const d of days || []) {
+          const parsed = insertTourDaySchema.safeParse({ ...d, tourId: req.params.id }); // tourId is overridden later but needed for schema
+          if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+          
+          if (parsed.data.city) {
+            await ensureCityExists(parsed.data.city, parsed.data.countryCode);
+          }
+          // Restore ID if it existed, schema omitted it
+          if (d.id) (parsed.data as any).id = d.id;
+          parsedDays.push(parsed.data);
+        }
+
+        const result = await storage.upsertTourFull(req.params.id as string, parsedTour.data, parsedDays, (req.user as any)?.id, (req.user as any)?.username);
+        res.json(result);
+      } catch (e: any) { res.status(500).json({ message: e.message }); }
+    });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {
