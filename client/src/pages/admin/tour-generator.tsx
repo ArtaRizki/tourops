@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getFullImageUrl } from "@/lib/utils";
 
 export default function TourGenerator() {
   const [, setLocation] = useLocation();
@@ -680,14 +681,18 @@ export default function TourGenerator() {
                 </div>
                 
                 {imageUrl && (
-                  <div className="border rounded-md overflow-hidden bg-muted h-32 w-full max-w-sm">
+                  <div className="border rounded-md overflow-hidden bg-muted h-32 w-full max-w-sm relative group">
                     <img
-                      src={imageUrl}
+                      src={getFullImageUrl(imageUrl)}
                       alt="Cover Preview"
-                      className="object-cover w-full h-full"
+                      className="object-cover w-full h-full cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(getFullImageUrl(imageUrl), '_blank')}
                       onError={(e) => (e.currentTarget.style.display = 'none')}
                       onLoad={(e) => (e.currentTarget.style.display = 'block')}
                     />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <span className="text-white text-xs font-medium">Click to view</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -874,11 +879,21 @@ export default function TourGenerator() {
                     </div>
                     {day.imageUrl && (
                       <div className="flex items-start gap-2 mt-2">
-                        <div className="border rounded overflow-hidden h-12 w-16 bg-muted shrink-0">
-                          <img src={day.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <div className="border rounded overflow-hidden h-12 w-16 bg-muted shrink-0 relative group">
+                          <img 
+                            src={getFullImageUrl(day.imageUrl)} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(getFullImageUrl(day.imageUrl), '_blank')}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <span className="text-white text-[8px] font-medium">View</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 flex-1 overflow-hidden">
-                          <Badge variant="outline" className="text-[10px] truncate max-w-[200px]">{day.imageUrl.split('/').pop() || day.imageUrl}</Badge>
+                          <Badge variant="outline" className="text-[10px] truncate max-w-[200px] cursor-pointer hover:bg-secondary" onClick={() => window.open(getFullImageUrl(day.imageUrl), '_blank')}>
+                            {day.imageUrl.split('/').pop() || day.imageUrl}
+                          </Badge>
                           <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive shrink-0" onClick={() => updateDay(index, "imageUrl", "")}>
                             <X className="h-3 w-3" />
                           </Button>
