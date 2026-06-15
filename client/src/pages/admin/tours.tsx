@@ -603,6 +603,11 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
                           {day.city && <span className="text-xs text-muted-foreground">{day.city}</span>}
                         </div>
                         {day.description && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{day.description}</p>}
+                        {day.imageUrl && (
+                          <div className="mt-3 w-32 h-20 rounded overflow-hidden border">
+                            <img src={day.imageUrl} alt={day.title} className="w-full h-full object-cover" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" onClick={() => setEditDay(day)} data-testid={`button-edit-day-${day.id}`}>

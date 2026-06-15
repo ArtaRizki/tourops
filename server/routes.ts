@@ -38,7 +38,7 @@ import { z } from "zod";
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = path.join(process.cwd(), "public", "uploads", "images");
+      const dir = path.join(process.cwd(), "uploads", "images");
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
     },
