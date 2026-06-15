@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages, ChevronDown, Loader2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Tour, TourDay, Country, City, Sight } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +38,28 @@ export default function TourGenerator() {
   const [days, setDays] = useState<Partial<TourDay>[]>([]);
   const [translations, setTranslations] = useState<any>({});
   const [activeLang, setActiveLang] = useState("en");
+  const [uploadingDayIndex, setUploadingDayIndex] = useState<number | null>(null);
 
+  const handleDayImageUpload = async (index: number, file: File) => {
+    setUploadingDayIndex(index);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      updateDay(index, "imageUrl", data.url);
+      toast({ title: "Image uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingDayIndex(null);
+    }
+  };
 
   // AI Parameters
   const [aiOpen, setAiOpen] = useState(false);
@@ -635,6 +657,36 @@ export default function TourGenerator() {
                       className="text-sm bg-primary/5 italic"
                       rows={2}
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Day Image (Optional)</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleDayImageUpload(index, file);
+                        }} 
+                        disabled={uploadingDayIndex === index} 
+                        className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
+                      />
+                      {uploadingDayIndex === index && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                    </div>
+                    {day.imageUrl && (
+                      <div className="flex items-start gap-2 mt-2">
+                        <div className="border rounded overflow-hidden h-12 w-16 bg-muted shrink-0">
+                          <img src={day.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 flex-1 overflow-hidden">
+                          <Badge variant="outline" className="text-[10px] truncate max-w-[200px]">{day.imageUrl.split('/').pop() || day.imageUrl}</Badge>
+                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive shrink-0" onClick={() => updateDay(index, "imageUrl", "")}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
