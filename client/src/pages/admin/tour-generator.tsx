@@ -697,17 +697,19 @@ export default function TourGenerator() {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={category || "none"} onValueChange={(val) => setCategory(val === "none" ? "" : val)}>
+              <Select 
+                value={category && !["null", "NULL", "none", ""].includes(category) ? category : undefined} 
+                onValueChange={(val) => setCategory(val || "")}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Select Category</SelectItem>
                   <SelectItem value="cultural">Cultural</SelectItem>
                   <SelectItem value="adventure">Adventure</SelectItem>
                   <SelectItem value="religious">Religious</SelectItem>
                   <SelectItem value="leisure">Leisure</SelectItem>
-                  {category && !["cultural", "adventure", "religious", "leisure", "null", "NULL", "none"].includes(category) && (
+                  {category && !["cultural", "adventure", "religious", "leisure", "null", "NULL", "none", ""].includes(category) && (
                     <SelectItem value={category}>
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                     </SelectItem>
@@ -766,7 +768,7 @@ export default function TourGenerator() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Country *</Label>
-                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                <Select value={selectedCountry || undefined} onValueChange={setSelectedCountry}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a country..." />
                   </SelectTrigger>
@@ -926,7 +928,7 @@ export default function TourGenerator() {
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Country</Label>
                       <Select 
-                        value={day.countryCode || ""} 
+                        value={day.countryCode || undefined} 
                         onValueChange={(v) => updateDay(index, "countryCode", v)}
                       >
                         <SelectTrigger className="h-8 text-xs">
