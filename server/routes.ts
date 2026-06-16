@@ -131,6 +131,9 @@ async function requireRole(req: Request, res: Response, roles: string[]): Promis
   const userId = getUserId(req);
   if (!userId) { res.status(401).json({ message: "Unauthorized" }); return false; }
   const profile = await storage.getOrCreateProfile(userId);
+  if (profile.role === "super_admin") {
+    return true;
+  }
   if (!roles.includes(profile.role)) {
     res.status(403).json({ message: "Forbidden: insufficient role" });
     return false;
