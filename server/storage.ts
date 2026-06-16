@@ -529,9 +529,11 @@ export class DatabaseStorage implements IStorage {
               entityType: "tour",
               entityId: id,
               action: "updated",
-              changes: diff,
-              userId,
-              userName
+              changedBy: userId,
+              changedByName: userName,
+              previousValue: JSON.stringify(current),
+              newValue: JSON.stringify(tourData),
+              note: `Fields changed: ${Object.keys(diff).join(", ")}`
             });
           }
         }

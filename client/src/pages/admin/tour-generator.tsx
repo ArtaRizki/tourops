@@ -796,19 +796,27 @@ export default function TourGenerator() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Cover Image</Label>
+                  <Label>Cover Image URL</Label>
+                  <Input 
+                    placeholder="https://... (e.g. ending in .jpg, .png)" 
+                    value={imageUrl} 
+                    onChange={(e) => setImageUrl(e.target.value)} 
+                    className="mb-1.5"
+                  />
                   <div className="flex gap-2 items-center">
-                    <Input type="file" accept="image/*" onChange={handleCoverUpload} disabled={isUploadingCover} className="cursor-pointer" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Or upload:</span>
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        handleCoverUpload(e);
+                        e.target.value = "";
+                      }} 
+                      disabled={isUploadingCover} 
+                      className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
+                    />
                     {isUploadingCover && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
                   </div>
-                  {imageUrl && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
                 </div>
                 
                 {imageUrl && (
@@ -994,14 +1002,22 @@ export default function TourGenerator() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px] uppercase text-muted-foreground">Day Image (Optional)</Label>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Day Image URL (Optional)</Label>
+                    <Input 
+                      placeholder="https://... (e.g. ending in .jpg, .png)" 
+                      value={day.imageUrl || ""} 
+                      onChange={(e) => updateDay(index, "imageUrl", e.target.value)}
+                      className="h-8 text-xs mb-1.5"
+                    />
                     <div className="flex gap-2 items-center">
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">Or upload:</span>
                       <Input 
                         type="file" 
                         accept="image/*" 
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleDayImageUpload(index, file);
+                          e.target.value = "";
                         }} 
                         disabled={uploadingDayIndex === index} 
                         className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
@@ -1011,18 +1027,18 @@ export default function TourGenerator() {
                     {day.imageUrl && (
                       <div className="flex items-start gap-2 mt-2">
                         <div className="border rounded overflow-hidden h-12 w-16 bg-muted shrink-0 relative group">
-                          <img 
+                           <img 
                             src={getFullImageUrl(day.imageUrl)} 
                             alt="Preview" 
                             className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(getFullImageUrl(day.imageUrl), '_blank')}
+                            onClick={() => window.open(getFullImageUrl(day.imageUrl || undefined), '_blank')}
                           />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                             <span className="text-white text-[8px] font-medium">View</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 flex-1 overflow-hidden">
-                          <Badge variant="outline" className="text-[10px] truncate max-w-[200px] cursor-pointer hover:bg-secondary" onClick={() => window.open(getFullImageUrl(day.imageUrl), '_blank')}>
+                          <Badge variant="outline" className="text-[10px] truncate max-w-[200px] cursor-pointer hover:bg-secondary" onClick={() => window.open(getFullImageUrl(day.imageUrl || undefined), '_blank')}>
                             {day.imageUrl.split('/').pop() || day.imageUrl}
                           </Badge>
                           <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive shrink-0" onClick={() => updateDay(index, "imageUrl", "")}>

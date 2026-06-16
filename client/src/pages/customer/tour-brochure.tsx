@@ -230,15 +230,26 @@ export default function TourBrochure() {
                       <Upload className="h-3 w-3 mr-1" />{t("upload_photo")}
                     </Button>
                   </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <Label>{t("leader_name")}</Label>
-                    <Input
-                      value={leaderName}
-                      onChange={(e) => setLeaderName(e.target.value)}
-                      placeholder={t("your_name_leader")}
-                      data-testid="input-leader-name"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">{t("displayed_brochure_leader")}</p>
+                  <div className="flex-1 min-w-[200px] space-y-4">
+                    <div>
+                      <Label>{t("leader_name")}</Label>
+                      <Input
+                        value={leaderName}
+                        onChange={(e) => setLeaderName(e.target.value)}
+                        placeholder={t("your_name_leader")}
+                        data-testid="input-leader-name"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">{t("displayed_brochure_leader")}</p>
+                    </div>
+                    <div>
+                      <Label>Leader Photo URL</Label>
+                      <Input
+                        value={leaderPhotoUrl}
+                        onChange={(e) => setLeaderPhotoUrl(e.target.value)}
+                        placeholder="https://... (or upload photo on the left)"
+                        data-testid="input-leader-photo-url"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>

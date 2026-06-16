@@ -343,7 +343,7 @@ export async function registerRoutes(
     app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
       try {
         if (!await requireRole(req, res, ADMIN_ROLES)) return;
-        res.json(await storage.updateTour(req.params.id as string, req.body, (req.user as any)?.id, (req.user as any)?.username));
+        res.json(await storage.updateTour(req.params.id as string, req.body, ((req as any).user)?.id, ((req as any).user)?.username));
       } catch (e: any) { res.status(500).json({ message: e.message }); }
     });
 
@@ -374,7 +374,7 @@ export async function registerRoutes(
           parsedDays.push(parsed.data);
         }
 
-        const result = await storage.upsertTourFull(req.params.id as string, parsedTour.data, parsedDays, (req.user as any)?.id, (req.user as any)?.username);
+        const result = await storage.upsertTourFull(req.params.id as string, parsedTour.data, parsedDays, ((req as any).user)?.id, ((req as any).user)?.username);
         res.json(result);
       } catch (e: any) { res.status(500).json({ message: e.message }); }
     });

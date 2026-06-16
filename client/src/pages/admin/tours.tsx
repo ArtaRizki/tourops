@@ -323,19 +323,27 @@ function ItineraryEditor({ tourId, duration }: { tourId: string; duration: numbe
             )}
           </div>
           <div>
-            <Label>Day Image (Optional)</Label>
+            <Label>Day Image URL (Optional)</Label>
+            <Input 
+              value={imageUrl} 
+              onChange={(e) => setImageUrl(e.target.value)} 
+              placeholder="https://..." 
+              className="mb-1.5"
+            />
             <div className="flex gap-2 items-center">
-              <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Or upload:</span>
+              <Input 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => {
+                  handleFileUpload(e);
+                  e.target.value = "";
+                }} 
+                disabled={isUploading} 
+                className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
+              />
               {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
             </div>
-            {imageUrl && (
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
           </div>
         </div>
         <div>
@@ -699,19 +707,27 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
         )}
       </div>
       <div>
-        <Label>Day Image (Optional)</Label>
+        <Label>Day Image URL (Optional)</Label>
+        <Input 
+          value={imageUrl} 
+          onChange={(e) => setImageUrl(e.target.value)} 
+          placeholder="https://..." 
+          className="mb-1.5"
+        />
         <div className="flex gap-2 items-center">
-          <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Or upload:</span>
+          <Input 
+            type="file" 
+            accept="image/*" 
+            onChange={(e) => {
+              handleFileUpload(e);
+              e.target.value = "";
+            }} 
+            disabled={isUploading} 
+            className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
+          />
           {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
         </div>
-        {imageUrl && (
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-xs max-w-[200px] truncate">{imageUrl}</Badge>
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setImageUrl("")}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
       </div>
       <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div><Label>Activities</Label><Textarea value={activities} onChange={(e) => setActivities(e.target.value)} /></div>

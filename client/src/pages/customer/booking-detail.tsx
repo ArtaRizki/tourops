@@ -1131,32 +1131,34 @@ export default function CustomerBookingDetail() {
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
-                                <Label>Receipt Image Attachment</Label>
+                                <Label>Receipt Image URL</Label>
+                                <Input 
+                                  placeholder="https://... (e.g. ending in .jpg, .png)" 
+                                  value={receiptUrl} 
+                                  onChange={(e) => setReceiptUrl(e.target.value)} 
+                                  className="mb-1.5"
+                                />
                                 <div className="flex gap-2 items-center">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">Or upload:</span>
                                   <Input 
                                     type="file" 
                                     accept="image/*" 
-                                    onChange={handleImageUpload} 
+                                    onChange={(e) => {
+                                      handleImageUpload(e);
+                                      e.target.value = "";
+                                    }} 
                                     disabled={isUploading} 
-                                    className="cursor-pointer" 
+                                    className="cursor-pointer h-8 text-xs file:text-xs file:h-full file:py-0 file:my-0" 
                                   />
                                   {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
                                 </div>
-                                {receiptUrl && (
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Badge variant="outline" className="text-xs max-w-[200px] truncate">{receiptUrl}</Badge>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setReceiptUrl("")}>
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
                                 {receiptUrl && (
                                   <div className="mt-3 p-2 bg-muted/20 border rounded-md">
                                     <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">IMAGE PREVIEW</p>
                                     <img src={receiptUrl} alt="Receipt preview" className="mx-auto rounded max-h-32 object-contain" />
                                   </div>
                                 )}
-                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">Please attach the image file of your transfer proof.</p>
+                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">Please paste a direct image URL or upload a file of your transfer proof.</p>
                               </div>
                               <div className="space-y-2">
                                 <Label>Notes (Optional)</Label>
